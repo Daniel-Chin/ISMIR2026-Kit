@@ -12,6 +12,9 @@ on:
         required: false
         default: false
         type: boolean
+    secrets:
+      ZOOM_REDIRECT_ACCESS_TOKEN:
+        required: true
 
 permissions:
   contents: read

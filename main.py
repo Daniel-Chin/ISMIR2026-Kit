@@ -26,10 +26,7 @@ from flask_frozen import Freezer
 from markdown_it import MarkdownIt
 from markupsafe import Markup
 
-from utils.zoom_redirect import (
-    DEFAULT_ZOOM_REDIRECT_TOKEN,
-    build_zoom_redirect_url,
-)
+from utils.zoom_redirect import build_zoom_redirect_url
 
 
 def chain_functions(*functions: Callable) -> Callable:
@@ -149,7 +146,7 @@ def main(site_data_path):
             event["zoom_url"] = build_zoom_redirect_url(
                 "",
                 str(event["uid"]),
-                DEFAULT_ZOOM_REDIRECT_TOKEN,
+                None,
                 include_token=False,
             )
     print("Data Successfully Loaded")

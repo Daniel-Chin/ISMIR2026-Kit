@@ -19,13 +19,14 @@ def load_zoom_redirect_access_token() -> str:
 def build_zoom_redirect_url(
     base_url: str,
     room_id: str,
-    access_token: str,
+    access_token: str | None,
     include_token: bool = True,
 ) -> str:
     base = base_url.rstrip("/")
     room = quote(str(room_id), safe="")
     prefix = base if base else ""
     if include_token:
+        assert access_token is not None
         token = quote(str(access_token), safe="")
         return f"{prefix}/zoom.html?room={room}&token={token}"
     return f"{prefix}/zoom.html?room={room}"

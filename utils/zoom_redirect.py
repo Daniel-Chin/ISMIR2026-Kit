@@ -22,14 +22,16 @@ def build_zoom_redirect_url(
     access_token: str | None,
     include_token: bool = True,
 ) -> str:
-    base = base_url.rstrip("/")
+    # Freeze-time links are consumed from {prefix}/poster_?.html pages, so
+    # use a same-directory relative URL rather than an absolute/prefixed URL.
+    _ = base_url
     room = quote(str(room_id), safe="")
-    prefix = base if base else ""
+    no_token = f"zoom.html?room={room}"
     if include_token:
         assert access_token is not None
         token = quote(str(access_token), safe="")
-        return f"{prefix}/zoom.html?room={room}&token={token}"
-    return f"{prefix}/zoom.html?room={room}"
+        return f"{no_token}&token={token}"
+    return no_token
 
 
 def strip_zoom_passcode(join_url: str) -> str:

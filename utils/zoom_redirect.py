@@ -3,20 +3,17 @@ from __future__ import annotations
 import os
 from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
-import yaml
+from dotenv import load_dotenv
 
 
-DEFAULT_ZOOM_REDIRECT_TOKEN = "miniconf-zoom-redirect"
+def load_zoom_redirect_access_token() -> str:
+    load_dotenv()
 
-
-def load_zoom_redirect_access_token(site_data_path: str) -> str:
-    config_path = os.path.join(site_data_path, "config.yml")
-    if os.path.exists(config_path):
-        with open(config_path, encoding="utf-8") as file_handle:
-            config = yaml.safe_load(file_handle) or {}
-        token = config.get("zoom_redirect_access_token", DEFAULT_ZOOM_REDIRECT_TOKEN)
-        return str(token)
-    return DEFAULT_ZOOM_REDIRECT_TOKEN
+    env_token = os.environ.get("ZOOM_REDIRECT_ACCESS_TOKEN")
+    assert env_token
+    token = str(env_token).strip()
+    assert token
+    return token
 
 
 def build_zoom_redirect_url(

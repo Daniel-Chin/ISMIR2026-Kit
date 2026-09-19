@@ -134,9 +134,7 @@ class Papers:
 
         csv_data = pd.read_csv(self.papersCsvFile)
         events_data = pd.read_csv(self.eventsCsvFile)
-        zoom_redirect_token = load_zoom_redirect_access_token(
-            os.path.dirname(self.eventsCsvFile)
-        )
+        zoom_redirect_token = load_zoom_redirect_access_token()
         site_base_url = os.environ.get(
             "SITE_BASE_URL", "https://ismir2026program.ismir.net"
         ).rstrip("/")

@@ -86,9 +86,7 @@ def calendar_csv2ics(
     conf_tz = load_conference_timezone(in_csv)
     orig_csv = pd.read_csv(in_csv)
     orig_csv = orig_csv.sort_values(by=["uid"])
-    zoom_redirect_token = load_zoom_redirect_access_token(
-        os.path.dirname(os.path.abspath(in_csv))
-    )
+    zoom_redirect_token = load_zoom_redirect_access_token()
 
     color_dict = {
         "Tutorials": "tut",

@@ -312,7 +312,14 @@ def topics():
 def get_calendar():
     filepath = "static/calendar/"
     filename = "ISMIR_2026.ics"
-    return send_file(os.path.join(filepath, filename), as_attachment=True)
+    # Keep this legacy URL extensionless for compatibility.
+    # Use octet-stream so Frozen-Flask's guessed type for extensionless
+    # paths matches the served Content-Type during static builds.
+    return send_file(
+        os.path.join(filepath, filename),
+        as_attachment=True,
+        mimetype="application/octet-stream",
+    )
 
 
 def extract_list_field(v, key):
@@ -569,22 +576,26 @@ def poster(poster):
     return render_template("poster.html", **data)
 
 
-@app.route("/speaker_<speaker>.html")
-def speaker(speaker):
-    uid = speaker
-    v = by_uid["speakers"][uid]
-    data = _data()
-    data["speaker"] = v
-    return render_template("speaker.html", **data)
+# Disabled: `speakers` data is not loaded into by_uid, so this route is currently
+# unimplemented and breaks static freezing/runtime if linked.
+# @app.route("/speaker_<speaker>.html")
+# def speaker(speaker):
+#     uid = speaker
+#     v = by_uid["speakers"][uid]
+#     data = _data()
+#     data["speaker"] = v
+#     return render_template("speaker.html", **data)
 
 
-@app.route("/workshop_<workshop>.html")
-def workshop(workshop):
-    uid = workshop
-    v = by_uid["workshops"][uid]
-    data = _data()
-    data["workshop"] = format_workshop(v)
-    return render_template("workshop.html", **data)
+# Disabled: `workshops` data is not loaded into by_uid, so this route is currently
+# unimplemented and breaks static freezing/runtime if linked.
+# @app.route("/workshop_<workshop>.html")
+# def workshop(workshop):
+#     uid = workshop
+#     v = by_uid["workshops"][uid]
+#     data = _data()
+#     data["workshop"] = format_workshop(v)
+#     return render_template("workshop.html", **data)
 
 
 @app.route("/music_<music>.html")
@@ -596,13 +607,15 @@ def music(music):
     return render_template("piece.html", **data)
 
 
-@app.route("/jobs_<jobs>.html")
-def jobs(jobs):
-    uid = jobs
-    v = by_uid["jobs"][uid]
-    data = _data()
-    data["jobs"] = v
-    return render_template("jobs_template.html", **data)
+# Disabled: `jobs` data is not loaded into by_uid, so this route is currently
+# unimplemented and breaks static freezing/runtime if linked.
+# @app.route("/jobs_<jobs>.html")
+# def jobs(jobs):
+#     uid = jobs
+#     v = by_uid["jobs"][uid]
+#     data = _data()
+#     data["jobs"] = v
+#     return render_template("jobs_template.html", **data)
 
 
 @app.route("/industry_<industry>.html")
@@ -699,6 +712,16 @@ def generator():
     for key in site_data:
         if key not in {"days", "events"}:
             yield "serve", {"path": key}
+
+    # Freeze explicit paths for the dynamic /static/<path:path> route.
+    static_root = app.static_folder or "static"
+    for root, _, files in os.walk(static_root):
+        for filename in files:
+            rel_path = os.path.relpath(os.path.join(root, filename), static_root)
+            rel_path = rel_path.replace(os.sep, "/")
+            if "wo_num" in rel_path:
+                continue
+            yield "send_static", {"path": rel_path}
 
 
 def parse_arguments():

@@ -113,7 +113,7 @@ def group_by_days(sdata):
     return [(day, f(day, groups[day])) for day in map(str, range(1, 6))]
 
 
-def main(site_data_path):
+def main(site_data_path: str):
     extra_files = ["README.md"]
     # Load all for your sitedata one time.
     for f in glob.glob(site_data_path + "/*"):
@@ -173,7 +173,7 @@ def markdown_filter(value):
     return Markup(markdown_renderer.render(text))
 
 
-# pre-load the site data for gunicorn
+print('pre-loading the site data for gunicorn')
 main(os.getenv("SITE_DATA_PATH", "sitedata/"))
 
 # MAIN PAGES
@@ -539,8 +539,8 @@ def localizetime(date, time, timezone):
     to_zone = tz.gettz(str(timezone))
     from_zone_name = _conference_timezone_name()
     from_zone = pytz.timezone(from_zone_name)
-    date = datetime.datetime.strptime(date + " " + time, "%Y-%m-%d %H:%M").replace(tzinfo=from_zone)
-    ref_date_tz = from_zone.localize(date)
+    naive_date = datetime.datetime.strptime(date + " " + time, "%Y-%m-%d %H:%M")  # noqa: DTZ007
+    ref_date_tz = from_zone.localize(naive_date)
     local_date = ref_date_tz.astimezone(to_zone) if to_zone else ref_date_tz
     return local_date.strftime("%Y-%m-%d"), local_date.strftime("%H:%M")
 
@@ -683,7 +683,7 @@ def serve(path):
 @freezer.register_generator
 def generator():
 
-    yield "zoom_redirect"
+    yield "zoom_redirect", {}
 
     for paper in site_data["papers"]:
         yield "poster", {"poster": str(paper["uid"])}

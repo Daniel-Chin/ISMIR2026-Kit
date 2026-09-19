@@ -172,14 +172,14 @@ def markdown_filter(value):
     text = "" if value is None else str(value)
     return Markup(markdown_renderer.render(text))
 
-
-print('pre-loading the site data for gunicorn')
-main(os.getenv("SITE_DATA_PATH", "sitedata/"))
-
 # MAIN PAGES
 
 
 def _data():
+    if "config" not in site_data:
+        raise RuntimeError(
+            "Site data is not initialized. Start with --path or call main(<data_path>) first."
+        )
     data = {}
     data["config"] = site_data["config"]
     return data

@@ -1,0 +1,17 @@
+# Drafted by GPT-5
+
+name: Build website mockup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-mockup:
+    uses: ./.github/workflows/build-website.yml
+    with:
+      mockup: true

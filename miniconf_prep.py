@@ -126,6 +126,11 @@ def createEventChannels(eventsCsvFile):
     eventsObj.createSlackChannels()
 
 
+def setEventChannelDesc(data_path):
+    from utils.slack import batch_set_channel_description_interactive
+
+    batch_set_channel_description_interactive(data_path)
+
 def setupLbds(lbdCsvFile):
     from modules.lbds import Lbds
 
@@ -221,6 +226,9 @@ if __name__ == "__main__":
 
     elif action == "create-event-channels":
         createEventChannels(os.path.join(data_path, "events.csv"))
+    
+    elif action == "set-event-channel-desc":
+        setEventChannelDesc(data_path)
 
     elif action == "setup-lbd":
         setupLbds(os.path.join(data_path, "lbds.csv"))

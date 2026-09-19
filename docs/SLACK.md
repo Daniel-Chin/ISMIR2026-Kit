@@ -92,9 +92,7 @@ the workspace (workspace admin, or an app-approval flow).
 
 # 5. Use CLI tool to set up channel purpose for other events
 #    Run setup-zoom first: this step requires each event's live_url. See ./ZOOM.md
-uv run python
-import utils.slack as s
-s.batch_set_channel_description()
+.venv/bin/python miniconf_prep.py --path sitedata_mock --action set-event-channel-desc
 ```
 
 Use `--path sitedata` for the real conference data and add `--prod true` for

@@ -24,6 +24,8 @@ jobs:
   build:
     name: Build website
     runs-on: ubuntu-latest
+    env:
+      ZOOM_REDIRECT_ACCESS_TOKEN: ${{ secrets.ZOOM_REDIRECT_ACCESS_TOKEN }}
 
     steps:
       - name: Check out repository

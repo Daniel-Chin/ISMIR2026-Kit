@@ -121,10 +121,10 @@ the static utility page:
 
 ### Config
 
-Set a conference-wide token in `sitedata/config.yml` (and `sitedata_mock/config.yml` for mock):
+Set a conference-wide token in `.env`, whose value can be arbitrary:
 
-```yaml
-zoom_redirect_access_token: <token>
+```
+ZOOM_REDIRECT_ACCESS_TOKEN=<token>
 ```
 
 ### Inputs

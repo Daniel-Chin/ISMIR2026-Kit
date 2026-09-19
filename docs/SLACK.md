@@ -61,6 +61,7 @@ the workspace (workspace admin, or an app-approval flow).
    ```
    SLACK_TOKEN=xoxb-...
    DUMMY_EMAIL=<your-email-in-that-workspace>   # invite target in non-prod mode
+   ZOOM_REDIRECT_ACCESS_TOKEN=<put-random-string-here>
    ```
 
 6. Smoke test (read-only, creates nothing):

@@ -1,0 +1,41 @@
+# Slack app manifest for "ISMIR Guide" — the assistant app, completely
+# separate from the provisioning app in docs/SLACK.md.
+# Create at https://api.slack.com/apps -> "Create New App" -> "From a manifest",
+# then replace <INGRESS_URL> with the Cloud Run ingress URL.
+display_information:
+  name: ISMIR Guide
+  description: Ask about ISMIR 2026 papers, authors, sessions and logistics
+  background_color: "#1a1a2e"
+features:
+  bot_user:
+    display_name: ISMIR Guide
+    always_online: true
+  app_home:
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  slash_commands:
+    - command: /ask-ismir
+      url: <INGRESS_URL>/slack/events
+      description: Ask the ISMIR Guide a question
+      usage_hint: which papers are about beat tracking?
+      should_escape: false
+oauth_config:
+  scopes:
+    bot:
+      - commands
+      - chat:write
+      - im:history
+      - app_mentions:read
+      - users:read
+settings:
+  event_subscriptions:
+    request_url: <INGRESS_URL>/slack/events
+    bot_events:
+      - message.im
+      - app_mention
+  interactivity:
+    is_enabled: true
+    request_url: <INGRESS_URL>/slack/events
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

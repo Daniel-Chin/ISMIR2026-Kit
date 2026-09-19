@@ -1,0 +1,187 @@
+from datetime import datetime
+import os
+
+import pandas as pd
+import pytz
+from icalendar import Calendar, Event
+
+from utils.shared import load_conference_timezone_name
+
+from utils.zoom_redirect import (
+    build_zoom_redirect_url,
+    load_zoom_redirect_access_token,
+)
+
+
+def load_conference_timezone(in_csv):
+    timezone = load_conference_timezone_name(
+        os.path.dirname(in_csv), 
+    )
+    return pytz.timezone(timezone)
+
+
+def make_dt(conf_tz, year, month, day, hour=0, minute=0, second=0):
+    """Create a timezone-aware datetime: localize to conference tz then convert to UTC."""
+    local = datetime(year, month, day, hour, minute, second)
+    local = conf_tz.localize(local)  # properly attach pytz tzinfo
+    return local.astimezone(pytz.UTC)  # convert to UTC for ICS (Z times)
+
+
+def display(cal):
+    return cal.to_ical().replace("\r\n", "\n").strip()
+
+
+def toDescription(event, zoom_redirect_token):
+    miniconf_prefix = "Miniconf page: "
+    miniconf_url = "https://ismir2026program.ismir.net/"
+    if event["category"] == "Poster session":
+        session_num = event["title"].split()[-1]
+        rel_link = f"papers.html?session={session_num}"
+    elif event["category"] == "LBD":
+        rel_link = f"lbds.html"
+    elif event["category"] == "Industry":
+        rel_link = f"industry.html?session=Platinum"
+    elif event["category"] == "Tutorials":
+        rel_link = f"tutorials.html"
+    elif event["category"] == "Music":
+        rel_link = f"music.html"
+    elif event["category"] in [
+        "All Meeting",
+        "Meetup",
+        "VMeetup",
+        "Awards",
+        "WiMIR Meetup",
+        "Social",
+        "Opening",
+        "Performance",
+    ]:
+        rel_link = f"day_{int(event['day'])}.html"
+    elif event["category"] == "Satellite":
+        rel_link = event["web_link"]
+    else:
+        rel_link = ""
+
+    miniconf_des = (miniconf_prefix + miniconf_url + rel_link) if rel_link else ""
+
+    slack_link = (
+        f"Slack channel: {event['channel_url']}"
+        if not pd.isna(event["channel_url"])
+        else ""
+    )
+    livestream_link = (
+        f"Zoom: {build_zoom_redirect_url(miniconf_url, event['uid'], zoom_redirect_token)}"
+        if not pd.isna(event["live_url"])
+        else ""
+    )
+
+    return (
+        "\n".join(filter(None, [miniconf_des, slack_link, livestream_link])),
+        rel_link,
+    )
+
+
+def calendar_csv2ics(
+    in_csv="sitedata/events.csv", out_ics="static/calendar/ISMIR_2026.ics"
+):
+    conf_tz = load_conference_timezone(in_csv)
+    orig_csv = pd.read_csv(in_csv)
+    orig_csv = orig_csv.sort_values(by=["uid"])
+    zoom_redirect_token = load_zoom_redirect_access_token(
+        os.path.dirname(os.path.abspath(in_csv))
+    )
+
+    color_dict = {
+        "Tutorials": "tut",
+        "Opening": "open",
+        "All Meeting": "all",
+        "Poster session": "pos",
+        "Meetup": "meet",
+        "VMeetup": "vmeet",
+        "WiMIR Meetup": "wimir",
+        "Music": "mus",
+        "Social": "social",
+        "Satellite": "sat",
+        "Lunch": "lunch",
+        "Registration": "registration",
+        "Industry": "industry",
+        "LBD": "lbd",
+        "Awards": "awards",
+        "Performance": "performance",
+    }
+
+    cal = Calendar()
+    cal.add("prodid", "ISMIR 2026 calendar")
+    cal.add("version", "2.0")
+
+    tut_csv = orig_csv.copy()[orig_csv["category"].isin(["Tutorials"])]
+    tut_csv = tut_csv.sort_values(by=["title"])
+
+    for index, event in orig_csv.iterrows():
+        e_cal = Event()
+        if pd.isna(event["title"]):
+            continue
+        e_date = [int(x) for x in event["start_date"].split("-")]
+        e_start_time = [int(x) for x in event["start_time"].split(":")]
+        e_end_time = [int(x) for x in event["end_time"].split(":")]
+        # make uid a string and add a domain to be a valid UID
+        e_cal.add("uid", f"{int(event['uid'])}@ismir2026virtual")
+        # use current UTC time for dtstamp
+        e_cal.add("dtstamp", datetime.now(pytz.UTC))
+
+        e_cal["description"], e_cal["location"] = toDescription(
+            event, zoom_redirect_token
+        )
+
+        # use safe lookup for color and build summary
+        color_key = color_dict.get(event["category"], "other")
+        e_cal.add("summary", f"#{color_key} {event['title']}")
+        # build dtstart/dtend as UTC-aware datetimes
+        e_cal.add(
+            "dtstart",
+            make_dt(
+                conf_tz,
+                e_date[0],
+                e_date[1],
+                e_date[2],
+                e_start_time[0],
+                e_start_time[1],
+                0,
+            ),
+        )
+
+        if e_end_time[0] < e_start_time[0]:
+            e_cal.add(
+                "dtend",
+                make_dt(
+                    conf_tz,
+                    e_date[0],
+                    e_date[1],
+                    e_date[2] + 1,
+                    e_end_time[0],
+                    e_end_time[1],
+                    0,
+                ),
+            )
+        else:
+            e_cal.add(
+                "dtend",
+                make_dt(
+                    conf_tz,
+                    e_date[0],
+                    e_date[1],
+                    e_date[2],
+                    e_end_time[0],
+                    e_end_time[1],
+                    0,
+                ),
+            )
+
+        cal.add_component(e_cal)
+
+    with open(out_ics, "wb") as f:
+        print("Updated calendar ICS file")
+        f.write(cal.to_ical())
+
+
+if __name__ == "__main__":
+    calendar_csv2ics()

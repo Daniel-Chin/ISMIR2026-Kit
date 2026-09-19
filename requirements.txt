@@ -1,0 +1,11 @@
+flask==2.3.3
+frozen-flask
+markdown-it-py
+tqdm
+PyYAML
+tzlocal
+python-dotenv
+pytz
+python-dateutil
+gunicorn
+requests

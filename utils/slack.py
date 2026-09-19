@@ -1,0 +1,588 @@
+# Written by Prashant Mishra (GitHub: recreationdevelopers) for ISMIR 2022, and next set of events
+# https://prashantmishra.xyz
+# hi@prashantmishra.xyz
+#
+# Co-Author: Venkatakrishnan V K (GitHub: venkatKrishnan86)
+# venkat86556@gmail.com
+
+import os
+import re
+from pathlib import Path
+import csv
+from collections.abc import Callable
+
+import pandas as pd
+import slack_sdk
+from dotenv import load_dotenv
+from slack_sdk.errors import SlackApiError
+from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
+
+from utils.shared import format_session_window, load_conference_timezone_name
+
+# [Workaround 1 Step 1]
+# This step is to be used if you get a [SSL: CERTIFICATE_VERIFY_FAILED] error
+import ssl
+import certifi
+
+ssl_context = ssl.create_default_context(cafile=certifi.where())
+
+env_path = Path(".") / ".env"
+load_dotenv(dotenv_path=env_path)
+
+# [Workaround 1 Step 2]
+# Add ssl info to the WebClient if you get [SSL: CERTIFICATE_VERIFY_FAILED] error.
+# Token may be absent when running non-Slack actions; API calls will then fail
+# with invalid_auth, but importing this module stays safe.
+client = slack_sdk.WebClient(token=os.environ.get("SLACK_TOKEN", ""), ssl=ssl_context)
+# Honors the Retry-After header on HTTP 429 responses instead of a fixed sleep.
+client.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
+
+# Slack recommends requesting at most 200 items per page on cursor-paginated
+# methods (users.list, conversations.list, conversations.members).
+PAGE_LIMIT = 200
+
+
+def normalize_channel_title(title: str, max_words: int = 3) -> str:
+    cleaned_title = str(title or "").strip().lower()
+    cleaned_title = re.sub(r"[^a-z0-9_]+", "-", cleaned_title)
+    cleaned_title = re.sub(r"[-_]+", "-", cleaned_title)
+    cleaned_title = cleaned_title.strip("-")
+    parts = [part for part in cleaned_title.split("-") if part]
+    return "-".join(parts[:max_words])
+
+
+def build_channel_name(prefix: str, title: str, max_words: int = 3) -> str:
+    slug = normalize_channel_title(title, max_words=max_words)
+    sanitized_prefix = re.sub(r"[^a-z0-9_]+", "-", str(prefix or "").strip().lower())
+    sanitized_prefix = sanitized_prefix.strip("-")
+    if sanitized_prefix and slug:
+        return f"{sanitized_prefix}-{slug}"
+    return slug or sanitized_prefix
+
+
+def ensure_channel_url_column(csv_data: pd.DataFrame) -> pd.DataFrame:
+    if "channel_url" not in csv_data.columns:
+        csv_data["channel_url"] = ""
+    csv_data["channel_url"] = csv_data["channel_url"].fillna("").astype(str)
+    return csv_data
+
+
+def populate_channel_names(
+    csv_data: pd.DataFrame,
+    channel_column_name: str,
+    channel_name_factory: Callable[[pd.Series, int], str],
+) -> pd.DataFrame:
+    if channel_column_name not in csv_data.columns:
+        csv_data[channel_column_name] = pd.Series(["" for _ in range(len(csv_data))], dtype="object")
+    else:
+        csv_data[channel_column_name] = csv_data[channel_column_name].astype("object")
+    csv_data.loc[:, channel_column_name] = pd.Series(["" for _ in range(len(csv_data))], dtype="object")
+
+    for index, row in csv_data.iterrows():
+        csv_data.loc[index, channel_column_name] = channel_name_factory(row, index)
+
+    return csv_data
+
+
+def write_channel_links_to_csv(
+    csv_data: pd.DataFrame,
+    csv_path: str,
+    slack_client,
+    channel_column_name: str,
+    remind_to_paste_to_sheet: bool = False,
+) -> None:
+    csv_data = ensure_channel_url_column(csv_data)
+    for index, channel_name in csv_data[channel_column_name].fillna("").items():
+        channel_name = str(channel_name).strip()
+        if not channel_name:
+            continue
+        channel_id = slack_client.getChannelID(channel_name)
+        if channel_id is None:
+            print(
+                f"Channel {channel_name} does not exist in the workspace. Skipping link creation."
+            )
+            continue
+        csv_data.loc[index, "channel_url"] = (
+            f"https://slack.com/app_redirect?channel={channel_id}"
+        )
+    csv_data.to_csv(csv_path, index=False)
+    if remind_to_paste_to_sheet:
+        print(
+            "Channel setup complete. Please paste the updated slack_channel and channel_url columns back into the Google Sheet when you are done."
+        )
+
+
+# Sending Message to a particular channel as a Bot. The Bot MUST be added to the channel first.
+# chat_postMessage requires the chat:write bot scope
+def postMessageToASlackChannelAsBot(channelName, messageString):
+    result = client.chat_postMessage(channel=channelName, text=messageString)
+    print(result)
+
+
+# Creating Channel as Bot. Requires the app to be first installed to the domain
+# conversations_create requires the channels:manage bot scope and groups:write FOR PRIVATE channels
+def createSlackChannelAsBot(channelName, boolChannelPrivacyON):
+    # Call the conversations.create method using the WebClient
+    result = client.conversations_create(
+        # The name of the conversation
+        name=channelName,
+        is_private=boolChannelPrivacyON,
+    )
+    # Log the result which includes information like the ID of the conversation
+    print(result)
+    print("Channel Created!")
+    # Keep the cached channel maps in sync without refetching the full list
+    if _channel_maps is not None:
+        _channel_maps[0][result["channel"]["name"]] = result["channel"]["id"]
+        _channel_maps[1][result["channel"]["id"]] = result["channel"]["name"]
+
+
+# Get all user data. Returns the data as a dictionary
+# users_list requires bot scope 'users:read' and 'users:read.email' (Required for email)
+def get_all_user_data():
+    all_user_data = []
+
+    # Iterating the SlackResponse follows response_metadata.next_cursor, so
+    # every page is fetched (a single call returns at most one page).
+    users_array = []
+    for page in client.users_list(limit=PAGE_LIMIT):
+        users_array.extend(page["members"])
+
+    for user in users_array:
+        # Skip deactivated accounts and bots: they can't be invited to
+        # channels, and their missing emails would collide in the lookup maps
+        if user.get("deleted") or user.get("is_bot") or user["id"] == "USLACKBOT":
+            continue
+        # Key user info on their unique user ID
+        user_id = user["id"]
+        user_email = user["profile"].get(
+            "email"
+        )  # using .get() method to avoid error in the case of Bots, that don't have "email" value
+        if user_email is not None and "is_email_confirmed" in user:
+            is_email_confirmed = user["is_email_confirmed"]
+        else:
+            is_email_confirmed = False
+
+        # print (user_id)
+        # print (user_email)
+        # print ("Email confirmation: " + str(is_email_confirmed))
+        # Store the entire user object (you may not need all of the info)
+
+        all_user_data.append(
+            {
+                "user_id": user_id,
+                "user_email": user_email,
+                "Email_Confirmed": is_email_confirmed,
+            }
+        )
+
+    # print(all_user_data)
+    return all_user_data
+
+
+# User lookup maps, fetched from the Slack API on first use and cached.
+_user_maps = None
+
+
+def _get_user_maps():
+    global _user_maps
+    if _user_maps is None:
+        all_user_data = get_all_user_data()
+        _user_maps = (
+            {
+                user["user_email"]: user["user_id"]
+                for user in all_user_data
+                if user["user_email"] is not None
+            },
+            {user["user_id"]: user["user_email"] for user in all_user_data},
+        )
+    return _user_maps
+
+
+# Get all channel data
+# conversations_list requires the channels:read bot scope
+def get_all_channels_data():
+    all_channel_data = []
+
+    # conversations_list defaults to public_channel, so we add private_channels as well here
+    channelDataType = "public_channel,private_channel"
+
+    # Paginate: Slack may return fewer than `limit` channels per page even
+    # when more remain, so a single call can silently miss channels.
+    channels_array = []
+    for page in client.conversations_list(types=channelDataType, limit=PAGE_LIMIT):
+        channels_array.extend(page["channels"])
+
+    # print(channels_array)
+
+    for channel in channels_array:
+        # Key conversation info on its unique ID
+        channel_name = channel["name"]
+        channel_id = channel["id"]
+
+        # print (channel_id)
+
+        all_channel_data.append(
+            {"channel_name": channel_name, "channel_id": channel_id}
+        )
+
+    # print (all_channel_data)
+    return all_channel_data
+
+
+# Channel lookup maps, fetched from the Slack API on first use and cached.
+_channel_maps = None
+
+
+def _get_channel_maps():
+    global _channel_maps
+    if _channel_maps is None:
+        channelsData = get_all_channels_data()
+        _channel_maps = (
+            {
+                channel["channel_name"]: channel["channel_id"]
+                for channel in channelsData
+            },
+            {
+                channel["channel_id"]: channel["channel_name"]
+                for channel in channelsData
+            },
+        )
+    return _channel_maps
+
+
+# Invalidate the cached channel maps so the next lookup refetches from the API
+# (call after creating channels).
+def loadAllChannelData():
+    global _channel_maps
+    _channel_maps = None
+
+
+# Obtain Channel ID when given the channel name
+def getChannelID(channelName):
+    return _get_channel_maps()[0].get(channelName, None)
+
+
+# Obtain User ID given user email
+def getUserID(user_email):
+    return _get_user_maps()[0].get(user_email, None)
+
+
+# Obtain user email given user id
+def getUserEmail(user_id):
+    return _get_user_maps()[1].get(user_id, None)
+
+
+# Adding member to channel.
+# conversations_invite requires bot scope channels:manage (and optionally user scope channels:write)
+def addUserIDsToASlackChannelById(channelId, userIDs):
+    """
+    channelID: Channel ID
+    userIDs: List of user IDs to be invited
+    """
+
+    return client.conversations_invite(channel=channelId, users=userIDs)
+
+
+# Checks if the channel name already exists in the list of all public and private channels where the bot is added to
+def isChannel(channelName):
+    return channelName in _get_channel_maps()[0]
+
+
+# Creating all the private slack channels as given in the papers-full.csv file
+# This function ONLY creates the channel with the bot added to it as of now
+# Slack has a limit on creating new channels at one run time (=90)
+def createPrivateSlackChannels(csvFile, channelColumnName):
+    paper_data = pd.read_csv(csvFile)
+    channels = paper_data[channelColumnName]
+    for channelName in channels:
+        if not isChannel(channelName):
+            createSlackChannelAsBot(channelName, True)
+
+
+def createPublicSlackChannels(channels):
+    for channelName in channels:
+        if not isChannel(channelName):
+            createSlackChannelAsBot(channelName, False)
+
+
+def createEmptyLinkColumnInCSVifNotPresent(csvFile, column_name, newCsvFile=None):
+    """
+    Parameters:
+    -------------
+    csvFile: The csv file to be read
+    column_name: The name of the empty column
+    newCsvFile (string): If None, the function will write a new column in csvFile, else will do so in a newCsvFile
+    """
+    paper_data = pd.read_csv(csvFile)
+    for columns in paper_data:
+        if columns == column_name:
+            print("Column Already Exists")
+            return
+    paper_data[column_name] = ""
+    if newCsvFile is None:
+        paper_data.to_csv(csvFile, index=False)
+    else:
+        paper_data.to_csv(newCsvFile, index=False)
+
+
+def addChannelLinksToCSV(csvFile, channelColumnName, newCsvFile=None):
+    """
+    Parameters:
+    -------------
+    csvFile: The csv file to be read
+    channelColumnName: The name of the column containing channel names
+    newCsvFile (string): If None, the function will overwrite in csvFile, else will write the csvFile with links in a newCsvFile
+    """
+    if newCsvFile is not None:
+        createEmptyLinkColumnInCSVifNotPresent(csvFile, "channel_url", newCsvFile)
+        paper_data = pd.read_csv(newCsvFile)
+    else:
+        createEmptyLinkColumnInCSVifNotPresent(csvFile, "channel_url")
+        paper_data = pd.read_csv(csvFile)
+
+    # An all-empty CSV column is inferred as float64 by pandas. Cast it before
+    # assigning URL strings (pandas 2.x rejects the implicit dtype change).
+    paper_data["channel_url"] = paper_data["channel_url"].fillna("").astype(str)
+
+    channels = paper_data[channelColumnName]
+    for i, channelName in enumerate(channels):
+        if isChannel(channelName):
+            paper_data.loc[
+                i, "channel_url"
+            ] = f"https://slack.com/app_redirect?channel={getChannelID(channelName)}"
+        else:
+            print(
+                f"Channel {channelName} does not exist in the workspace. Skipping link creation."
+            )
+
+    if newCsvFile is not None:
+        paper_data.to_csv(newCsvFile, index=False)
+    else:
+        paper_data.to_csv(csvFile, index=False)
+
+
+def updateTopicandPurpose(channelName, topic, purpose):
+    """
+    Updates the topic and purpose of a Slack channel.
+    Requires channels:manage and groups:write bot scopes.
+    Also makes the app/bot join the channel, which is required.
+    """
+    channel_id = getChannelID(channelName)
+    assert channel_id is not None, "Channel ID should not be None"
+
+    channel_info = client.conversations_info(channel=channel_id)
+    channel = channel_info.get("channel", {})
+    is_member = channel.get("is_member", False)
+    current_topic = channel.get("topic", {}).get("value", "")
+    current_purpose = channel.get("purpose", {}).get("value", "")
+
+    if not is_member:
+        client.conversations_join(channel=channel_id)
+
+    if current_topic != topic:
+        client.conversations_setTopic(channel=channel_id, topic=topic)
+
+    if current_purpose != purpose:
+        client.conversations_setPurpose(channel=channel_id, purpose=purpose)
+
+
+# Checks if user is already in the workspace
+# users.read bot scope required
+def isUserAlreadyInWorkspace(user_email):
+    return user_email in _get_user_maps()[0]
+
+
+# Returns the list of members' emails already in the channel 'channelName'
+# channels.read and groups:read bot scope required
+# Returns None for bots
+def memberEmailsAlreadyInChannel(channelName):
+    channel_id = getChannelID(channelName)
+    assert channel_id is not None, "Channel ID should not be None"
+    # Paginate: conversations.members returns at most one page per call
+    member_ids = []
+    for page in client.conversations_members(channel=channel_id, limit=PAGE_LIMIT):
+        member_ids.extend(page["members"])
+    members = [getUserEmail(user_id) for user_id in member_ids]
+    return members
+
+
+# Checks if a user already exists in a channel
+def isUserAlreadyInChannel(user_email, channelName):
+    members = memberEmailsAlreadyInChannel(channelName)
+    # for member in members:
+    #     if member == user_email:
+    #         return True
+    # return False
+    return user_email in members
+
+
+# Upto 1000 users can be invited
+# channels:manage and groups:write bot scopes required
+def inviteUserToChannel(user_email, channelName):
+    if not isUserAlreadyInChannel(user_email, channelName):
+        userID = getUserID(user_email)
+        channelID = getChannelID(channelName)
+        if userID is None:
+            print(f"User {user_email} does not exist in the workspace.")
+            return
+
+        try:
+            addUserIDsToASlackChannelById(channelID, userID)
+            print("Invitation Sent")
+        except SlackApiError as e:
+            print(f"Error inviting user: {e.response['error']}")
+    else:
+        print(
+            "Either member already exists in the channel or no such member exists in the workspace"
+        )
+
+
+# Upto 1000 users can be invited
+# channels:manage and groups:write bot scopes required
+def inviteUsersToChannel(user_emails, channelName):
+    emails_already_in_channel = memberEmailsAlreadyInChannel(channelName)
+    userIDs = []
+    for user_email in user_emails:
+        if user_email in emails_already_in_channel:
+            continue
+        userID = getUserID(user_email)
+        if userID is None:
+            # Skip unknown users instead of aborting the whole batch
+            print(f"User {user_email} does not exist in the workspace. Skipping.")
+            continue
+        userIDs.append(userID)
+    if not userIDs:
+        print("No users to invite.")
+        return
+    channelID = getChannelID(channelName)
+
+    addUserIDsToASlackChannelById(channelID, userIDs)
+    print("Invitation Sent")
+
+
+def add_all_workspace_members_to_channel(channel_name: str):
+    """
+    Invites every active, non-bot workspace member to the provided channel.
+    Members who are already in the channel are skipped.
+    """
+    channel_id = getChannelID(channel_name)
+    if channel_id is None:
+        print(f"Channel {channel_name} does not exist in the workspace.")
+        return
+
+    # Paginate through current channel members so we only invite missing users.
+    existing_member_ids = set()
+    for page in client.conversations_members(channel=channel_id, limit=PAGE_LIMIT):
+        existing_member_ids.update(page["members"])
+
+    all_workspace_user_ids = set(_get_user_maps()[1].keys())
+    user_ids_to_invite = list(all_workspace_user_ids - existing_member_ids)
+
+    if not user_ids_to_invite:
+        print("No users to invite.")
+        return
+
+    # Slack conversations.invite accepts up to 1000 users per call.
+    chunk_size = 1000
+    for start in range(0, len(user_ids_to_invite), chunk_size):
+        invite_chunk = user_ids_to_invite[start : start + chunk_size]
+        try:
+            addUserIDsToASlackChannelById(channel_id, invite_chunk)
+        except SlackApiError as e:
+            msg = e.response['error']
+            print(f"Error inviting users: {msg}")
+            if msg.strip() == 'not_in_channel':
+                print('Hint: the inviting bot must be a member of the channel first.')
+            return
+
+    print(
+        f"Invitation Sent to {len(user_ids_to_invite)} user(s) for channel {channel_name}."
+    )
+
+def truncateText(text: str, max_length: int) -> str:
+    """
+    Truncates the text to the specified maximum length, adding an ellipsis if truncated.
+    """
+    if len(text) <= max_length:
+        return text
+    return text[:max_length - 3] + "..."
+
+def batch_set_channel_description():
+    '''
+    A CLI session to batch set the description (purpose) of each channel.  
+    ```
+    uv run python
+    import utils.slack as s
+    s.batch_set_channel_description()
+    ```
+    '''
+
+    EXCLUDE = [ 'Poster session'.lower() ]
+
+    def render(
+        category: str, webinar_link: str, friendly_time_description: str, 
+    ):
+        match category.lower().strip():
+            case 'keynote session' | 'panel session':
+                webinar_text = f"Webinar: <{webinar_link}>\nWe'll take Q&A there as well as here on Slack!"
+            case 'oral session':
+                webinar_text = f"livestream: <{webinar_link}>\nNo time for live Q&A; Discuss on Slack!"
+            case _:
+                webinar_text = f"livestream: <{webinar_link}>\nStart your discussion here on Slack!"
+        
+        return '\n' + f'''
+Schedule: {friendly_time_description}.
+If you aren't onsite, you can join the {webinar_text}
+'''.strip()
+
+    print('Paste the Webinar invite link here. It should contain the token "pwd=...".')
+    webinar_link = input('URL = ').strip()
+    print('Which datadir? sitedata / sitedata_mock ?')
+    sitedata_dir = input('sitedata_dir = ').strip()
+    script_dir = Path(__file__).parent
+    sitedata_path = script_dir.parent / sitedata_dir
+    conference_timezone = load_conference_timezone_name(str(sitedata_path))
+    events_csv_path = sitedata_path / "events.csv"
+    with open(events_csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            title = row['title']
+            category = row['category']
+            slack_channel = row['slack_channel']
+            start_date = row['start_date']
+            start_time = row['start_time']
+            end_time = row['end_time']
+            print('\nEvent:', title)
+            if category.lower().strip() in EXCLUDE:
+                print(f'Do you want to skip it, because {category = }?')
+                if input('y/n? ').strip().lower() == 'y':
+                    continue
+            channel_id = getChannelID(slack_channel)
+            if channel_id is None:
+                print(f'Channel {slack_channel} does not exist in the workspace. Skipping...')
+                input('Press Enter...')
+                continue
+            channel_info = client.conversations_info(channel=channel_id)
+            channel = channel_info.get('channel', {})
+            current_description = channel.get('purpose', {}).get('value', '')
+            current_topic = channel.get('topic', {}).get('value', '')
+            print('Existing description: """')
+            print(current_description)
+            print('"""')
+            new_description = render(category, webinar_link, format_session_window(
+                start_date, start_time, end_time,
+                conference_timezone,
+            ))
+            print('\nNew description being proposed: """')
+            print(new_description)
+            print('"""')
+            if new_description == current_description:
+                print('No change detected, skipping.')
+                input('Press Enter to continue...')
+                continue
+            print('Apply this update, or skip?')
+            if input('a/s? ').strip().lower() == 'a':
+                updateTopicandPurpose(slack_channel, current_topic or title, new_description)
+            else:
+                print('Skipped.')

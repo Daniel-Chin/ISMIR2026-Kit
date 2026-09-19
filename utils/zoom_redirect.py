@@ -1,0 +1,55 @@
+from __future__ import annotations
+
+import os
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
+
+import yaml
+
+
+DEFAULT_ZOOM_REDIRECT_TOKEN = "miniconf-zoom-redirect"
+
+
+def load_zoom_redirect_access_token(site_data_path: str) -> str:
+    config_path = os.path.join(site_data_path, "config.yml")
+    if os.path.exists(config_path):
+        with open(config_path, encoding="utf-8") as file_handle:
+            config = yaml.safe_load(file_handle) or {}
+        token = config.get("zoom_redirect_access_token", DEFAULT_ZOOM_REDIRECT_TOKEN)
+        return str(token)
+    return DEFAULT_ZOOM_REDIRECT_TOKEN
+
+
+def build_zoom_redirect_url(
+    base_url: str,
+    room_id: str,
+    access_token: str,
+    include_token: bool = True,
+) -> str:
+    base = base_url.rstrip("/")
+    room = quote(str(room_id), safe="")
+    prefix = base if base else ""
+    if include_token:
+        token = quote(str(access_token), safe="")
+        return f"{prefix}/zoom.html?room={room}&token={token}"
+    return f"{prefix}/zoom.html?room={room}"
+
+
+def strip_zoom_passcode(join_url: str) -> str:
+    parsed = urlsplit(str(join_url).strip())
+    if not parsed.query:
+        return str(join_url).strip()
+
+    query_items = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key != "pwd"
+    ]
+    return urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urlencode(query_items, doseq=True),
+            parsed.fragment,
+        )
+    )

@@ -1,0 +1,11 @@
+black==24.8.0
+isort==5.13.2
+pylint
+pytest
+mypy==1.14.1
+gdown
+-r scripts/requirements.txt
+types-PyYAML
+types-requests
+types-python-dateutil
+types-pytz

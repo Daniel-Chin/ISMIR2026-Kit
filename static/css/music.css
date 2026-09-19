@@ -1,0 +1,14 @@
+.music-cards {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.music-card .image-wrapper {
+  max-width: 100%;
+  display: block;
+  cursor: pointer;
+}
+
+.music-card .image-wrapper img {
+  max-width: 100%;
+}

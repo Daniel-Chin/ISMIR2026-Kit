@@ -1,0 +1,22 @@
+# Builds both ISMIR Guide images. Submit with the bot/ directory as context
+# (after vendoring catalogue/schema.py — infra/deploy_bot.sh does both).
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - ingress/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/ismir-guide/ingress:latest
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - worker/Dockerfile
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/ismir-guide/worker:latest
+      - .
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/ismir-guide/ingress:latest
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/ismir-guide/worker:latest

@@ -1,0 +1,162 @@
+{% set page_title = "Zoom Redirect" %}
+{% extends "base.html" %}
+
+{% block head %}
+{{ super() }}
+<style>
+  .zoom-shell {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 0 4rem;
+    background:
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 36%),
+      radial-gradient(circle at bottom right, rgba(17, 24, 39, 0.12), transparent 28%);
+  }
+
+  .zoom-card {
+    width: min(760px, 100%);
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    border-radius: 24px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+    padding: 2rem;
+  }
+
+  .zoom-eyebrow {
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #1d4ed8;
+    font-weight: 700;
+    font-size: 0.8rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .zoom-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    margin-bottom: 0.75rem;
+  }
+
+  .zoom-meta {
+    color: rgba(15, 23, 42, 0.72);
+    margin-bottom: 1.5rem;
+  }
+
+  .zoom-panel {
+    border-radius: 18px;
+    background: #f8fafc;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    padding: 1.25rem;
+  }
+
+  .zoom-countdown-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  .zoom-countdown {
+    color: #1d4ed8;
+    font-weight: 700;
+  }
+
+  .zoom-pause-button {
+    padding: 0.45rem 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.2;
+    border-radius: 10px;
+    border: 1px solid rgba(29, 78, 216, 0.25);
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    transition: all 0.15s ease-in-out;
+  }
+
+  .zoom-pause-button:hover,
+  .zoom-pause-button:focus {
+    background: #1d4ed8;
+    color: #ffffff;
+    border-color: rgba(29, 78, 216, 0.45);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.24);
+  }
+
+  .zoom-pause-button:active {
+    background: #1e40af;
+    transform: translateY(1px);
+    box-shadow: none;
+  }
+
+  .zoom-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    align-items: center;
+  }
+
+  .zoom-actions .btn {
+    min-width: 180px;
+  }
+
+  .zoom-hint {
+    margin-top: 1rem;
+    color: rgba(15, 23, 42, 0.72);
+  }
+
+  .zoom-alert {
+    margin-top: 1rem;
+    border-radius: 14px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="zoom-shell">
+  <div class="zoom-card">
+    <div class="zoom-eyebrow">Zoom redirect utility</div>
+    <h1 id="zoom-room-title" class="zoom-title">Loading room…</h1>
+    <div id="zoom-room-meta" class="zoom-meta"></div>
+
+    <div class="zoom-panel">
+      <div class="form-check">
+        <input id="zoom-save-checkbox" class="form-check-input" type="checkbox" checked>
+        <label class="form-check-label" for="zoom-save-checkbox">
+          Save credentials and automatically redirect next time
+        </label>
+      </div>
+
+      <div id="zoom-countdown-row" class="zoom-countdown-row d-none">
+        <div id="zoom-countdown" class="zoom-countdown"></div>
+        <button id="zoom-pause-countdown" type="button" class="btn btn-sm zoom-pause-button">
+          Wait, pause countdown
+        </button>
+      </div>
+
+      <div class="zoom-actions">
+        <button id="zoom-join-button" type="button" class="btn btn-primary btn-lg">
+          Join Zoom now
+        </button>
+      </div>
+
+      <div id="zoom-status" class="zoom-hint">
+        Choose whether this browser should remember the current room credential.
+      </div>
+
+      <div id="zoom-slack-help" class="zoom-alert alert alert-warning d-none" role="alert">
+        <div id="zoom-slack-help-text" class="mb-2"></div>
+        <a id="zoom-slack-help-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm d-none">
+          Open event Slack channel
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="zoom-targets" type="application/json">{{ zoom_targets | tojson }}</script>
+<script id="zoom-config" type="application/json">{{ {"access_token": config.zoom_redirect_access_token | default("", true)} | tojson }}</script>
+<script src="static/js/zoom_redirect.js"></script>
+{% endblock %}

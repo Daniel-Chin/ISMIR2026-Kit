@@ -1,0 +1,3 @@
+.venv/
+# vendored at image build time from catalogue/schema.py
+shared/catalogue_schema.py

@@ -1,0 +1,31 @@
+[project]
+name = "ismir2026-virtual-sim"
+version = "0.1.0"
+description = "ISMIR 2026 virtual platform creation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask==2.3.3",
+    "frozen-flask",
+    "markdown-it-py",
+    "tqdm",
+    "PyYAML",
+    "tzlocal",
+    "python-dotenv",
+    "pytz",
+    "python-dateutil",
+    "gunicorn",
+    "requests",
+    "pandas>=2.0.3",
+    "icalendar>=6.3.2",
+    "ics>=0.7.3",
+    "slack-sdk>=3.43.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.ruff.lint]
+ignore = ["I001", "TRY002"]

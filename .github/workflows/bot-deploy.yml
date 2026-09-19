@@ -1,0 +1,62 @@
+# CI for the bot ONLY. Path-filtered so editing sitedata/, modules/ or
+# catalogue/ can never redeploy the bot mid-conference (LLM_plan.md §2).
+name: bot-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bot/**"
+      - "infra/**"
+      - ".github/workflows/bot-deploy.yml"
+  pull_request:
+    paths:
+      - "bot/**"
+      - "infra/**"
+      - ".github/workflows/bot-deploy.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Run bot tests
+        working-directory: bot
+        run: |
+          cp ../catalogue/schema.py shared/catalogue_schema.py
+          uv sync
+          uv run pytest -q
+
+  deploy:
+    # Deploys only on push to main, after tests, and only when GCP auth is
+    # configured (set the GCP_WORKLOAD_IDENTITY_PROVIDER secret to enable).
+    if: github.event_name == 'push'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check deploy configured
+        id: cfg
+        run: |
+          if [ -n "${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "GCP auth not configured — skipping deploy"
+          fi
+      - uses: google-github-actions/auth@v2
+        if: steps.cfg.outputs.enabled == 'true'
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.cfg.outputs.enabled == 'true'
+      - name: Deploy both services
+        if: steps.cfg.outputs.enabled == 'true'
+        env:
+          PROJECT: ${{ secrets.GCP_PROJECT }}
+          REGION: ${{ secrets.GCP_REGION }}
+        run: ./infra/deploy_bot.sh

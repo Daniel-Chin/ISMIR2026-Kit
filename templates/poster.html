@@ -1,0 +1,272 @@
+{% set page_title = paper.content.title %}
+{% extends "base.html" %}
+
+{% block head %}
+
+{{ super() }}
+<meta name="citation_title" content="{{paper.content.title}}" />
+{% for author in paper.content.authors %}
+<meta name="citation_author" content="{{author}}" />
+{% endfor %}
+<meta name="citation_publication_date" content="{{config.citation_date}}" />
+<meta name="citation_conference_title"
+  content="{{config.tagline|striptags|title}}" />
+<meta name="citation_inbook_title" content="{{config.proceedings_title}}" />
+<meta name="citation_abstract" content="{{paper.content.abstract}}" />
+{% for keyword in paper.content.keywords %}
+<meta name="citation_keywords" content="{{keyword}}" />
+{% endfor %}
+<meta name="citation_pdf_url" content="{{paper.content.uid | default("")}}" />
+<meta id="yt-id" data-name={{paper.content.yt_id}} />
+<meta id="bb-id" data-name={{paper.content.bb_id}} />
+
+{% endblock %}
+
+{% block content %}
+
+<!-- Title -->
+<div class="pp-card m-3" style>
+  <div class="card-header">
+    <h2 class="card-title main-title text-center" style>
+      P{{paper.session}}-{{paper.position}}: {{paper.content.title}}
+    </h2>
+    <h3 class="card-subtitle mb-2 text-muted text-center">
+      {% for author in paper.content.authors %}
+      <a href="papers.html?filter=authors&search={{author}}"
+        class="text-muted">{{author}}</a>{{ "," if not loop.last }}
+      {% endfor %}
+    </h3>
+    <p class="card-text text-center">
+      <span class>Subjects:</span>
+      {% for keyword in paper.content.keywords %}
+      <a
+        href="papers.html?filter=keywords&search={{keyword}}"
+        class="text-secondary text-decoration-none">{{keyword}}</a> {{ "; " if
+      not loop.last }}
+      {% endfor %}
+    </p>
+    <h4 class="text-muted text-center">
+      Presented {{paper.content.paper_presentation}}
+    </h4>
+    <h4 class="text-muted text-center">
+      {% if paper.content.long_presentation == 'TRUE' %}
+      10-minute long-format presentation
+      {% else %}
+      4-minute short-format presentation
+      {% endif %}
+    </h4>
+
+  </div>
+</div>
+
+{% set missing_materials = [] %}
+{% if not paper.content.pdf_path %}{{ missing_materials.append('Paper') or ''
+}}{% endif %}
+{% if not paper.content.abstract %}{{ missing_materials.append('Abstract') or ''
+}}{% endif %}
+{% if not paper.content.poster_pdf %}{{ missing_materials.append('Poster') or ''
+}}{% endif %}
+{% if not paper.content.slides %}{{ missing_materials.append('Slides') or ''
+}}{% endif %}
+{% if not paper.content.video %}{{ missing_materials.append('Video') or '' }}{%
+endif %}
+
+{% if missing_materials %}
+<div class="pp-card m-3">
+  <div class="card-body text-center">
+    <p class="text-muted mb-0">Some of the required materials for this paper do
+      not exist: {{ missing_materials | join(', ') }}</p>
+  </div>
+</div>
+{% endif %}
+
+<div style="display: flex; justify-content: center;" class="btn-toolbar mt-4"
+  role="toolbar">
+  <div class="poster-buttons btn-group btn-group-toggle mb-3"
+    data-toggle="buttons">
+    {% if paper.content.abstract %}
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#details">
+      Abstract
+    </button>
+    {% endif %}
+    {% if paper.content.pdf_path %}
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#paper">
+      Paper
+    </button>
+    {% endif %}
+    {% if paper.content.poster_pdf %}
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#poster">
+      Poster
+    </button>
+    {% endif %}
+    {% if paper.content.slides %}
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#slides">
+      Slides
+    </button>
+    {% endif %}
+    {% if paper.content.video %}
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#video">
+      Video
+    </button>
+    {% endif %}
+    {% if paper.reviews.publish_reviews == 'TRUE' %}
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#meta-review">
+      Meta
+    </button>
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#review1">
+      R1
+    </button>
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#review2">
+      R2
+    </button>
+    {% if paper.reviews.review3 != '' %}
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#review3">
+      R3
+    </button>
+    {% endif %}
+    {% if paper.reviews.review4 != '' %}
+    <button class="card-link btn btn-outline-primary" data-toggle="collapse"
+      type="button" data-target="#review4">
+      R4
+    </button>
+    {% endif %}
+    {% endif %}
+    <!-- {% if paper.content.code != blank %}
+    <a href="{{paper.content.code}}" target="_blank" class="card-link">
+      Code
+    </a>
+    {% endif %} -->
+  </div>
+  {% if paper.content.channel_url or paper.zoom_url %}
+  <div class="btn-group ml-3 mb-3">
+    {% if paper.content.channel_url %}
+    <a href="{{paper.content.channel_url}}" class="btn btn-outline-primary"
+      target="_blank" rel="noopener noreferrer">{% include
+      'slack_svg.html' %} Slack Channel</a>
+    {% endif %}
+    {% if paper.zoom_url %}
+    <a href="{{paper.zoom_url}}" class="btn btn-outline-primary"
+      target="_blank" rel="noopener noreferrer">Zoom</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<div class="poster-content">
+  <div id="details" class="pp-card m-3 collapse">
+    <div class="card-body">
+      <div class="card-text">
+        <div id="abstractExample">
+          <span class="font-weight-bold">Abstract:</span>
+          {{paper.content.abstract | markdown | safe}}
+        </div>
+      </div>
+      <p></p>
+    </div>
+  </div>
+  <div id="paper" class="collapse">
+    {% if config.paper_embeds %}
+    <button class="fullscreen-button btn btn-primary mb-3">Fullscreen</button>
+    <iframe class="fullscreen-iframe"
+      src="{{ paper.content.pdf_path }}#embedded=true" width='100%'
+      height='800px' allowfullscreen webkitallowfullscreen></iframe>
+    {% endif %}
+  </div>
+  <div id="poster" class="collapse">
+    {% if paper.content.poster_pdf and config.poster_embeds %}
+    <button class="fullscreen-button btn btn-primary mb-3">Fullscreen</button>
+    <iframe class="fullscreen-iframe"
+      src="{{ paper.content.poster_pdf }}#embedded=true" width='100%'
+      height='800px' allowfullscreen webkitallowfullscreen></iframe>
+    {% endif %}
+  </div>
+  <div id="slides" class="collapse">
+    {% if paper.content.slides and config.slides_embeds %}
+    <button class="fullscreen-button btn btn-primary mb-3">Fullscreen</button>
+    <iframe class="fullscreen-iframe"
+      src="{{ paper.content.slides }}#embedded=true" width='100%' height='500px'
+      allowfullscreen webkitallowfullscreen></iframe>
+    {% endif %}
+  </div>
+  <div id="video" class="collapse">
+    {% if paper.content.video and config.paper_videos %}
+    <div style="display: flex; justify-content: center;">
+      <iframe src="{{paper.content.video}}" width="960" height="540"
+        allow="encrypted-media" allowfullscreen></iframe>
+    </div>
+    {% endif %}
+  </div>
+  {% if paper.reviews.publish_reviews == 'TRUE' %}
+  <div id="meta-review" class="pp-card m-3 collapse">
+    <div class="card-body">
+      <div class="card-text">
+        <div id="metaReviewExample">
+          <span class="font-weight-bold">Meta Review:</span>
+          <br>
+          {{paper.reviews.meta_review | markdown | safe}}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="review1" class="pp-card m-3 collapse">
+    <div class="card-body">
+      <div class="card-text">
+        <div id="review1Example">
+          <span class="font-weight-bold">Review 1:</span>
+          <br>
+          {{paper.reviews.review1 | markdown | safe}}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="review2" class="pp-card m-3 collapse">
+    <div class="card-body">
+      <div class="card-text">
+        <div id="review2Example">
+          <span class="font-weight-bold">Review 2:</span>
+          <br>
+          {{paper.reviews.review2 | markdown | safe}}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% if paper.reviews.review3 != '' %}
+  <div id="review3" class="pp-card m-3 collapse">
+    <div class="card-body">
+      <div class="card-text">
+        <div id="review3Example">
+          <span class="font-weight-bold">Review 3:</span>
+          <br>
+          {{paper.reviews.review3 | markdown | safe}}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% if paper.reviews.review4 != '' %}
+  <div id="review4" class="pp-card m-3 collapse">
+    <div class="card-body">
+      <div class="card-text">
+        <div id="review4Example">
+          <span class="font-weight-bold">Review 4:</span>
+          <br>
+          {{paper.reviews.review4 | markdown | safe}}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+
+<script src="static/js/poster.js"></script>
+<script src="static/js/video_selection.js"></script>
+{% endblock %}

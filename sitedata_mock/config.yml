@@ -80,3 +80,5 @@ calendar:
 
 zoom_shared_webinar_start_hhmm: '06:00'
 zoom_shared_webinar_end_hhmm: '23:59'
+
+miniconf_url: 'https://daniel-chin.github.io/ISMIR2026-Kit/'

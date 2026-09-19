@@ -27,6 +27,7 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 
 from utils.zoom_redirect import build_zoom_redirect_url
+from utils.shared import load_site_config
 
 
 def chain_functions(*functions: Callable) -> Callable:
@@ -144,7 +145,7 @@ def main(site_data_path: str):
         if str(event.get("live_url", "")).strip():
             event["join_url"] = str(event["live_url"]).strip()
             event["zoom_url"] = build_zoom_redirect_url(
-                "",
+                load_site_config(site_data_path)["miniconf_url"],
                 str(event["uid"]),
                 None,
                 include_token=False,

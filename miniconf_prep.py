@@ -92,10 +92,10 @@ def setupTutorials(eventsCsvFile, registrationDataCsvFile, followup_action):
         raise ValueError(f"Unknown tutorial action: {followup_action}")
 
 
-def setupPapers(papersCsvFile, eventsCsvFile, followup_action):
+def setupPapers(data_path, papersCsvFile, eventsCsvFile, followup_action):
     from modules.papers import Papers
 
-    paperObj = Papers(papersCsvFile, useDummyValues, eventsCsvFile)
+    paperObj = Papers(data_path, papersCsvFile, useDummyValues, eventsCsvFile)
     if followup_action == "setup-channels":
         paperObj.setupSlackChannels()
     elif followup_action == "create-channels":
@@ -210,6 +210,7 @@ if __name__ == "__main__":
     elif action.startswith("setup-papers-"):
         folowup_action = action.replace("setup-papers-", "")
         setupPapers(
+            data_path,
             os.path.join(data_path, "papers.csv"),
             os.path.join(data_path, "events.csv"),
             folowup_action,

@@ -164,8 +164,7 @@ the poster flow end-to-end: it sets each `poster-session-*` channel purpose to
 that session's Zoom URL (the one with breakout rooms), and sets each paper
 channel purpose to include a within-Slack link to the corresponding
 poster-session channel. The paper purpose also includes the program-site link;
-the base URL defaults to `https://ismir2026program.ismir.net` and can be
-overridden with `SITE_BASE_URL`.
+the base URL is `miniconf_url` from config.yml.
 
 LBD/music/tutorial/sponsor channel setup (`setup-lbd`, `setup-music`, …) uses
 the same pipeline but is less exercised than the papers path; papers are the

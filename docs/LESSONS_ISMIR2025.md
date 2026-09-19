@@ -38,7 +38,7 @@ conference-attendee invites as separate milestones about a week apart.
 - **Custom domain**: NOTE.md flags requesting `ismir20xxprogram.ismir.net`
   from the ISMIR Tech Lead and pointing DNS at GitHub Pages — a one-time
   human action, not code. `docs/workflow.md` already hardcodes
-  `ismir2026program.ismir.net` as the production URL in
+  `ismir20xxprogram.ismir.net` as the production URL in
   `modules/papers.py:setSlackChannelDescription`, so this DNS/domain request
   needs to happen before that URL resolves.
 - **GitHub Education Pack** for private-repo Pages (data privacy) — human

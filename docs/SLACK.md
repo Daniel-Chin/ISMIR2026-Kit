@@ -152,8 +152,7 @@ For each paper, it matches `Poster Session - <session>` on the same day in
 If a matching poster session is missing, if `live_url` is empty, or if the
 poster-session Slack channel is absent, the action stops with an error and
 prints the required prerequisite (`setup-zoom` and/or event channel creation).
-The program base URL defaults to `https://ismir2026program.ismir.net` and can
-be overridden with `SITE_BASE_URL`.
+The program base URL is `miniconf_url` from config.yml.
 
 ## Attendee invitation order and temporary tutorial defaults
 

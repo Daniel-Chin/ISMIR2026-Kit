@@ -5,7 +5,7 @@ import pandas as pd
 import pytz
 from icalendar import Calendar, Event
 
-from utils.shared import load_conference_timezone_name
+from utils.shared import load_conference_timezone_name, load_site_config
 
 from utils.zoom_redirect import (
     build_zoom_redirect_url,
@@ -31,9 +31,9 @@ def display(cal):
     return cal.to_ical().replace("\r\n", "\n").strip()
 
 
-def toDescription(event, zoom_redirect_token):
+def toDescription(site_data_path, event, zoom_redirect_token):
     miniconf_prefix = "Miniconf page: "
-    miniconf_url = "https://ismir2026program.ismir.net/"
+    miniconf_url = load_site_config(site_data_path)["miniconf_url"]
     if event["category"] == "Poster session":
         session_num = event["title"].split()[-1]
         rel_link = f"papers.html?session={session_num}"
@@ -127,6 +127,7 @@ def calendar_csv2ics(
         e_cal.add("dtstamp", datetime.now(pytz.UTC))
 
         e_cal["description"], e_cal["location"] = toDescription(
+            os.path.normpath(os.path.join(in_csv, "..")),
             event, zoom_redirect_token
         )
 

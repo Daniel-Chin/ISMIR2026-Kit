@@ -4,7 +4,7 @@ import os
 from tqdm import tqdm
 
 from utils import slack as slackUtils
-from utils.shared import format_session_window, load_conference_timezone_name
+from utils.shared import format_session_window, load_conference_timezone_name, load_site_config
 from utils.zoom_redirect import (
     build_zoom_redirect_url,
     load_zoom_redirect_access_token,
@@ -31,7 +31,8 @@ class Papers:
     This method takes the config data loaded and the papers csv file.
     """
 
-    def __init__(self, papersCsvFile, useDummyValues, eventsCsvFile=None):
+    def __init__(self, data_path, papersCsvFile, useDummyValues, eventsCsvFile=None):
+        self.data_path = data_path
         self.papersCsvFile = papersCsvFile
         self.useDummyValues = useDummyValues
         self.eventsCsvFile = eventsCsvFile
@@ -135,9 +136,7 @@ class Papers:
         csv_data = pd.read_csv(self.papersCsvFile)
         events_data = pd.read_csv(self.eventsCsvFile)
         zoom_redirect_token = load_zoom_redirect_access_token()
-        site_base_url = os.environ.get(
-            "SITE_BASE_URL", "https://ismir2026program.ismir.net"
-        ).rstrip("/")
+        site_base_url = load_site_config(self.data_path)["miniconf_url"]
 
         poster_session_details = {}
         for _, row in csv_data.iterrows():

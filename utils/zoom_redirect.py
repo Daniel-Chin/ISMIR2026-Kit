@@ -22,11 +22,8 @@ def build_zoom_redirect_url(
     access_token: str | None,
     include_token: bool = True,
 ) -> str:
-    # Freeze-time links are consumed from {prefix}/poster_?.html pages, so
-    # use a same-directory relative URL rather than an absolute/prefixed URL.
-    _ = base_url
     room = quote(str(room_id), safe="")
-    no_token = f"zoom.html?room={room}"
+    no_token = f"{base_url}/zoom.html?room={room}"
     if include_token:
         assert access_token is not None
         token = quote(str(access_token), safe="")

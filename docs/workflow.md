@@ -118,7 +118,7 @@ python miniconf_prep.py --action setup-papers-create-channels --path sitedata/
 # 3. Invite authors
 python miniconf_prep.py --action setup-papers-invite-authors --path sitedata/
 
-# 4. Set channel descriptions with links to ismir2026program.ismir.net
+# 4. Set channel descriptions with links to miniconf
 python miniconf_prep.py --action setup-papers-set-desc --path sitedata/
 ```
 

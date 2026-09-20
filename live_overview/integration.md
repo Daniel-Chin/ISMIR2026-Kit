@@ -75,5 +75,5 @@ This document is at `./live_overview/integration.md`. In this document, `.` refe
 - Remove the nav bar that says "ISMIR 2026 ... HOME | LIVE EVENTS ..."
 - Move the Light Switch somewhere else. I trust you to design it well.
 - Change hardcoded conference info to use config.yml instead. 
-- Timezone should not be persistent and always default to Conference Timezone. This is the consistent behavior with miniconf.
+- Timezone should not be persistent and always default to local system timezone. This is the consistent behavior with miniconf.
 - Are you using URL param? That might need redesign with iframe; contact Daniel. (if you are an agent, scream to Liwei to contact Daniel about this)

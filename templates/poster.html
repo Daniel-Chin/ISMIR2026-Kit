@@ -174,26 +174,35 @@ endif %}
   </div>
   <div id="paper" class="collapse">
     {% if config.paper_embeds %}
+    {% set paper_pdf_link_url = paper.content.pdf_path | replace('/preview', '') %}
     <button class="fullscreen-button btn btn-primary mb-3">Fullscreen</button>
     <iframe class="fullscreen-iframe"
       src="{{ paper.content.pdf_path }}#embedded=true" width='100%'
       height='800px' allowfullscreen webkitallowfullscreen></iframe>
+    <p class="mt-2 text-center"><a href="{{ paper_pdf_link_url }}" target="_blank"
+        rel="noopener noreferrer">Open in Google Drive</a></p>
     {% endif %}
   </div>
   <div id="poster" class="collapse">
     {% if paper.content.poster_pdf and config.poster_embeds %}
+    {% set poster_pdf_link_url = paper.content.poster_pdf | replace('/preview', '') %}
     <button class="fullscreen-button btn btn-primary mb-3">Fullscreen</button>
     <iframe class="fullscreen-iframe"
       src="{{ paper.content.poster_pdf }}#embedded=true" width='100%'
       height='800px' allowfullscreen webkitallowfullscreen></iframe>
+    <p class="mt-2 text-center"><a href="{{ poster_pdf_link_url }}" target="_blank"
+        rel="noopener noreferrer">Open in Google Drive</a></p>
     {% endif %}
   </div>
   <div id="slides" class="collapse">
     {% if paper.content.slides and config.slides_embeds %}
+    {% set slides_link_url = paper.content.slides | replace('/preview', '') %}
     <button class="fullscreen-button btn btn-primary mb-3">Fullscreen</button>
     <iframe class="fullscreen-iframe"
       src="{{ paper.content.slides }}#embedded=true" width='100%' height='500px'
       allowfullscreen webkitallowfullscreen></iframe>
+    <p class="mt-2 text-center"><a href="{{ slides_link_url }}" target="_blank"
+        rel="noopener noreferrer">Open in Google Drive</a></p>
     {% endif %}
   </div>
   <div id="video" class="collapse">

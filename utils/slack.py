@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 import csv
 from collections.abc import Callable
+import time
 
 import pandas as pd
 import slack_sdk
@@ -34,9 +35,11 @@ load_dotenv(dotenv_path=env_path)
 # Add ssl info to the WebClient if you get [SSL: CERTIFICATE_VERIFY_FAILED] error.
 # Token may be absent when running non-Slack actions; API calls will then fail
 # with invalid_auth, but importing this module stays safe.
-client = slack_sdk.WebClient(token=os.environ.get("SLACK_TOKEN", ""), ssl=ssl_context)
+client_bot = slack_sdk.WebClient(token=os.environ.get("SLACK_TOKEN", ""), ssl=ssl_context)
+client_user = slack_sdk.WebClient(token=os.environ.get("SLACK_USER_TOKEN", ""), ssl=ssl_context)
 # Honors the Retry-After header on HTTP 429 responses instead of a fixed sleep.
-client.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
+client_bot.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
+client_user.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
 
 # Slack recommends requesting at most 200 items per page on cursor-paginated
 # methods (users.list, conversations.list, conversations.members).
@@ -116,7 +119,7 @@ def write_channel_links_to_csv(
 # Sending Message to a particular channel as a Bot. The Bot MUST be added to the channel first.
 # chat_postMessage requires the chat:write bot scope
 def postMessageToASlackChannelAsBot(channelName, messageString):
-    result = client.chat_postMessage(channel=channelName, text=messageString)
+    result = client_bot.chat_postMessage(channel=channelName, text=messageString)
     print(result)
 
 
@@ -124,7 +127,7 @@ def postMessageToASlackChannelAsBot(channelName, messageString):
 # conversations_create requires the channels:manage bot scope and groups:write FOR PRIVATE channels
 def createSlackChannelAsBot(channelName, boolChannelPrivacyON):
     # Call the conversations.create method using the WebClient
-    result = client.conversations_create(
+    result = client_bot.conversations_create(
         # The name of the conversation
         name=channelName,
         is_private=boolChannelPrivacyON,
@@ -146,7 +149,7 @@ def get_all_user_data():
     # Iterating the SlackResponse follows response_metadata.next_cursor, so
     # every page is fetched (a single call returns at most one page).
     users_array = []
-    for page in client.users_list(limit=PAGE_LIMIT):
+    for page in client_bot.users_list(limit=PAGE_LIMIT):
         users_array.extend(page["members"])
 
     for user in users_array:
@@ -211,7 +214,7 @@ def get_all_channels_data():
     # Paginate: Slack may return fewer than `limit` channels per page even
     # when more remain, so a single call can silently miss channels.
     channels_array = []
-    for page in client.conversations_list(types=channelDataType, limit=PAGE_LIMIT):
+    for page in client_bot.conversations_list(types=channelDataType, limit=PAGE_LIMIT):
         channels_array.extend(page["channels"])
 
     # print(channels_array)
@@ -282,7 +285,7 @@ def addUserIDsToASlackChannelById(channelId, userIDs):
     userIDs: List of user IDs to be invited
     """
 
-    return client.conversations_invite(channel=channelId, users=userIDs)
+    return client_bot.conversations_invite(channel=channelId, users=userIDs)
 
 
 # Checks if the channel name already exists in the list of all public and private channels where the bot is added to
@@ -363,6 +366,85 @@ def addChannelLinksToCSV(csvFile, channelColumnName, newCsvFile=None):
         paper_data.to_csv(csvFile, index=False)
 
 
+def _levenshtein_distance(left: str, right: str) -> int:
+    left = str(left or "")
+    right = str(right or "")
+
+    if left == right:
+        return 0
+    if not left:
+        return len(right)
+    if not right:
+        return len(left)
+
+    prev_row = list(range(len(right) + 1))
+    for i, left_char in enumerate(left, start=1):
+        current_row = [i]
+        for j, right_char in enumerate(right, start=1):
+            insert_cost = current_row[j - 1] + 1
+            delete_cost = prev_row[j] + 1
+            substitute_cost = prev_row[j - 1] + (left_char != right_char)
+            current_row.append(min(insert_cost, delete_cost, substitute_cost))
+        prev_row = current_row
+    return prev_row[-1]
+
+
+def _is_channel_update_match(actual: str, expected: str, max_distance_portion: float = .1) -> bool:
+    if actual == expected:
+        return True
+
+    candidate_actual = " ".join(str(actual or "").split())
+    candidate_expected = " ".join(str(expected or "").split())
+    if not candidate_actual or not candidate_expected:
+        return False
+
+    distance = _levenshtein_distance(candidate_actual.lower(), candidate_expected.lower())
+    distance_portion = distance / max(len(candidate_actual), len(candidate_expected))
+    print(f'{distance_portion = }')
+    return distance_portion <= max_distance_portion
+
+
+def _delete_generated_channel_log(
+    channel_id, update_type, expected_value, action_time: float,
+):
+    """
+    Slack posts a bot-authored system message when a channel topic or purpose
+    is changed. The API call itself does not always return a message timestamp,
+    so we look through recent history for the bot's matching log entry and delete
+    it to avoid stale announcements.
+    """
+    auth_info = client_bot.auth_test()
+
+    bot_user_id = auth_info.data['user_id'] # type: ignore
+    assert bot_user_id
+
+    expected_text = " ".join(str(expected_value or "").split()).strip()
+    assert expected_text
+
+    history = client_bot.conversations_history(
+        channel=channel_id, limit=20, oldest=str(int(action_time) - 10),
+    )
+
+    messages = history.get("messages", [])
+    for message in messages:
+        if message.get("user") != bot_user_id:
+            continue
+
+        text = " ".join(str(message.get("text", "") or "").split()).strip()
+        if not text:
+            continue
+
+        target_prefix = "set the channel"
+        if text.lower().startswith(target_prefix.lower()):
+            _, message_value = text.split(': ', 1)
+            if _is_channel_update_match(message_value, expected_text):
+                ts = message.get("ts")
+                if ts:
+                    client_user.chat_delete(channel=channel_id, ts=ts)
+                    return
+    raise RuntimeError("Failed to find matching channel log message.")
+
+
 def updateTopicandPurpose(channelName, topic, purpose):
     """
     Updates the topic and purpose of a Slack channel.
@@ -372,17 +454,19 @@ def updateTopicandPurpose(channelName, topic, purpose):
     channel_id = getChannelID(channelName)
     assert channel_id is not None, "Channel ID should not be None"
 
-    channel_info = client.conversations_info(channel=channel_id)
+    channel_info = client_bot.conversations_info(channel=channel_id)
     channel = channel_info.get("channel", {})
     is_member = channel.get("is_member", False)
     current_topic = channel.get("topic", {}).get("value", "")
     current_purpose: str = channel.get("purpose", {}).get("value", "")
 
     if not is_member:
-        client.conversations_join(channel=channel_id)
+        client_bot.conversations_join(channel=channel_id)
 
     if current_topic != topic:
-        client.conversations_setTopic(channel=channel_id, topic=topic)
+        action_time = time.time()
+        client_bot.conversations_setTopic(channel=channel_id, topic=topic)
+        _delete_generated_channel_log(channel_id, "topic", topic, action_time)
 
     current_purpose = current_purpose.replace('&amp;', '&')
     # print('current_purpose')
@@ -392,7 +476,9 @@ def updateTopicandPurpose(channelName, topic, purpose):
     # print(f'{current_purpose == purpose = }')
     # input('enter...')
     if current_purpose != purpose:
-        client.conversations_setPurpose(channel=channel_id, purpose=purpose)
+        action_time = time.time()
+        client_bot.conversations_setPurpose(channel=channel_id, purpose=purpose)
+        _delete_generated_channel_log(channel_id, "purpose", purpose, action_time)
 
 
 # Checks if user is already in the workspace
@@ -409,7 +495,7 @@ def memberEmailsAlreadyInChannel(channelName):
     assert channel_id is not None, "Channel ID should not be None"
     # Paginate: conversations.members returns at most one page per call
     member_ids = []
-    for page in client.conversations_members(channel=channel_id, limit=PAGE_LIMIT):
+    for page in client_bot.conversations_members(channel=channel_id, limit=PAGE_LIMIT):
         member_ids.extend(page["members"])
     members = [getUserEmail(user_id) for user_id in member_ids]
     return members
@@ -481,7 +567,7 @@ def add_all_workspace_members_to_channel(channel_name: str):
 
     # Paginate through current channel members so we only invite missing users.
     existing_member_ids = set()
-    for page in client.conversations_members(channel=channel_id, limit=PAGE_LIMIT):
+    for page in client_bot.conversations_members(channel=channel_id, limit=PAGE_LIMIT):
         existing_member_ids.update(page["members"])
 
     all_workspace_user_ids = set(_get_user_maps()[1].keys())
@@ -577,7 +663,7 @@ If you aren't onsite, you can join the {webinar_text}
                 print(f'Channel {slack_channel} does not exist in the workspace. Skipping...')
                 input('Press Enter...')
                 continue
-            channel_info = client.conversations_info(channel=channel_id)
+            channel_info = client_bot.conversations_info(channel=channel_id)
             channel = channel_info.get('channel', {})
             current_description = channel.get('purpose', {}).get('value', '')
             current_topic = channel.get('topic', {}).get('value', '')

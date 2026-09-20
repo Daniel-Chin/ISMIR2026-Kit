@@ -46,31 +46,38 @@ the workspace (workspace admin, or an app-approval flow).
    - `users:read` + `users:read.email` — resolve author emails to user IDs
    - `chat:write` — post messages (only `postMessageToASlackChannelAsBot`)
    - `channels:join`
-4. **Install App to Workspace** and copy the **Bot User OAuth Token**
-   (`xoxb-...`).
+   - `channels:history`
+   - `groups:history`
+   - `mpim:history`
+   - `im:history`
+4. **OAuth & Permissions → Scopes → User Token Scopes**, add:
+   - `chat:write`
+5. **Install App to Workspace** and copy the two **OAuth Tokens**
+   (`xox?-...`).
 
-   The token must start with `xoxb-`. A token beginning with `xoxe.xoxp-`
+   The token must start with `xoxb-` or `xoxp-`. A token beginning with `xoxe`
    (for example, one shown by the Slack CLI or under app configuration tokens)
    is a different credential and is not the bot token expected by this
    repository. Do not put it in `SLACK_TOKEN`. Return to **OAuth &
    Permissions**, install or reinstall the app, and copy the **Bot User OAuth
-   Token** instead.
+   Token** and **User OAuth Token** instead.
 
-5. In the repo root, add to `.env` (already gitignored — never commit it):
+6. In the repo root, add to `.env` (already gitignored — never commit it):
 
    ```
+   SLACK_USER_TOKEN=xoxp-...
    SLACK_TOKEN=xoxb-...
    DUMMY_EMAIL=<your-email-in-that-workspace>   # invite target in non-prod mode
    ZOOM_REDIRECT_ACCESS_TOKEN=<put-random-string-here>
    ```
 
-6. Smoke test (read-only, creates nothing):
+7. Smoke test (read-only, creates nothing):
 
    ```bash
    .venv/bin/python -c "from utils import slack; print(len(slack.get_all_channels_data()), 'channels')"
    ```
 
-7. Give a nice profile image to the bot.  
+8. Give a nice profile image to the bot.  
 
 ## Running it
 

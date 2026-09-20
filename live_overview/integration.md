@@ -11,7 +11,7 @@ This document is at `./live_overview/integration.md`. In this document, `.` refe
 - Miniconf is at `prefix`.
 - `prefix = "https://ismir2026program.ismir.net" | "https://daniel-chin.github.io/ISMIR2026-Kit"`.
   - See definition in [Input data](#input-data).
-- Live Overview page is at `{prefix}/live`.
+- Live Overview page is at `{prefix}/live.html`.
 - The Relay Backend should use a different server, enabling CORS. Its sole consumer is frontend js in users' browsers.
 
 ## Static deployment

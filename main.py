@@ -274,6 +274,25 @@ def zoom_redirect():
     return render_template("zoom.html", **data)
 
 
+@app.route("/live")
+@app.route("/live.html")
+def live_overview():
+    data = _data()
+    data["active_page"] = "Live Overview (Experimental)"
+    return render_template("live.html", **data)
+
+
+def register_live_no_nav_route():
+    @app.route("/live-no-nav.html")
+    def serve_live_no_nav():
+        live_path = os.path.join(
+            os.path.dirname(__file__), "live_overview", "build", "live-no-nav.html"
+        )
+        if not os.path.exists(live_path):
+            return ("Not Found", 404)
+        return send_file(live_path)
+
+
 @app.route("/tutorials.html")
 def tutorials():
     data = _data()
@@ -770,6 +789,7 @@ if __name__ == "__main__":
     if args.build:
         freezer.freeze()
     else:
+        register_live_no_nav_route()
         debug_val = False
         if os.getenv("FLASK_DEBUG") == "True":
             debug_val = True

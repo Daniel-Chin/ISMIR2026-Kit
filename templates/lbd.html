@@ -120,7 +120,7 @@ endif %}
       src="{{lbd.content.paper_link}}#embedded=true" width='100%' height='800px'
       allowfullscreen webkitallowfullscreen></iframe>
     <p class="mt-2 text-center"><a href="{{lbd_paper_link_url}}" target="_blank"
-        rel="noopener noreferrer">Open in Google Drive</a></p>
+      rel="noopener noreferrer" style="text-decoration: underline;">Open in Google Drive</a></p>
   </div>
   <div id="poster" class="collapse">
     {% set lbd_poster_link_url = lbd.content.poster_link | replace('/preview', '') %}
@@ -129,7 +129,7 @@ endif %}
       src="{{lbd.content.poster_link}}#embedded=true" width='100%'
       height='800px' allowfullscreen webkitallowfullscreen></iframe>
     <p class="mt-2 text-center"><a href="{{lbd_poster_link_url}}" target="_blank"
-        rel="noopener noreferrer">Open in Google Drive</a></p>
+      rel="noopener noreferrer" style="text-decoration: underline;">Open in Google Drive</a></p>
   </div>
   {% if lbd.content.youtube_id or lbd.content.bilibili_id %}
   <div id="video" class="collapse">

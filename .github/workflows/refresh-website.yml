@@ -1,6 +1,6 @@
 # Drafted by GPT-5
 
-name: Build website
+name: Refresh website
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
   workflow_call:
     inputs:
       mockup:
-        description: Build the mockup version
+        description: Refresh the mockup version
         required: false
         default: false
         type: boolean
@@ -24,8 +24,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build website
+  refresh:
+    name: Refresh artifacts
     runs-on: ubuntu-latest
     env:
       ZOOM_REDIRECT_ACCESS_TOKEN: ${{ secrets.ZOOM_REDIRECT_ACCESS_TOKEN }}
@@ -47,13 +47,21 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Pull data
+        if: ${{ !inputs.mockup }}
+        run: uv run python pull_from_google_sheet.py
+
+      - name: Pull mockup data
+        if: ${{ inputs.mockup }}
+        run: uv run python pull_from_google_sheet.py --mockup
+
       - name: Build website
         if: ${{ !inputs.mockup }}
-        run: uv run python build_website.py
+        run: uv run python main.py --path sitedata/ --build
 
       - name: Build mockup website
         if: ${{ inputs.mockup }}
-        run: uv run python build_website.py --mockup
+        run: uv run python main.py --path sitedata_mock/ --build
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6.0.0
@@ -65,7 +73,7 @@ jobs:
 
   deploy:
     name: Deploy website
-    needs: build
+    needs: refresh
     runs-on: ubuntu-latest
 
     permissions:

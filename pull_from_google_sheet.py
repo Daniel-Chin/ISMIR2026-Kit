@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 from scripts.calendar_csv2ics import calendar_csv2ics
 from scripts.calendar_ics2json import calendar_ics2json
-import main as flask_app_module
 
 
 REAL_SHEETS = {
@@ -30,8 +29,8 @@ MOCK_SHEETS = {
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
-            "Download site-data CSVs, rebuild the calendar, and prepare the website "
-            "data set for either the production conference or the mock conference."
+            "Download site-data CSVs, rebuild the calendar, and prepare the sitedata "
+            "for either the production conference or the mock conference."
         )
     )
     parser.add_argument(
@@ -115,18 +114,12 @@ def rebuild_calendar_for_data_dir(data_dir: Path) -> None:
     print("calendar rebuilt")
 
 
-def rebuild_flask_site(data_dir: Path) -> None:
-    flask_app_module.main(str(data_dir))
-    flask_app_module.freezer.freeze()
-    print("flask site rebuilt")
-
 def main():
     load_dotenv()
     args = parse_args()
 
     data_dir = pull_data_dir(args.data_dir, args.mockup)
     rebuild_calendar_for_data_dir(data_dir)
-    rebuild_flask_site(data_dir)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Drafted by GPT-5
 
-name: Build website mockup
+name: Refresh website mockup
 
 on:
   workflow_dispatch:
@@ -11,8 +11,8 @@ permissions:
   id-token: write
 
 jobs:
-  build-mockup:
-    uses: ./.github/workflows/build-website.yml
+  refresh-mockup:
+    uses: ./.github/workflows/refresh-website.yml
     with:
       mockup: true
     secrets:

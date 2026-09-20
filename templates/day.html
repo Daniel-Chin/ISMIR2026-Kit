@@ -1,17 +1,7 @@
 {% set active_page = "Schedule" %}
 {% set page_title = "Day " + daynum %}
 {% extends "base.html" %}
-<!--  ("day_1.html", "December 4th", "day_1-html"),-->
 {% block tabs %}
-{{ components.navtabs([
-("calendar.html", "Calendar", "calendar-html"),
-("tutorials.html", "Aug-18", "tutorials-html"),
-("day_2.html", "Aug-19", "day_2-html"),
-("day_3.html", "Aug-20", "day_3-html"),
-("day_4.html", "Aug-21", "day_4-html"),
-("day_5.html", "Aug-22", "day_5-html"),
-])
-}}
 {% endblock %}
 
 {% block content %}
@@ -93,7 +83,6 @@
 
 </div>
 
-<script src="static/js/schedule_nav.js"></script>
 <script src="static/js/anchor_offset.js"></script>
 
 {% endblock %}

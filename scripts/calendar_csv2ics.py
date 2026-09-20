@@ -31,28 +31,20 @@ def display(cal):
 def toDescription(site_data_path, event):
     miniconf_prefix = "Miniconf page: "
     miniconf_url = load_site_config(site_data_path)["miniconf_url"]
-    if event["category"] == "Poster session":
+    if event["category"] in [
+        "Poster session", 
+        "Oral session", 
+    ]:
         session_num = event["title"].split()[-1]
         rel_link = f"papers.html?session={session_num}"
     elif event["category"] == "LBD":
-        rel_link = f"lbds.html"
+        rel_link = "lbds.html"
     elif event["category"] == "Industry":
-        rel_link = f"industry.html?session=Platinum"
+        rel_link = "industry.html?session=Platinum"
     elif event["category"] == "Tutorials":
-        rel_link = f"tutorials.html"
+        rel_link = "tutorials.html"
     elif event["category"] == "Music":
-        rel_link = f"music.html"
-    elif event["category"] in [
-        "All Meeting",
-        "Meetup",
-        "VMeetup",
-        "Awards",
-        "WiMIR Meetup",
-        "Social",
-        "Opening",
-        "Performance",
-    ]:
-        rel_link = f"day_{int(event['day'])}.html"
+        rel_link = "music.html"
     elif event["category"] == "Satellite":
         rel_link = event["web_link"]
     else:

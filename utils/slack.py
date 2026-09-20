@@ -400,7 +400,7 @@ def _is_channel_update_match(actual: str, expected: str, max_distance_portion: f
 
     distance = _levenshtein_distance(candidate_actual.lower(), candidate_expected.lower())
     distance_portion = distance / max(len(candidate_actual), len(candidate_expected))
-    print(f'{distance_portion = }')
+    # print(f'{distance_portion = }')
     return distance_portion <= max_distance_portion
 
 
@@ -605,30 +605,31 @@ def truncateText(text: str, max_length: int) -> str:
 def batch_set_channel_description_interactive(sitedata_dir: str):
     '''
     A CLI session to batch set the description (purpose) of each channel.  
-    ```
-    uv run python
-    import utils.slack as s
-    s.batch_set_channel_description()
-    ```
     '''
 
-    EXCLUDE = [ 'Poster session'.lower() ]
+    EXCLUDE = []
 
     def render(
-        category: str, webinar_link: str, friendly_time_description: str, 
+        category: str, zoom_link: str, friendly_time_description: str, 
     ):
-        match category.lower().strip():
-            case 'keynote session' | 'panel session':
-                webinar_text = f"Webinar: <{webinar_link}>\nWe'll take Q&A there as well as here on Slack!"
-            case 'oral session':
-                webinar_text = f"livestream: <{webinar_link}>\nNo time for live Q&A; Discuss on Slack!"
-            case _:
-                webinar_text = f"livestream: <{webinar_link}>\nStart your discussion here on Slack!"
-        
-        return '\n' + f'''
-Schedule: {friendly_time_description}.
-If you aren't onsite, you can join the {webinar_text}
-'''.strip()
+        buf = []
+        buf.append('_\nSchedule: ')
+        buf.append(friendly_time_description)
+        buf.append('\n')
+        category_ = category.lower().strip()
+        if category_ == 'poster session':
+            buf.append("During that time, use this Zoom room for live interaction with authors and audiences:\n")
+            buf.append(zoom_link)
+        else:
+            buf.append("If you aren't onsite, you can join the ")
+            match category_:
+                case 'keynote session' | 'panel session':
+                    buf.append(f"Webinar: <{zoom_link}>\nWe'll take Q&A there as well as here on Slack!")
+                case 'oral session':
+                    buf.append(f"livestream: <{zoom_link}>\nNo time for live Q&A; Discuss on Slack!")
+                case _:
+                    buf.append(f"Webinar: <{zoom_link}>\nStart your discussion here on Slack!")
+        return ''.join(buf)
 
     script_dir = Path(__file__).parent
     sitedata_path = script_dir.parent / sitedata_dir
@@ -665,7 +666,7 @@ If you aren't onsite, you can join the {webinar_text}
                 continue
             channel_info = client_bot.conversations_info(channel=channel_id)
             channel = channel_info.get('channel', {})
-            current_description = channel.get('purpose', {}).get('value', '')
+            current_description = channel.get('purpose', {}).get('value', '').replace('&amp;', '&')
             current_topic = channel.get('topic', {}).get('value', '')
             print('Existing description: """')
             print(current_description)

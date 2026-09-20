@@ -48,9 +48,10 @@ def parse_arguments():
     # setup-tutorials-create-channels
     # setup-tutorials-invite-attendees
     # setup-tutorials (compatibility: runs both stages)
-    # setup-papers
+    # setup-papers-set-desc
     # setup-event-channels
     # create-event-channels
+    # set-event-channel-desc
     # setup-lbd
     # setup-music
     # setup-sponsors
@@ -60,7 +61,7 @@ def parse_arguments():
 
     parser.add_argument(
         "--action",
-        help="action to run (for example setup-zoom, setup-tutorials-create-channels, setup-tutorials-invite-attendees, setup-papers-create-channels, setup-event-channels, create-event-channels)",
+        help="action to run (for example setup-zoom, setup-tutorials-create-channels, setup-tutorials-invite-attendees, setup-papers-create-channels, setup-papers-set-desc, setup-event-channels, create-event-channels, set-event-channel-desc)",
         required=True,
     )
 

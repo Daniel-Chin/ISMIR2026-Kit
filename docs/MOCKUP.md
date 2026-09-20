@@ -136,6 +136,7 @@ Create and populate the paper channels:
 python miniconf_prep.py --action setup-papers-create-channels --path sitedata_mock/
 python miniconf_prep.py --action setup-papers-invite-authors  --path sitedata_mock/   # non-prod → invites DUMMY_EMAIL
 python miniconf_prep.py --action setup-papers-set-desc        --path sitedata_mock/
+python miniconf_prep.py --action set-event-channel-desc        --path sitedata_mock/
 ```
 
 Rehearse the staged tutorial workflow with the included fake registration:
@@ -159,12 +160,11 @@ defaults, audit its membership, and convert it to private. Keep
 `#announcements` and `#help` public and default.
 
 `create-channels` writes `channel_url` back into the CSV → restart `main.py` and the
-poster pages grow a working "Slack" button. `setup-papers-set-desc` now applies
-the poster flow end-to-end: it sets each `poster-session-*` channel purpose to
-that session's Zoom URL (the one with breakout rooms), and sets each paper
-channel purpose to include a within-Slack link to the corresponding
-poster-session channel. The paper purpose also includes the program-site link;
-the base URL is `miniconf_url` from config.yml.
+poster pages grow a working "Slack" button. `set-event-channel-desc` sets each 
+channel purpose to that session's Zoom URL, and
+`setup-papers-set-desc` sets each paper channel purpose to include a
+within-Slack link to the matching poster-session channel. The paper purpose also
+includes the program-site link; the base URL is `miniconf_url` from config.yml.
 
 LBD/music/tutorial/sponsor channel setup (`setup-lbd`, `setup-music`, …) uses
 the same pipeline but is less exercised than the papers path; papers are the

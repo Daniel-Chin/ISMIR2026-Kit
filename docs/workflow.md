@@ -91,7 +91,8 @@ python main.py --path sitedata/
 |--------|----------------|
 | `setup-papers-create-channels` | Creates public Slack channels from `slack_channel` column |
 | `setup-papers-invite-authors` | Invites authors (from `author_emails`) into their paper channels |
-| `setup-papers-set-desc` | Sets channel topic/purpose with paper title + MiniConf URL |
+| `setup-papers-set-desc` | Sets paper channel topic/purpose with paper metadata and the matching poster-session Slack link |
+| `set-event-channel-desc` | Sets description for event rows, including `Poster Session - N`, with the event Zoom/live URL and schedule context |
 | `setup-lbd` | LBD poster channels (`lp-*` / `lv-*` naming) |
 | `setup-music` | Music performance channels |
 | `setup-tutorials-create-channels` | Create permanent `#announcements`/`#help` defaults plus public tutorial channels for the temporary-default onboarding window |
@@ -118,8 +119,11 @@ python miniconf_prep.py --action setup-papers-create-channels --path sitedata/
 # 3. Invite authors
 python miniconf_prep.py --action setup-papers-invite-authors --path sitedata/
 
-# 4. Set channel descriptions with links to miniconf
+# 4. Set paper channel descriptions with links to miniconf and the poster-session Slack channel
 python miniconf_prep.py --action setup-papers-set-desc --path sitedata/
+
+# 5. Set event descriptions for all event rows, including poster sessions
+python miniconf_prep.py --action set-event-channel-desc --path sitedata/
 ```
 
 ### Channel naming for papers
@@ -269,6 +273,7 @@ DUMMY_EMAIL=you@your-workspace-email.com   # must be a real user in your test wo
 python miniconf_prep.py --action setup-papers-create-channels --path sitedata/
 python miniconf_prep.py --action setup-papers-invite-authors --path sitedata/
 python miniconf_prep.py --action setup-papers-set-desc --path sitedata/
+python miniconf_prep.py --action set-event-channel-desc --path sitedata/
 ```
 
 Notes for dummy Slack runs:

@@ -35,8 +35,11 @@ python miniconf_prep.py --action setup-papers-create-channels --path sitedata/
 # invite primary authors to their corresponding channel
 python miniconf_prep.py --action setup-papers-invite-authors --path sitedata/
 
-# add miniconf URL to the channel description
+# add paper-channel metadata, including the poster-session Slack link and miniconf link
 python miniconf_prep.py --action setup-papers-set-desc --path sitedata/
+
+# set event/channel descriptions for all event rows with link to live Zoom
+python miniconf_prep.py --action set-event-channel-desc --path sitedata/
 ```
 
 ## Repo lineage

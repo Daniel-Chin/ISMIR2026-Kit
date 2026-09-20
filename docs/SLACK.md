@@ -93,22 +93,22 @@ the workspace (workspace admin, or an app-approval flow).
 # 3. invite authors into their channels (non-prod → invites DUMMY_EMAIL instead)
 .venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-invite-authors
 
-# 4. set channel topic + purpose (stream URL, title, authors, program-site URL) for papers and poster sessions
+# 4. set paper channel topic + purpose (title, authors, program-site URL, poster-session Slack link)
 #    Run setup-zoom first: this step requires each poster session's live_url. See ./ZOOM.md
 .venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-set-desc
 
-# 5. Use CLI tool to set up channel purpose for other events
+# 5. set event channel purpose for all event rows
 #    Run setup-zoom first: this step requires each event's live_url. See ./ZOOM.md
 .venv/bin/python miniconf_prep.py --path sitedata_mock --action set-event-channel-desc
 ```
 
 Use `--path sitedata` for the real conference data and add `--prod true` for
-step 3 to invite the real `author_emails`. Steps 3 and 4 can run in either
-order; both require step 2 first.
+step 3 to invite the real `author_emails`. Steps 3, 4, and 5 can run in any
+order after step 2.
 
 After scripts, manual setup include: setting the correct channels to be default; setting channel description.
 
-`SLACK_TOKEN` is needed for every step that talks to Slack (2–4). Importing
+`SLACK_TOKEN` is needed for every step that talks to Slack (2–5). Importing
 `utils/slack.py` without a token is safe — the client is built lazily and the
 first actual API call just fails with `invalid_auth` — so step 1
 (`setup-channels`), which only rewrites the CSV, runs without credentials.
@@ -144,20 +144,17 @@ author can be assigned to a paper channel while their workspace invitation is
 still pending. The email in `author_emails` must exactly match the address used
 for the workspace invitation.
 
-**`set-desc`**: updates both poster-session channels and paper channels.
-For each paper, it matches `Poster Session - <session>` on the same day in
-`events.csv`:
+**`setup-papers-set-desc`**: updates paper channels. For each paper, it matches
+`Poster Session - <session>` on the same day in `events.csv` and writes a
+paper-purpose string that contains the paper title, page URL, authors, and an
+in-Slack link to the matching poster-session channel (not the raw Zoom URL).
 
-- Poster-session channel purpose is set to the poster-session Zoom URL
-  (`live_url`) with explicit breakout-room wording.
-- Paper channel topic remains `Paper <uid>: <title>`.
-- Paper channel purpose contains title, paper page URL, authors, and an
-  in-Slack link to the poster-session channel (not the raw Zoom URL).
-
-If a matching poster session is missing, if `live_url` is empty, or if the
-poster-session Slack channel is absent, the action stops with an error and
-prints the required prerequisite (`setup-zoom` and/or event channel creation).
-The program base URL is `miniconf_url` from config.yml.
+**`set-event-channel-desc`**: updates event metadata for every event row. For each
+row it sets the event channel purpose to the session window and Zoom/live URL. If a matching poster
+session is missing, if `live_url` is empty, or if the event Slack channel is
+absent, the action stops with an error and prints the required prerequisite
+(`setup-zoom` and/or event channel creation). The program base URL is
+`miniconf_url` from config.yml.
 
 ## Attendee invitation order and temporary tutorial defaults
 

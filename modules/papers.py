@@ -196,19 +196,6 @@ class Papers:
                 ),
             }
 
-        for details in poster_session_details.values():
-            poster_topic = details["title"]
-            poster_purpose = slackUtils.truncateText(
-                f"{details['title']} - {details['session_window']}. "
-                "During that time, use this Zoom room for live interaction with authors and audiences: "
-                f"<{details['zoom_url']}>"
-            , 250)
-            slackUtils.updateTopicandPurpose(
-                details["channel_name"],
-                poster_topic,
-                poster_purpose,
-            )
-
         with tqdm(csv_data.iterrows()) as pbar:
             pbar.set_description("Setting Slack channel descriptions")
             for index, row in pbar:
@@ -239,7 +226,7 @@ class Papers:
                 )
                 topic = f"Paper {paper_id}: {title}"
                 purpose = slackUtils.truncateText(
-                    f"\nPaper, poster, & more: <{site_base_url}/poster_{paper_id}.html>\n"
+                    f"_\nPaper, poster, & more: <{site_base_url}/poster_{paper_id}.html>\n"
                     f"{poster_details['title']}: {poster_details['session_window']}.\n"
                     f"Go to {poster_channel_link} for the live Zoom room.\n"
                     f"{title}. {authors}"

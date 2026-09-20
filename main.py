@@ -9,6 +9,8 @@ import re
 from functools import partial, reduce
 from collections.abc import Callable
 
+from dotenv import load_dotenv
+
 # from flaskext.cache import Cache
 import pytz
 import tzlocal
@@ -115,6 +117,7 @@ def group_by_days(sdata):
 
 
 def main(site_data_path: str):
+    load_dotenv()
     extra_files = ["README.md"]
     # Load all for your sitedata one time.
     for f in glob.glob(site_data_path + "/*"):
@@ -150,6 +153,11 @@ def main(site_data_path: str):
                 None,
                 include_token=False,
             )
+
+    site_data.setdefault("config", {})["zoom_redirect_access_token"] = os.environ.get(
+        "ZOOM_REDIRECT_ACCESS_TOKEN", ""
+    )
+
     print("Data Successfully Loaded")
     days, events = zip(*group_by_days(site_data))
     site_data["days"] = events

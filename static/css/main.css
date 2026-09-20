@@ -44,8 +44,32 @@ body {
 }
 
 #main-nav {
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.3);
+}
+
+#main-nav .navbar-brand {
+  margin: 0;
+  padding: 0;
+}
+
+#main-nav .logo {
+  margin: 0;
+  padding: 0;
+  display: block;
+  max-height: 36px;
+  width: auto;
+}
+
+#main-nav .nav-link {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+#main-nav .navbar-toggler {
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .header {

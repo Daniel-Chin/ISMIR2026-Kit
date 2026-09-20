@@ -1,5 +1,6 @@
 '''
 - Posts automatically on slack #announcements when a session starts.
+    - Also posts the event channel description for visibility.
 - Needs to be kept running throughout the conference.
 - You need to create a bot:
     - https://api.slack.com/apps?new_app=1
@@ -85,6 +86,14 @@ def render_announcement(
         )
     else:
         return msg
+
+
+def get_event_channel_message(client: Any, channel_id: str) -> str:
+    response = client.conversations_info(channel=channel_id)
+    purpose = str(
+        response.get("channel", {}).get("purpose", {}).get("value", "")
+    ).strip()
+    return purpose
 
 
 def load_events(site_data_path: str) -> list[ScheduledEvent]:
@@ -282,6 +291,18 @@ def sleep_until_due(event: ScheduledEvent, now: datetime) -> None:
     time.sleep(min(seconds_until_due, 30.0))
 
 
+def post_event_channel_message(client: Any, event: ScheduledEvent) -> None:
+    desc = get_event_channel_message(client, event.channel_id)
+    if not desc:
+        print(f"No purpose text configured for {event.title}; skipping event-channel post.")
+        return
+
+    join_channel_if_needed(client, event.channel_id)
+    message = desc.lstrip('_\n')
+    client.chat_postMessage(channel=event.channel_id, text=message)
+    print(f"Posted event channel purpose for {event.title} to <#{event.channel_id}>.")
+
+
 def post_announcement(
     client: Any,
     announcements_channel_id: str,
@@ -292,6 +313,7 @@ def post_announcement(
     t_minus = minutes_until(event, now)
     message = render_announcement(client, event.channel_id, t_minus, is_mockup=is_mockup)
     client.chat_postMessage(channel=announcements_channel_id, text=message)
+    post_event_channel_message(client, event)
     print(
         f"Posted announcement for {event.title} at "
         f"{now.isoformat()} with t_minus={t_minus}."

@@ -3,12 +3,24 @@
 }
 
 body a {
-  color: #2294e0;
+  color: #111111;
 }
 
 body a:hover {
   color: #2294e0;
   text-decoration: none;
+}
+
+.btn-secondary,
+.btn-outline-secondary.active,
+.btn-outline-secondary:not(:disabled):not(.disabled):active,
+.show > .btn-outline-secondary.dropdown-toggle {
+  background-color: #444444 !important;
+  border-color: #444444 !important;
+}
+
+.navbar-light .navbar-nav .active > .nav-link {
+  font-weight: bold;
 }
 
 h2,
@@ -131,7 +143,8 @@ body {
 }
 
 body .nav-pills .nav-link.active {
-  background-color: #bed972;
+  background-color: #555;
+  color: #fff !important;
 }
 
 .container {
@@ -201,7 +214,7 @@ h3.card-subtitle.text-muted {
 
 .main-title {
   font-weight: 700;
-  color: #2294e0;
+  color: #2266ee;
   font-family: "Ambiant";
 }
 
@@ -301,6 +314,9 @@ tr.fc-list-item {
   height: 4.5em;
   overflow: hidden;
 }
+#abstractExample > p {
+  color: #030303;
+}
 
 #abstractExample.collapsing {
   height: 4.5em;
@@ -353,4 +369,31 @@ body .carousel-control-prev {
     opacity: 1;
     -webkit-text-fill-color: green;
   }
+}
+
+/* less saturated blue */
+.btn-primary,
+.btn-outline-primary
+{ 
+  color: #26d !important; 
+  background-color: #fff !important;
+}
+
+.btn-primary:hover,
+.btn-outline-primary:hover,
+.btn-outline-primary:not(:disabled):not(.disabled).active,
+.btn-outline-primary:not(:disabled):not(.disabled):active,
+.show > .btn-outline-primary.dropdown-toggle {
+  background-color: #26d !important;
+  border-color: #26d !important;
+  color: #fff !important;
+}
+
+#zoom-join-button{ 
+  color: #fff !important;
+  background-color: #26d !important; 
+}
+
+#zoom-join-button:hover {
+  background-color: #03b !important;
 }

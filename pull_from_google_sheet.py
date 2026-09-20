@@ -3,8 +3,6 @@ import os
 from pathlib import Path
 from urllib import request
 
-from dotenv import load_dotenv
-
 from scripts.calendar_csv2ics import calendar_csv2ics
 from scripts.calendar_ics2json import calendar_ics2json
 
@@ -115,7 +113,6 @@ def rebuild_calendar_for_data_dir(data_dir: Path) -> None:
 
 
 def main():
-    load_dotenv()
     args = parse_args()
 
     data_dir = pull_data_dir(args.data_dir, args.mockup)

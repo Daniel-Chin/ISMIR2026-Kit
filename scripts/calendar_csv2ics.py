@@ -7,10 +7,7 @@ from icalendar import Calendar, Event
 
 from utils.shared import load_conference_timezone_name, load_site_config
 
-from utils.zoom_redirect import (
-    build_zoom_redirect_url,
-    load_zoom_redirect_access_token,
-)
+from utils.zoom_redirect import build_zoom_redirect_url
 
 
 def load_conference_timezone(in_csv):
@@ -31,7 +28,7 @@ def display(cal):
     return cal.to_ical().replace("\r\n", "\n").strip()
 
 
-def toDescription(site_data_path, event, zoom_redirect_token):
+def toDescription(site_data_path, event):
     miniconf_prefix = "Miniconf page: "
     miniconf_url = load_site_config(site_data_path)["miniconf_url"]
     if event["category"] == "Poster session":
@@ -69,7 +66,7 @@ def toDescription(site_data_path, event, zoom_redirect_token):
         else ""
     )
     livestream_link = (
-        f"Zoom: {build_zoom_redirect_url(miniconf_url, event['uid'], zoom_redirect_token)}"
+        f"Zoom: {build_zoom_redirect_url(miniconf_url, event['uid'], None, False)}"
         if not pd.isna(event["live_url"])
         else ""
     )
@@ -86,7 +83,6 @@ def calendar_csv2ics(
     conf_tz = load_conference_timezone(in_csv)
     orig_csv = pd.read_csv(in_csv)
     orig_csv = orig_csv.sort_values(by=["uid"])
-    zoom_redirect_token = load_zoom_redirect_access_token()
 
     color_dict = {
         "Tutorials": "tut",
@@ -128,7 +124,7 @@ def calendar_csv2ics(
 
         e_cal["description"], e_cal["location"] = toDescription(
             os.path.normpath(os.path.join(in_csv, "..")),
-            event, zoom_redirect_token
+            event, 
         )
 
         # use safe lookup for color and build summary

@@ -116,8 +116,8 @@ webinar.
 The website does not expose `live_url` directly in UI links. Instead it routes via
 the static utility page:
 
-- Website links: `zoom.html?room=<event_uid>`
-- Slack-originated links: `zoom.html?room=<event_uid>&token=<conference_token>`
+- Website links: `zoom.html?event_uid=<event_uid>`
+- Slack-originated links: `zoom.html?event_uid=<event_uid>&token=<conference_token>`
 
 ### Config
 
@@ -129,7 +129,7 @@ ZOOM_REDIRECT_ACCESS_TOKEN=<token>
 
 ### Inputs
 
-- `room`: event `uid` from `events.csv`
+- `event_uid`: event `uid` from `events.csv`
 - `token`: conference token (typically included in Slack-originated links)
 
 The utility resolves the target event from `events.csv` and uses that event's

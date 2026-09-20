@@ -27,13 +27,13 @@
   let activeCountdownRoom = null;
   let activeCountdownPasscode = false;
 
-  const roomId = new URLSearchParams(window.location.search).get("room") || "";
+  const eventUid = new URLSearchParams(window.location.search).get("event_uid") || "";
   const urlToken = new URLSearchParams(window.location.search).get("token") || "";
 
   const parsedTargets = JSON.parse(targetsElement.textContent || "{}");
   const zoomConfig = JSON.parse(configElement.textContent || "{}");
   const accessToken = String(zoomConfig.access_token || "");
-  const room = parsedTargets[roomId];
+  const room = parsedTargets[eventUid];
 
   function showSlackPrompt(targetRoom) {
     const hasChannelLink = Boolean(targetRoom.channel_url);
@@ -101,7 +101,7 @@
   function resolveRoom() {
     if (!room || !room.join_url) {
       titleElement.textContent = "Room not found";
-      metaElement.textContent = `Unknown room ID: ${roomId || "(missing)"}`;
+      metaElement.textContent = `Unknown event UID: ${eventUid || "(missing)"}`;
       statusElement.textContent = "The utility link did not contain a valid room reference.";
       checkboxElement.disabled = true;
       joinButton.disabled = true;

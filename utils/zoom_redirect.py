@@ -18,12 +18,12 @@ def load_zoom_redirect_access_token() -> str:
 
 def build_zoom_redirect_url(
     base_url: str,
-    room_id: str,
+    event_uid: str,
     access_token: str | None,
     include_token: bool = True,
 ) -> str:
-    room = quote(str(room_id), safe="")
-    no_token = f"{base_url}/zoom.html?room={room}"
+    event = quote(str(event_uid), safe="")
+    no_token = f"{base_url}/zoom.html?event_uid={event}"
     if include_token:
         assert access_token is not None
         token = quote(str(access_token), safe="")

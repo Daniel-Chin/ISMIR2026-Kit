@@ -23,9 +23,9 @@ music_program_url: ""
 name: ISMIR 2026 Mock Run
 tagline: 3-HOUR PIPELINE TEST
 timezone: Asia/Dubai
-date: 18 August 2026 (mock)
-citation_date: 18 August 2026
-proceedings_title: Proceedings of the First MiniCon Conference
+date: 22 Sep 2026 (mock)
+citation_date: 22 Sep 2026
+proceedings_title: Untitled
 analytics: UA-
 logo:
   image: 'static/images/ismir_tabicon.png'

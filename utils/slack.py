@@ -376,7 +376,7 @@ def updateTopicandPurpose(channelName, topic, purpose):
     channel = channel_info.get("channel", {})
     is_member = channel.get("is_member", False)
     current_topic = channel.get("topic", {}).get("value", "")
-    current_purpose = channel.get("purpose", {}).get("value", "")
+    current_purpose: str = channel.get("purpose", {}).get("value", "")
 
     if not is_member:
         client.conversations_join(channel=channel_id)
@@ -384,6 +384,13 @@ def updateTopicandPurpose(channelName, topic, purpose):
     if current_topic != topic:
         client.conversations_setTopic(channel=channel_id, topic=topic)
 
+    current_purpose = current_purpose.replace('&amp;', '&')
+    # print('current_purpose')
+    # print(current_purpose)
+    # print('purpose')
+    # print(purpose)
+    # print(f'{current_purpose == purpose = }')
+    # input('enter...')
     if current_purpose != purpose:
         client.conversations_setPurpose(channel=channel_id, purpose=purpose)
 

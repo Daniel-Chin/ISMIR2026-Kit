@@ -45,6 +45,13 @@ def parse_args():
         default=None,
         help="Optional directory to write CSVs into; defaults to sitedata or sitedata_mock.",
     )
+    parser.add_argument(
+        "--skip-download",
+        action="store_true",
+        help=(
+            "Skip downloading CSVs from Google Sheets."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -82,8 +89,7 @@ def get_sheet_mapping(mockup: bool) -> dict[str, str]:
     return {name: os.environ[env_name] for name, env_name in REAL_SHEETS.items()}
 
 
-def pull_data_dir(data_dir: str | Path, mockup: bool) -> Path:
-    target_dir = Path(data_dir) if data_dir else (Path("sitedata_mock") if mockup else Path("sitedata"))
+def pull_data_dir(target_dir: Path, mockup: bool) -> Path:
     sheet_map = get_sheet_mapping(mockup)
 
     for name, sheet_id in sheet_map.items():
@@ -115,8 +121,12 @@ def rebuild_calendar_for_data_dir(data_dir: Path) -> None:
 def main():
     args = parse_args()
 
-    data_dir = pull_data_dir(args.data_dir, args.mockup)
-    rebuild_calendar_for_data_dir(data_dir)
+    target_dir = Path(args.data_dir) if args.data_dir else (
+        Path("sitedata_mock") if args.mockup else Path("sitedata")
+    )
+    if not args.skip_download:
+        pull_data_dir(target_dir, args.mockup)
+    rebuild_calendar_for_data_dir(target_dir)
 
 
 if __name__ == "__main__":

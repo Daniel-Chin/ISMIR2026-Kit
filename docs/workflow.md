@@ -170,14 +170,17 @@ Additionally,
 
 ### Importing fresh data
 
-`python pull_from_google_sheet.py` pulls CSVs from the master **Google Sheet** (requires env vars `SITEDATA`, `*_GID`):
+`python pull_from_google_sheet.py` pulls CSVs from the master **Google Sheet** (requires env vars `*_SHEET_URL`):
 
 ```bash
-wget "https://docs.google.com/spreadsheets/d/$SITEDATA/export?format=csv&gid=$INDUSTRY_GID" -O sitedata/industry.csv
-wget "https://docs.google.com/spreadsheets/d/$SITEDATA/export?format=csv&gid=$PAPERS_GID" -O sitedata/papers.csv
-wget "https://docs.google.com/spreadsheets/d/$SITEDATA/export?format=csv&gid=$EVENTS_GID" -O sitedata/events.csv
-wget "https://docs.google.com/spreadsheets/d/$SITEDATA/export?format=csv&gid=$MUSIC_GID" -O sitedata/music.csv
-wget "https://docs.google.com/spreadsheets/d/$SITEDATA/export?format=csv&gid=$LBDS_GID" -O sitedata/lbds.csv
+export INDUSTRY_SHEET_URL="https://docs.google.com/spreadsheets/d/<sheet-id>/edit?gid=<tab-gid>#gid=<tab-gid>"
+export PAPERS_SHEET_URL=...
+export EVENTS_SHEET_URL=...
+export MUSIC_SHEET_URL=...
+export LBDS_SHEET_URL=...
+export SESSION_ASSIGNMENT_SHEET_URL=...
+
+python pull_from_google_sheet.py
 
 # Then rebuild the calendar:
 python scripts/calendar_csv2ics.py

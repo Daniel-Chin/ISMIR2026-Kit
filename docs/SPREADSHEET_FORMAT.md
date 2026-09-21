@@ -17,7 +17,7 @@ Who fills what:
 
 Conventions (all tabs):
 
-- Booleans are uppercase `TRUE` / `FALSE`.
+- Booleans support `TRUE` / `FALSE` and `Yes` / `No`.
 - Multi-value fields are `;`-separated (`a@x.org;b@y.org`).
 - Subjects use the hierarchy separator `->`: `MIR tasks -> rhythm and tempo`.
 - Google Drive media: authors give `https://drive.google.com/open?id=...` share

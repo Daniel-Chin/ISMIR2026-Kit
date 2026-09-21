@@ -49,7 +49,7 @@
       Presented {{paper.content.paper_presentation}}
     </h4>
     <h4 class="text-muted text-center">
-      {% if paper.content.long_presentation == 'TRUE' %}
+      {% if paper.content.long_presentation in ['TRUE', 'Yes'] %}
       10-minute long-format presentation
       {% else %}
       4-minute short-format presentation
@@ -114,7 +114,7 @@ endif %}
       Video
     </button>
     {% endif %}
-    {% if paper.reviews.publish_reviews == 'TRUE' %}
+    {% if paper.reviews.publish_reviews in ['TRUE', 'Yes'] %}
     <button class="card-link btn btn-outline-primary" data-toggle="collapse"
       type="button" data-target="#meta-review">
       Meta
@@ -213,7 +213,7 @@ endif %}
     </div>
     {% endif %}
   </div>
-  {% if paper.reviews.publish_reviews == 'TRUE' %}
+  {% if paper.reviews.publish_reviews in ['TRUE', 'Yes'] %}
   <div id="meta-review" class="pp-card m-3 collapse">
     <div class="card-body">
       <div class="card-text">

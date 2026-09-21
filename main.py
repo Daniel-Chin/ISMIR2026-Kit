@@ -446,9 +446,9 @@ def format_paper(v):
                 set(
                     list_fields["primary_subject"]
                     + list_fields["secondary_subject"]
-                    + (["TISMIR"] if v["is_tismir"] == "TRUE" else [])
-                    + (["Awards Nominee"] if v["AwardNominee"] == "TRUE" else [])
-                    + (["Open Review"] if v["publish_reviews"] == "TRUE" else [])
+                    + (["TISMIR"] if v["is_tismir"] in {"TRUE", "Yes"} else [])
+                    + (["Awards Nominee"] if v["AwardNominee"] in {"TRUE", "Yes"} else [])
+                    + (["Open Review"] if v["publish_reviews"] in {"TRUE", "Yes"} else [])
                 )
             ),
             "abstract": v["abstract"]

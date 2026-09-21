@@ -261,12 +261,13 @@ We use the #general channel and we do not have an #announcement channel because 
 ## Idempotence and the sheet round-trip
 
 Channels are keyed by **name**. `create-channels` checks `isChannel()` before
-creating, so re-running never duplicates. This matters because `migrate.sh` /
-`migrate_mock.sh` re-pull the Google Sheet and overwrite `papers.csv` —
-including `channel_url`. The recovery is to re-run
-`setup-papers-create-channels`: existing channels are found by name and their
-URLs backfilled. If the sheet should stay the source of truth, paste the
-generated `channel_url` values back into the sheet after the first real run.
+creating, so re-running never duplicates. This matters because
+`python pull_from_google_sheet.py` / `python pull_from_google_sheet.py --mockup`
+re-pull the Google Sheet data and overwrite `papers.csv` — including
+`channel_url`. The recovery is to re-run `setup-papers-create-channels`:
+existing channels are found by name and their URLs backfilled. If the sheet
+should stay the source of truth, paste the generated `channel_url` values back
+into the sheet after the first real run.
 
 Corollary: **channel names are identity**. Rerunning `setup-channels` after a
 title or session/position change in the sheet produces a *new* name, and
@@ -356,5 +357,5 @@ end to end without touching real authors.
 | `invalid_name` | uppercase/punctuation in `slack_channel` — regenerate with `setup-channels` |
 | `User <email> does not exist in the workspace.` | author not yet a workspace member — workspace invites are manual, then re-run `invite-authors` |
 | `Rate limit exceeded. Retrying...` loops | expected on bulk runs; Slack caps ~90 channel creations per run |
-| `channel_url` empty after `migrate.sh` pull | expected — re-run `setup-papers-create-channels` to backfill |
+| `channel_url` empty after the data pull | expected — re-run `setup-papers-create-channels` to backfill |
 | `[SSL: CERTIFICATE_VERIFY_FAILED]` | handled — the client pins `certifi`'s CA bundle (`utils/slack.py` top) |

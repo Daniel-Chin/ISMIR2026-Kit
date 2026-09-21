@@ -197,9 +197,7 @@ During the session the host still clicks **Open all rooms** after the craze.
 Meetings and the webinar are keyed by **topic == event title**. Re-running
 `setup-zoom` should never duplicate a meeting.
 
-If `migrate.sh` / `migrate_mock.sh` ever overwrite `events.csv` — including `live_url`, simply
-re-run `setup-zoom`: existing poster meetings are found by title, the shared
-webinar is found by its fixed identity, and URLs are backfilled.
+If `python pull_from_google_sheet.py` / `python pull_from_google_sheet.py --mockup` ever overwrite `events.csv` — including `live_url`, simply re-run `setup-zoom`: existing poster meetings are found by title, the shared webinar is found by its fixed identity, and URLs are backfilled.
 
 Corollary: event titles are identity keys for those
 meetings. Renaming an event in the sheet and re-running creates a second
@@ -260,4 +258,4 @@ livestream path offline.
 | `... failed: {'code': 4711, ...}` / scope error | missing `meeting:write` scope on the app |
 | `RuntimeError: Breakout rooms did not persist on meeting ...` | breakout rooms disabled in the account's meeting settings — Zoom accepted the request but silently dropped the rooms (the read-back check caught it) |
 | Duplicate meetings after a sheet edit | event title changed — titles are the identity key (see above) |
-| `live_url` empty after `migrate.sh` pull | expected — re-run `setup-zoom` to backfill |
+| `live_url` empty after the data pull | expected — re-run `setup-zoom` to backfill |

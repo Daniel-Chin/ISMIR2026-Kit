@@ -18,7 +18,7 @@ The site and Slack automation both read from the same **`sitedata/`** CSV/YAML f
 ```mermaid
 flowchart LR
     subgraph sources [Data sources]
-        GS[Google Sheets via migrate.sh]
+        GS[Google Sheets via python pull_from_google_sheet.py]
         CSV[sitedata/*.csv + config.yml]
     end
 
@@ -156,22 +156,6 @@ Full reference — bot app/scope setup, per-step behavior, idempotence, platform
 
 Everything the site and Slack automation need lives under **`sitedata/`**. The Flask app loads all files in that directory at startup; `miniconf_prep.py` reads and writes the same CSVs in place.
 
-### Committed snapshot (what ships with the repo)
-
-The repo includes a full **ISMIR 2025** dataset — enough to preview the website locally without Google Sheets or `migrate.sh`:
-
-| File | Rows (approx.) | Slack data populated? |
-|------|----------------|------------------------|
-| `papers.csv` | 111 | Yes — all rows have `slack_channel` + `channel_url` |
-| `events.csv` | 58 | Partial — 15 tutorial/session channels with URLs |
-| `lbds.csv` | 70 | No — `channel_name` / `channel_url` empty |
-| `music.csv` | 5 | Yes — all rows have channels + URLs |
-| `industry.csv` | 22 | Yes — all rows have channels + URLs |
-| `config.yml` | — | Conference metadata, feature flags, Auth0 |
-| `main_calendar.json` | — | Pre-built calendar for the schedule view |
-
-Slack URLs in the committed data point at the **real ISMIR 2025 workspace**. They will not work in a new test workspace until you re-run channel creation.
-
 ### Key columns per file
 
 CSV files. See [./SPREADSHEET_FORMAT.md](./SPREADSHEET_FORMAT.md) for documentation.  
@@ -186,7 +170,7 @@ Additionally,
 
 ### Importing fresh data
 
-`migrate.sh` pulls CSVs from the master **Google Sheet** (requires env vars `SITEDATA`, `*_GID`):
+`python pull_from_google_sheet.py` pulls CSVs from the master **Google Sheet** (requires env vars `SITEDATA`, `*_GID`):
 
 ```bash
 wget "https://docs.google.com/spreadsheets/d/$SITEDATA/export?format=csv&gid=$INDUSTRY_GID" -O sitedata/industry.csv
@@ -200,7 +184,7 @@ python scripts/calendar_csv2ics.py
 python scripts/calendar_ics2json.py
 ```
 
-Typical loop: **update Google Sheet → `migrate.sh` → run Slack prep → sanitize → commit `sitedata/` → deploy**.
+Typical loop: **update Google Sheet → `python pull_from_google_sheet.py` → run Slack prep → sanitize → commit `sitedata/` → deploy**.
 
 ### Data not in the repo
 
@@ -209,7 +193,7 @@ Typical loop: **update Google Sheet → `migrate.sh` → run Slack prep → sani
 | `.env` / `SLACK_TOKEN` | Gitignored — required for Slack automation |
 | Registration CSV | Tutorials/sponsors expect `__23rd_..._Registration_Data.csv` in `sitedata/` — not committed |
 | `jobs.csv` | Referenced by `remove_private_details.py` but not present in current `sitedata/` |
-| Master Google Sheet | Source of truth during active conference prep; accessed via `migrate.sh` |
+| Master Google Sheet | Source of truth during active conference prep; accessed via `python pull_from_google_sheet.py` |
 
 ### Dummy / local setup
 
@@ -288,7 +272,7 @@ This runs `scripts/remove_private_details.py`, which drops email columns from al
 ## End-to-End Workflow for ISMIR
 
 1. **Collect data** in Google Sheets (papers, schedule, LBDs, music, sponsors).
-2. **Pull data** with `migrate.sh` into `sitedata/`.
+2. **Pull data** with `python pull_from_google_sheet.py` into `sitedata/`.
 3. **Run Slack setup** via `miniconf_prep.py` (papers first, then LBDs/music/tutorials/sponsors as needed).
 4. **Sanitize** with `remove-author-email` before publishing if emails shouldn't be on the live site.
 5. **Build calendar** with `prepare-calendar`.

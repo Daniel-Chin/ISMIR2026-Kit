@@ -22,7 +22,7 @@ Inputs, in the order they arrive during a real conference:
 Flow (each arrow is a script in this repo):
 
 ```
-Google Sheet ──migrate.sh──▶ sitedata/*.csv
+Google Sheet ──python pull_from_google_sheet.py──▶ sitedata/*.csv
 sitedata/events.csv ──prepare-calendar──▶ ICS ──▶ sitedata/main_calendar.json
 sitedata/*.csv ──miniconf_prep.py setup-*──▶ Slack channels ──▶ channel_url written back to CSV
 sitedata/events.csv ──setup-zoom (utils/zoom.py)──▶ Zoom meetings ──▶ live/zoom links in CSV
@@ -94,15 +94,15 @@ pre-filled with the mock data and real Drive media links (`raw_* = open?id=...`)
 with 5 tabs; the mock uses 5 single-tab sheets because they were created via
 the Drive API, which can't add tabs — the CSV-export mechanism is identical.
 
-**`./migrate_mock.sh`** plays the role of `migrate.sh`: pulls all five sheets
-into `sitedata_mock/*.csv` via unauthenticated export URLs and rebuilds the
-calendar. Verified end-to-end: edit sheet → `./migrate_mock.sh` →
-`python main.py --path sitedata_mock/` → poster pages embed the Drive PDFs.
+**`python pull_from_google_sheet.py --mockup`** pulls all five sheets into
+`sitedata_mock/*.csv` via unauthenticated export URLs and rebuilds the calendar.
+Verified end-to-end: edit sheet → `python pull_from_google_sheet.py --mockup`
+→ `python main.py --path sitedata_mock/` → poster pages embed the Drive PDFs.
 
 If you prefer the literal single-sheet setup, `scripts/make_sheet_export.py`
 writes paste-ready **TSVs** to `sheet_export/` — paste each into a tab of one
 sheet (cell A1; TSV splits into columns on paste, CSV does not) and use the
-original `migrate.sh` with that sheet's ID + tab gids.
+original `pull_from_google_sheet.py` with that sheet's ID + tab gids.
 
 Videos stay YouTube (`aqz-KE-bpKQ`) — the video columns accept any iframe URL,
 and LBD/music use YouTube IDs anyway.
@@ -200,7 +200,7 @@ rooms at 50/meeting and names at 32 chars. `ZoomCreator` calls
 `utils/zoom.py:createZoomLinksIfNeeded`, which creates one meeting per remaining
 row and writes the `join_url` into `live_url` in `events.csv`. It is idempotent
 by meeting topic: rows whose title already has a Zoom meeting get the existing
-URL backfilled instead of a duplicate — so when `./migrate_mock.sh` re-pulls the
+URL backfilled instead of a duplicate — so when `python pull_from_google_sheet.py --mockup` re-pulls the
 sheet and wipes `live_url`, re-running `setup-zoom` restores the links (copy them
 back into the events sheet if the sheet should stay authoritative). Meeting start
 times are interpreted in the timezone configured in

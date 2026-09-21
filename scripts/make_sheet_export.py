@@ -11,8 +11,8 @@ author-style Drive share links:
 
 Usage:
   python scripts/make_sheet_export.py
-Then paste each sheet_export/<tab>.tsv into its tab, and point migrate.sh
-at the sheet to pull them back down as sitedata CSVs.
+Then paste each sheet_export/<tab>.tsv into its tab, and point
+`pull_from_google_sheet.py` at the sheet to pull them back down as sitedata CSVs.
 """
 
 import csv

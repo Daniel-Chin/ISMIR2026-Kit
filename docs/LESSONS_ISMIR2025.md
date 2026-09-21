@@ -24,17 +24,8 @@ conference-attendee invites as separate milestones about a week apart.
 - **Gap vs. NOTE.md's recommended flow.** NOTE.md describes GitHub Actions
   pulling the Sheet on a schedule/trigger and auto-redeploying, so last-minute
   author edits (materials, links) go live without a chair running anything
-  locally. This repo's actual flow is manual: `migrate.sh` pulls the Sheet →
-  `sitedata/*.csv`, then `make deploy` builds and force-pushes `gh-pages`
-  from a local checkout (see `Makefile`, `docs/workflow.md` Part 1–2). There
-  is no CI workflow that does this — `.github/workflows/bot-deploy.yml` is
-  scoped to `bot/**`/`infra/**` only and explicitly does not touch
-  `sitedata/`/site deploy.
-  - If last-minute author edits during the conference are expected to be
-    frequent (NOTE.md says they were), consider adding a scheduled or
-    manually-triggered Actions workflow that runs `migrate.sh` +
-    `make deploy`, so any chair can trigger a refresh without local
-    Slack/GCP credentials or a git push.
+  locally. This repo does that: `python pull_from_google_sheet.py`
+  pulls the Sheet → `sitedata/*.csv`, then `uv run python main.py --build` builds. The github workflow refresh-website.yml chains these two steps and further pushes to Github Pages. 
 - **Custom domain**: NOTE.md flags requesting `ismir20xxprogram.ismir.net`
   from the ISMIR Tech Lead and pointing DNS at GitHub Pages — a one-time
   human action, not code. `docs/workflow.md` already hardcodes
@@ -53,7 +44,7 @@ conference-attendee invites as separate milestones about a week apart.
   the assistant catalogue export.
 - NOTE.md's other practice — store spreadsheet credentials as repo secrets,
   not in code — should hold for whatever pulls the Sheet in CI (see gap
-  above); confirm `migrate.sh`'s credential source is secrets-based if it
+  above); confirm the data-pull command's credential source is secrets-based if it
   ever runs in Actions rather than locally.
 
 ## Slack: inviting attendees

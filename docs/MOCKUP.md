@@ -90,8 +90,7 @@ permission — embeds work without login (verified).
 
 The same folder holds five **Google Sheets** named `papers`, `events`, `lbds`,
 `music`, `industry` (IDs under `sheets` in `scripts/mock_drive_ids.json`),
-pre-filled with the mock data and real Drive media links (`raw_* = open?id=...`,
-embed columns = `/file/d/<id>/preview`). The real conference uses one sheet
+pre-filled with the mock data and real Drive media links (`raw_* = open?id=...`). The real conference uses one sheet
 with 5 tabs; the mock uses 5 single-tab sheets because they were created via
 the Drive API, which can't add tabs — the CSV-export mechanism is identical.
 

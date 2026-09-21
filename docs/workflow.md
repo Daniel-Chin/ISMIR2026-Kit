@@ -174,56 +174,15 @@ Slack URLs in the committed data point at the **real ISMIR 2025 workspace**. The
 
 ### Key columns per file
 
-**`papers.csv`** — one row per accepted paper.
+CSV files. See [./SPREADSHEET_FORMAT.md](./SPREADSHEET_FORMAT.md) for documentation.  
+- **`papers.csv`** — one row per accepted paper.
+- **`events.csv`** — schedule entries (tutorials, poster sessions, social events, etc.).
+- **`lbds.csv`** — late-breaking demos (similar shape to papers, fewer columns).
+- **`music.csv`** — music program performances.
+- **`industry.csv`** — sponsor / industry sessions.
 
-| Column | Used for |
-|--------|----------|
-| `uid`, `title`, `day`, `session`, `position` | Routing, schedule, channel naming |
-| `authors_and_affil`, `abstract`, `primary_author` | Poster page content |
-| `pdf_path`, `video`, `poster_pdf`, `slides_pdf`, `thumbnail` | Embedded media (Google Drive links) |
-| `slack_channel` | Slack channel name (e.g. `p2-1-reformulating-soft-dynamic`) |
-| `channel_url` | Deep link written back by `utils/slack.py` after channel creation |
-| `author_emails`, `primary_email` | Slack invites (`;`-separated) — **empty in committed data** |
-| `summary_of_updates_post_review` | Optional free text describing post-review revisions (kept in data; not rendered on site pages yet) |
-| `review1`–`review4`, `meta_review`, `publish_reviews` | Optional peer-review text on poster pages |
-
-**`events.csv`** — schedule entries (tutorials, poster sessions, social events, etc.).
-
-| Column | Used for |
-|--------|----------|
-| `uid`, `title`, `day`, `start_date`, `start_time`, `end_time`, `category` | Day pages and calendar |
-| `description`, `organiser`, `organiser_bio`, `web_link` | Session detail pages |
-| `slack_channel`, `channel_url`, `live_url` | Slack + streaming links |
-| `organiser_emails` | Private — stripped before publish |
-
-**`lbds.csv`** — late-breaking demos (similar shape to papers, fewer columns).
-
-| Column | Used for |
-|--------|----------|
-| `uid`, `position`, `title`, `abstract`, `primary_author`, `authors`, `affiliations` | LBD pages |
-| `paper_link`, `poster_link`, `youtube_id`, `thumbnail_link` | Media |
-| `channel_name`, `channel_url`, `session` | Slack (`lp-*` physical, `lv-*` virtual — set by `setup-lbd`) |
-| `author_emails`, `primary_email` | Slack invites — **empty in committed data** |
-
-**`music.csv`** — music program performances.
-
-| Column | Used for |
-|--------|----------|
-| `uid`, `title`, `abstract`, `primary_author`, `authors`, `affiliation`, `bio` | Performance pages |
-| `web_link`, `gd_id`, `yt_id`, `thumbnail_link` | Media |
-| `channel_name`, `channel_url` | Slack |
-| `author_emails`, `primary_email` | Slack invites |
-
-**`industry.csv`** — sponsor / industry sessions.
-
-| Column | Used for |
-|--------|----------|
-| `uid`, `company`, `title`, `session`, `rep`, `abstract` | Sponsor pages |
-| `pdf`, `video`, `logo`, `external_web_link`, `hiring_web_link` | Media and links |
-| `channel_name`, `channel_url` | Slack |
-| `registered_emails` | Invite list for sponsor channels — **empty in committed data** |
-
-**`config.yml`** — site-wide settings: conference name/dates, feature toggles (`paper_videos`, `lbd_embeds`, …), calendar color map, Auth0 client ID, release-day controls (`paper_day_release`).
+Additionally,  
+- **`config.yml`** — site-wide settings: conference name/dates, feature toggles (`paper_videos`, `lbd_embeds`, …), calendar color map, Auth0 client ID, release-day controls (`paper_day_release`).
 
 ### Importing fresh data
 

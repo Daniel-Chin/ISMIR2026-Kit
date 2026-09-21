@@ -122,36 +122,33 @@ SUBJECTS = [
 
 def make_papers():
     header = (
-        "uid,title,day,session,position,slack_channel,authors_and_affil,"
-        "author_emails,primary_author,primary_email,abstract,paper_presentation,"
+        "uid,title,slack_channel,channel_url,authors_and_affil,"
+        "abstract,paper_presentation,"
         "primary_subject,secondary_subject,long_presentation,is_tismir,"
-        "SpecialTrack,StudentAuthor,AwardNominee,publish_reviews,abstract_short,"
+        "SpecialTrack,StudentAuthor,AwardNominee,publish_reviews,"
         "summary_of_updates_post_review,"
-        "pdf_name,raw_pdf_path,pdf_path,raw_video,video,raw_poster_pdf,"
-        "poster_pdf,thumbnail,raw_slides_pdf,slides_pdf,channel_url,"
+        "pdf_name,pdf_n_bytes,raw_pdf_path,"
+        "raw_video,video,raw_poster_pdf,raw_thumbnail,raw_slides_pdf,"
         "review1,review2,review3,review4,meta_review"
     ).split(",")
     rows = []
     for i, title in enumerate(PAPER_TITLES, start=1):
         uid = str(i)
-        write_pdf(
-            os.path.join(PDF_DIR, f"paper_{uid}.pdf"), title, "Camera-ready paper"
-        )
-        write_pdf(os.path.join(PDF_DIR, f"poster_{uid}.pdf"), title, "Poster")
-        write_pdf(os.path.join(PDF_DIR, f"slides_{uid}.pdf"), title, "Slides")
+        paper_file = f"paper_{uid}.pdf"
+        paper_path = os.path.join(PDF_DIR, paper_file)
+        poster_path = os.path.join(PDF_DIR, f"poster_{uid}.pdf")
+        slides_path = os.path.join(PDF_DIR, f"slides_{uid}.pdf")
+        write_pdf(paper_path, title, "Camera-ready paper")
+        write_pdf(poster_path, title, "Poster")
+        write_pdf(slides_path, title, "Slides")
         rows.append(
             {
                 "uid": uid,
                 "title": title,
-                "day": "1",
-                "session": "1",
-                "position": str(i),
                 "slack_channel": title2channelID(title, 1, i),
+                "channel_url": "",
                 "authors_and_affil": f"Mock Author{i}A (Mock University)*; "
                 f"Mock Author{i}B (Test Institute)",
-                "author_emails": DUMMY_EMAILS,
-                "primary_author": f"Mock Author{i}A",
-                "primary_email": "mock.author1@example.com",
                 "abstract": f"This is the mock abstract for paper {uid}: {title}. "
                 "It exists only to test the virtual conference pipeline "
                 "(website, Slack channels, Zoom links, and embedded media).",
@@ -164,14 +161,15 @@ def make_papers():
                 "StudentAuthor": "TRUE" if i % 2 else "FALSE",
                 "AwardNominee": "TRUE" if i == 1 else "FALSE",
                 "publish_reviews": "FALSE",
-                "abstract_short": f"Mock paper {uid}.",
                 "summary_of_updates_post_review": "",
-                "pdf_path": f"static/mock/paper_{uid}.pdf",
+                "pdf_name": paper_file,
+                "pdf_n_bytes": str(os.path.getsize(paper_path)),
+                "raw_pdf_path": f"static/mock/paper_{uid}.pdf",
+                "raw_video": "",
                 "video": f"https://www.youtube.com/embed/{YT_PLACEHOLDER}",
-                "poster_pdf": f"static/mock/poster_{uid}.pdf",
-                "thumbnail": "static/images/ismir_tabicon.png",
-                "slides_pdf": f"static/mock/slides_{uid}.pdf",
-                "channel_url": "",
+                "raw_poster_pdf": f"static/mock/poster_{uid}.pdf",
+                "raw_thumbnail": "static/images/ismir_tabicon.png",
+                "raw_slides_pdf": f"static/mock/slides_{uid}.pdf",
             }
         )
     write_csv("papers.csv", header, rows)

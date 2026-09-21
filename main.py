@@ -432,7 +432,6 @@ def format_paper(v):
         "session": v["session"],
         "position": v["position"],
         "forum": v["uid"],
-        "pic_id": v["thumbnail"],
         "content": {
             "title": v["title"],
             "summary_of_updates_post_review": v.get(
@@ -457,11 +456,11 @@ def format_paper(v):
             # )
             ,
             "TLDR": v["abstract"],
-            "poster_pdf": v.get("poster_pdf", ""),
             "session": list_fields["session"],
-            "pdf_path": v.get("pdf_path", ""),
+            "pdf_path": convert_drive_link(v.get("raw_pdf_path", "")),
+            "poster_pdf": convert_drive_link(v.get("raw_poster_pdf", "")),
+            "slides": convert_drive_link(v.get("raw_slides_pdf", "")),
             "video": v["video"].replace("/open?id=", "/uc?export=preview&id="),
-            "slides": v["slides_pdf"],
             "channel_url": v["channel_url"],
             "slack_channel": v["slack_channel"],
             "day": v["day"],

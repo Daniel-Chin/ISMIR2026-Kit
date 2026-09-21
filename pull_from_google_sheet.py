@@ -7,6 +7,7 @@ from urllib import request
 from scripts.calendar_csv2ics import calendar_csv2ics
 from scripts.calendar_ics2json import calendar_ics2json
 
+import dotenv
 
 REAL_SHEETS = {
     "industry": "INDUSTRY_SHEET_URL",
@@ -154,6 +155,8 @@ def rebuild_calendar_for_data_dir(data_dir: Path) -> None:
 
 
 def main():
+    dotenv.load_dotenv()
+
     args = parse_args()
 
     target_dir = Path(args.data_dir) if args.data_dir else (

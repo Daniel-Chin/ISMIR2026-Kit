@@ -1,9 +1,11 @@
 ## Cheatsheet
 ```fish
 tmux new -s job
-uv run python -m announcement_bot.announcement_bot --mockup --path sitedata_mock
+systemd-inhibit --what=sleep --why='announcement bot' \
+    uv run python -m announcement_bot.announcement_bot --mockup --path sitedata_mock
 # interact...
 # ctrl-B D
+systemd-inhibit --list  # to check locks
 # logout.
 # ...
 # login

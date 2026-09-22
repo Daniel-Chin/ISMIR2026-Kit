@@ -80,19 +80,18 @@ def get_sheet_mapping(mockup: bool) -> dict[str, str]:
     if mockup:
         return MOCK_SHEETS
 
-    missing = [name for name, env_name in REAL_SHEETS.items() if not os.getenv(env_name)]
-    if missing:
-        names = ", ".join(missing)
-        raise RuntimeError(
-            "Missing env vars for production sheet download: "
-            f"{names}. Set the corresponding *_SHEET_URL values."
-        )
-
-    return {
-        name: build_csv_export_url_from_sheet_url(os.environ[env_name])
-        for name, env_name in REAL_SHEETS.items()
-    }
-
+    mapping = {}
+    for name, env_name in REAL_SHEETS.items():
+        env_var = os.getenv(env_name)
+        if not env_var:
+            print(
+                "Missing env var for production sheet download: "
+                f"{name}. Set the corresponding *_SHEET_URL value."
+            )
+            input('Continue anyway? Enter...')
+            continue
+        mapping[name] = build_csv_export_url_from_sheet_url(env_var)
+    return mapping
 
 def build_csv_export_url_from_sheet_url(sheet_url: str) -> str:
     """Build a CSV export URL from a pasted Google Sheet tab URL."""

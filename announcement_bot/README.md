@@ -1,7 +1,7 @@
 ## Cheatsheet
 ```fish
 tmux new -s job
-uv run python announcement_bot/announcement_bot.py --mockup --path sitedata_mock
+uv run python -m announcement_bot.announcement_bot --mockup --path sitedata_mock
 # interact...
 # ctrl-B D
 # logout.

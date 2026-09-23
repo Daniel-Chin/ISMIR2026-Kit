@@ -1,3 +1,6 @@
+'''
+uv run python -m utils.session_assignment
+'''
 import os
 import csv
 from dataclasses import dataclass
@@ -7,7 +10,7 @@ import itertools
 from zoneinfo import ZoneInfo
 from pprint import pprint
 
-from utils.shared import load_conference_timezone, load_site_config
+from utils.shared import load_conference_timezone, load_site_config, format_session_window
 
 @dataclass(frozen=True)
 class Session:
@@ -158,5 +161,62 @@ def debug():
         pprint(x)
         input('Enter...')
 
+def export_paper_view(sitedata_path: str):
+    HEADER = [
+        'uid',
+        'title',
+        'day',
+        'session_index',
+        'time_block',
+        'chair_onsite',
+        'chair_remote',
+        'position_in_session',
+    ]
+
+    zone_info = load_conference_timezone(sitedata_path)
+    sessions, papers = parse_file(sitedata_path)
+    paper_title = dict[str, str]()
+    with open(os.path.join(
+        sitedata_path, 'papers.csv', 
+    ), 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            paper_title[row['uid']] = row['title']
+    out_path = os.path.join(
+        sitedata_path, 'session_assignment-by_paper.csv', 
+    )
+    with open(out_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        def write_message(msg: str):
+            buf = ['' for _ in HEADER]
+            buf[0] = msg
+            writer.writerow(buf)
+        write_message('README')    
+        write_message('This tab is read-only. Do not edit anything.')
+        write_message("It's generated from the session assignment matrix. That sheet is the source and is editable. This sheet is just a by-paper view for convenience.")
+        write_message("It's NOT used to update ANYTHING (website, slack).")
+        write_message('')
+        dict_writer = csv.DictWriter(f, fieldnames=HEADER)
+        dict_writer.writeheader()
+        for paper in papers:
+            session = sessions[paper.session_index - 1]
+            dict_writer.writerow({
+                'uid': paper.uid,
+                'title': paper_title[paper.uid],
+                'day': paper.day,
+                'session_index': paper.session_index,
+                'time_block': format_session_window(
+                    session.start_time,
+                    session.end_time,
+                    zone_info, 
+                ),
+                'chair_onsite': session.chair_onsite,
+                'chair_remote': session.chair_remote,
+                'position_in_session': paper.position,
+            })
+    print('CSV written to below file. Hint: Copy content and paste to Google Sheets?')
+    print(out_path)
+
 if __name__ == "__main__":
-    debug()
+    # debug()
+    export_paper_view('./sitedata/')

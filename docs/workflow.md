@@ -150,6 +150,10 @@ Without `--prod`, dummy emails are used so you can test without spamming real au
 
 Full reference — bot app/scope setup, per-step behavior, idempotence, platform limits, troubleshooting — in [SLACK.md](SLACK.md).
 
+### Session announcements (`long_running_bots/announcement_bot.py`)
+
+A bot that automatically posts an announcement when an event starts. See [../long_running_bots/announcement_bot.py](../long_running_bots/announcement_bot.py) and [../long_running_bots/README.md](../long_running_bots/README.md)  
+
 ---
 
 ## Part 3: Data (`sitedata/`)

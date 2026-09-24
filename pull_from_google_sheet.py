@@ -62,7 +62,7 @@ def download_csv_from_google_sheet(export_url: str, output_path: Path) -> None:
     """Download a published CSV export from a Google Sheet URL.
 
     The real conference has one master sheet with six tabs. The mock conference uses
-    separate Drive sheets instead, because the Drive API cannot add tabs. In both
+    separate Drive sheets instead for historical reasons. In both
     cases the workflow is identical: request the CSV export and save it to a local data dir.
     """
     if not export_url:

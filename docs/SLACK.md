@@ -34,11 +34,12 @@ sitedata/papers.csv ── miniconf_prep.py --action setup-papers-<step>
 Slack app creation is browser-only. The person must be able to install apps to
 the workspace (workspace admin, or an app-approval flow).
 
-1. Create the workspace if needed (a free workspace is fine for the mock run).
-2. Create an app at <https://api.slack.com/apps?new_app=1> ("From scratch",
+1. Create the workspace if needed (a free workspace is fine).  
+2. Follow the beginning of ["Operational sequence"](#operational-sequence).  
+3. Create an app at <https://api.slack.com/apps?new_app=1> ("From scratch",
    pick the workspace).
    - The "app name" will be shown in Slack channels, so use something like "Service Bot".
-3. **OAuth & Permissions → Scopes → Bot Token Scopes**, add:
+4. **OAuth & Permissions → Scopes → Bot Token Scopes**, add:
    - `channels:manage` — create public channels, invite, set topic/purpose
    - `channels:read` — list channels
    - `groups:write` + `groups:read` — manage tutorial channels after they are
@@ -50,9 +51,9 @@ the workspace (workspace admin, or an app-approval flow).
    - `groups:history`
    - `mpim:history`
    - `im:history`
-4. **OAuth & Permissions → Scopes → User Token Scopes**, add:
+5. **OAuth & Permissions → Scopes → User Token Scopes**, add:
    - `chat:write`
-5. **Install App to Workspace** and copy the two **OAuth Tokens**
+6. **Install App to Workspace** and copy the two **OAuth Tokens**
    (`xox?-...`).
 
    The token must start with `xoxb-` or `xoxp-`. A token beginning with `xoxe`
@@ -62,7 +63,7 @@ the workspace (workspace admin, or an app-approval flow).
    Permissions**, install or reinstall the app, and copy the **Bot User OAuth
    Token** and **User OAuth Token** instead.
 
-6. In the repo root, add to `.env` (already gitignored — never commit it):
+7. In the repo root, add to `.env` (already gitignored — never commit it):
 
    ```
    SLACK_USER_TOKEN=xoxp-...
@@ -71,13 +72,13 @@ the workspace (workspace admin, or an app-approval flow).
    ZOOM_REDIRECT_ACCESS_TOKEN=<put-random-string-here>
    ```
 
-7. Smoke test (read-only, creates nothing):
+8. Smoke test (read-only, creates nothing):
 
    ```bash
    .venv/bin/python -c "from utils import slack; print(len(slack.get_all_channels_data()), 'channels')"
    ```
 
-8. Give a nice profile image to the bot.  
+9. Give a nice profile image to the bot.  
 
 ## Running it
 
@@ -164,27 +165,30 @@ and temporarily making tutorial channels default channels. This reduced
 last-minute manual support when registration emails did not match the email
 people used to join Slack.
 
-Operational sequence:
-
-1. Create `#social`, `#random`, `#help`, and the tutorial channels as **public**
+### Operational sequence:
+1. Rename the general channel to "#general". 
+2. Set `#general` so only managers can post. 
+3. Create `#social`, `#random`, `#help`, and the tutorial channels as **public**
    channels before sending workspace invitations. Ensure the provisioning bot
    is a member so it retains access after tutorial channels become private.
-2. Add `#general`, `#social`, `#random`, `#help`, opening session, and the tutorial channels to Slack's
+4. Go to Workspace Settings.
+5. Require admin approval when member invite new people to your workspace.  
+6. Add `#general`, `#social`, `#random`, `#help`, opening session, and the tutorial channels to Slack's
    **Default Channels** list. The first two are permanent defaults; tutorial
    channels are temporary defaults.
-3. Send targeted workspace invitations to tutorial attendees. Tell them to use
+7. Send targeted workspace invitations to tutorial attendees. Tell them to use
    the same email address they used for registration.
-4. Monitor pending and accepted invitations and handle email mismatches.
-5. Once most tutorial attendees have joined, remove only the tutorial channels
+8. Monitor pending and accepted invitations and handle email mismatches.
+9. Once most tutorial attendees have joined, remove only the tutorial channels
    from the default list. Keep `#general`... as defaults.
-6. Audit channel membership, then convert each tutorial channel from public to
+10. Audit channel membership, then convert each tutorial channel from public to
    private: **channel name → Settings → Change to a private channel**.
-7. Verify that the channels are private, then add restricted materials such as
+11. Verify that the channels are private, then add restricted materials such as
    Zoom links.
-8. Send workspace invitations to the general conference audience.
-9. Manually handle late tutorial registrants or assign them with
+12. Send workspace invitations to the general conference audience.
+13. Manually handle late tutorial registrants or assign them with
    `setup-tutorials-invite-attendees` after Slack knows their account.
-10. Invite volunteers to Slack.
+14. Invite volunteers to Slack.
 
 CLI stages:
 

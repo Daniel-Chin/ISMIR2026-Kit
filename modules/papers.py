@@ -1,14 +1,12 @@
-import pandas as pd
 import re
 import os
+
+import pandas as pd
 from tqdm import tqdm
 
 from utils import slack as slackUtils
 from utils.shared import format_session_window, load_conference_timezone_name, load_site_config
-from utils.zoom_redirect import (
-    build_zoom_redirect_url,
-    load_zoom_redirect_access_token,
-)
+from utils.session_assignment import parse_file
 
 
 def title2channelID(
@@ -41,6 +39,16 @@ class Papers:
         )
         self.conference_timezone = load_conference_timezone_name(data_dir)
 
+    def _paper_assignments(self, csv_data):
+        _, papers = parse_file(self.data_path)
+        assignments = {paper.uid: paper for paper in papers}
+        missing = [uid for uid in csv_data["uid"] if uid not in assignments]
+        if missing:
+            raise ValueError(
+                "Papers missing from session_assignment.csv: " + ", ".join(missing)
+            )
+        return assignments
+
     """
     This method inputs the zoomUtils and setup zoom calls for the all the sessions.
     """
@@ -50,17 +58,18 @@ class Papers:
             raise Exception("self.papersCsvFile passed in contructor is null")
 
         # Reading the papers data.
-        csv_data = pd.read_csv(self.papersCsvFile)
+        csv_data = pd.read_csv(self.papersCsvFile, dtype={"uid": str})
 
         slack_channel_column = "slack_channel"
+        assignments = self._paper_assignments(csv_data)
 
         csv_data = slackUtils.populate_channel_names(
             csv_data,
             slack_channel_column,
             lambda row, _: title2channelID(
                 row["title"],
-                session_number=row["session"],
-                paper_number=row["position"],
+                session_number=assignments[row["uid"]].session_index,
+                paper_number=assignments[row["uid"]].position,
             ),
         )
 
@@ -76,7 +85,7 @@ class Papers:
             raise Exception("self.papersCsvFile passed in contructor is null")
 
         # Reading the papers data.
-        csv_data = pd.read_csv(self.papersCsvFile)
+        csv_data = pd.read_csv(self.papersCsvFile, dtype={"uid": str})
         slack_channel_column = "slack_channel"
         channel_names = [
             str(name).strip() for name in csv_data[slack_channel_column].tolist() if str(name).strip()
@@ -101,7 +110,7 @@ class Papers:
         if self.papersCsvFile is None:
             raise Exception("self.papersCsvFile passed in contructor is null")
         # Reading the papers data.
-        csv_data = pd.read_csv(self.papersCsvFile)
+        csv_data = pd.read_csv(self.papersCsvFile, dtype={"uid": str})
         slack_channel_column = "slack_channel"
         # Adding the authors to the papers channel.
         user_details = {}
@@ -133,43 +142,33 @@ class Papers:
         if self.eventsCsvFile is None:
             raise Exception("eventsCsvFile passed in constructor is null")
 
-        csv_data = pd.read_csv(self.papersCsvFile)
+        csv_data = pd.read_csv(self.papersCsvFile, dtype={"uid": str})
         events_data = pd.read_csv(self.eventsCsvFile)
-        zoom_redirect_token = load_zoom_redirect_access_token()
+        assignments = self._paper_assignments(csv_data)
         site_base_url = load_site_config(self.data_path)["miniconf_url"]
 
         poster_session_details = {}
         for _, row in csv_data.iterrows():
-            day = row["day"]
-            session = row["session"]
-            if pd.notna(day) and float(day).is_integer():
-                day = int(day)
-            if pd.notna(session) and float(session).is_integer():
-                session = int(session)
+            assignment = assignments[row["uid"]]
+            session = assignment.session_index
+            if session in poster_session_details:
+                continue
 
+            # Session indices are global; assignment days are relative to the
+            # first paper session, whereas event days may include tutorials.
             matching_events = events_data[
-                (events_data["day"] == day)
-                & (events_data["title"] == f"Poster Session - {session}")
+                events_data["title"] == f"Poster Session - {session}"
             ]
             if matching_events.empty:
                 raise Exception(
-                    f"No event found for paper {row['uid']} (day {day}, "
-                    f"session {session})."
+                    f"No event found for paper {row['uid']} (session {session})."
                 )
 
             event_row = matching_events.iloc[0]
-            if pd.isna(event_row["live_url"]) or not str(event_row["live_url"]).strip():
-                raise Exception(
-                    f"The live_url for Poster Session - {session} is empty. "
-                    "Run the setup-zoom action first."
-                )
-            zoom_url = build_zoom_redirect_url(
-                site_base_url,
-                str(event_row["uid"]),
-                zoom_redirect_token,
+            poster_channel_name = (
+                "" if pd.isna(event_row["slack_channel"])
+                else str(event_row["slack_channel"]).strip()
             )
-
-            poster_channel_name = str(event_row["slack_channel"]).strip()
             if not poster_channel_name:
                 raise Exception(
                     f"Poster Session - {session} is missing slack_channel. "
@@ -183,11 +182,10 @@ class Papers:
                     "Run create-event-channels first."
                 )
 
-            poster_session_details[(day, session)] = {
+            poster_session_details[session] = {
                 "title": str(event_row["title"]).strip(),
                 "channel_name": poster_channel_name,
                 "channel_id": poster_channel_id,
-                "zoom_url": zoom_url,
                 "session_window": format_session_window(
                     event_row.get("start_date"),
                     event_row.get("start_time"),
@@ -212,14 +210,8 @@ class Papers:
                     re.sub(r"\s*\(.*?\)", "", authors).replace("(", "").replace(")", "")
                 )
 
-                day = row["day"]
-                session = row["session"]
-                if pd.notna(day) and float(day).is_integer():
-                    day = int(day)
-                if pd.notna(session) and float(session).is_integer():
-                    session = int(session)
-
-                poster_details = poster_session_details[(day, session)]
+                session = assignments[paper_id].session_index
+                poster_details = poster_session_details[session]
                 poster_channel_link = (
                     f"<#{poster_details['channel_id']}|"
                     f"{poster_details['channel_name']}>"

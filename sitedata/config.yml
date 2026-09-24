@@ -60,8 +60,8 @@ auth0_domain : miniconf.auth0.com
 calendar:
   colors: #  Colors for the different event hashtags:
     all: '#FDE68A'
-    oral: '#A7F3D0'
-    pos: '#A7F3D0'
+    oral: '#BBFFE3'
+    pos: '#BBFFE3'
     awardnominee: '#FECDD3'
     tut: '#C7D2FE'
     majlis: '#FED7AA'
@@ -76,7 +76,7 @@ calendar:
     awards: '#fff2cc'
     open: '#fff2cc'
     lbd: '#e2efda'
-    mus: '#93c47d'
+    mus: '#BBFFBB'
     vmeet: '#2380BD'
     sat: '#7986CB'
     performance: '#AF0704'

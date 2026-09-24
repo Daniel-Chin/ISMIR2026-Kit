@@ -9,7 +9,7 @@
 }
 
 .tui-full-calendar-time-schedule-content, .tui-full-calendar-time-schedule-content-time {
-  border-color: lightgrey !important;
+  border-color: #eeeeee !important;
   font-weight: 400;
   color: black;
 }

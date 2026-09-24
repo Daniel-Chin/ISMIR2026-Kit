@@ -106,24 +106,7 @@ Requires `SLACK_TOKEN` in the environment (loaded from `.env` via `utils/slack.p
 
 ### Paper Slack workflow
 
-```bash
-export SLACK_TOKEN=...
-
-# 1. Generate channel names in papers.csv (if not already there)
-#    Names look like: p2-1-reformulating-soft-dynamic
-
-# 2. Create channels + write channel_url back to CSV
-python miniconf_prep.py --action setup-papers-create-channels --path sitedata/
-
-# 3. Invite authors
-python miniconf_prep.py --action setup-papers-invite-authors --path sitedata/
-
-# 4. Set paper channel descriptions with links to miniconf and the poster-session Slack channel
-python miniconf_prep.py --action setup-papers-set-desc --path sitedata/
-
-# 5. Set event descriptions for all event rows, including poster sessions
-python miniconf_prep.py --action set-event-channel-desc --path sitedata/
-```
+Follow [Section "Running it" in SLACK.md](./SLACK.md#running-it)
 
 ### Channel naming for papers
 

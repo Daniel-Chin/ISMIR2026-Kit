@@ -79,7 +79,6 @@ def calendar_csv2ics(
     color_dict = {
         "Tutorials": "tut",
         "Opening": "open",
-        "Keynote session": "key",
         "Oral session": "oral",
         "All Meeting": "all",
         "Poster session": "pos",

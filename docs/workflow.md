@@ -150,6 +150,14 @@ Without `--prod`, dummy emails are used so you can test without spamming real au
 
 Full reference — bot app/scope setup, per-step behavior, idempotence, platform limits, troubleshooting — in [SLACK.md](SLACK.md).
 
+### Session announcements (`long_running_bots/announcement_bot.py`)
+
+A bot that automatically posts an announcement when an event starts. See [../long_running_bots/announcement_bot.py](../long_running_bots/announcement_bot.py) and [../long_running_bots/README.md](../long_running_bots/README.md)  
+
+### Self-service website updates (`long_running_bots/self_service_pusher.py`)
+
+The Slack bot listens for `/push-sheet-to-website` and triggers the GitHub workflow. See [setup and token requirements](../long_running_bots/self_service_pusher.py) and [bot operations](../long_running_bots/README.md).
+
 ---
 
 ## Part 3: Data (`sitedata/`)

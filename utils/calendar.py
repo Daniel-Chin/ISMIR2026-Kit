@@ -23,6 +23,10 @@ CALENDAR_IDS = {
     "LBD": "lbd",
     "Awards": "awards",
     "Performance": "performance",
+    "Award nominee": "awardnominee",
+    "Majlis": "majlis",
+    "Unconference": "unconference",
+    "Special": "special",
 }
 
 

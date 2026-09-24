@@ -94,6 +94,10 @@ def calendar_csv2ics(
         "LBD": "lbd",
         "Awards": "awards",
         "Performance": "performance",
+        "Award nominee": "awardnominee",
+        "Majlis": "majlis",
+        "Unconference": "unconference",
+        "Special": "special",
     }
 
     cal = Calendar()

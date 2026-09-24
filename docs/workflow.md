@@ -102,7 +102,7 @@ python main.py --path sitedata/
 | `remove-author-email` | Strips private contact info before publishing |
 | `process-new-users` | Re-runs tutorial + sponsor invites for new registrations |
 
-Requires `SLACK_TOKEN` in the environment (loaded from `.env` via `utils/slack.py`).
+Requires `SLACK_BOT_TOKEN` in the environment (loaded from `.env` via `utils/slack.py`).
 
 ### Paper Slack workflow
 
@@ -182,7 +182,7 @@ Typical loop: **update Google Sheet → `python pull_from_google_sheet.py` → r
 
 | Item | Notes |
 |------|-------|
-| `.env` / `SLACK_TOKEN` | Gitignored — required for Slack automation |
+| `.env` / `SLACK_BOT_TOKEN` | Gitignored — required for Slack automation |
 | Registration CSV | Tutorials/sponsors expect `__23rd_..._Registration_Data.csv` in `sitedata/` — not committed |
 | `jobs.csv` | Referenced by `remove_private_details.py` but not present in current `sitedata/` |
 | Master Google Sheet | Source of truth during active conference prep; accessed via `python pull_from_google_sheet.py` |
@@ -202,7 +202,7 @@ python3 -m venv .venv
 
 ```bash
 # .env (gitignored)
-SLACK_TOKEN=xoxb-...
+SLACK_BOT_TOKEN=xoxb-...
 DUMMY_EMAIL=you@your-workspace-email.com   # must be a real user in your test workspace
 
 python miniconf_prep.py --action setup-papers-create-channels --path sitedata/
@@ -247,7 +247,7 @@ python miniconf_prep.py --action remove-author-email
 
 This runs `scripts/remove_private_details.py`, which drops email columns from all CSVs. Also consider stripping review columns and scrubbing music bios if publishing a scrubbed fork.
 
-**Never commit** — `.env`, `SLACK_TOKEN`, raw registration exports with attendee emails.
+**Never commit** — `.env`, `SLACK_BOT_TOKEN`, raw registration exports with attendee emails.
 
 ---
 

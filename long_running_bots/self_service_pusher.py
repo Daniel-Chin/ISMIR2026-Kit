@@ -52,7 +52,7 @@ def main() -> None:
     assert app_token
 
     # Match utils.slack's certificate and rate-limit handling, using this bot's
-    # own token instead of the shared SLACK_TOKEN client.
+    # own token instead of the shared SLACK_BOT_TOKEN client.
     web_client = WebClient(
         token=bot_token, ssl=ssl.create_default_context(cafile=certifi.where())
     )

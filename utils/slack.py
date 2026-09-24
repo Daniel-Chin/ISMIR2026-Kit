@@ -35,7 +35,7 @@ load_dotenv(dotenv_path=env_path)
 # Add ssl info to the WebClient if you get [SSL: CERTIFICATE_VERIFY_FAILED] error.
 # Token may be absent when running non-Slack actions; API calls will then fail
 # with invalid_auth, but importing this module stays safe.
-client_bot = slack_sdk.WebClient(token=os.environ.get("SLACK_TOKEN", ""), ssl=ssl_context)
+client_bot = slack_sdk.WebClient(token=os.environ.get("SLACK_BOT_TOKEN", ""), ssl=ssl_context)
 client_user = slack_sdk.WebClient(token=os.environ.get("SLACK_USER_TOKEN", ""), ssl=ssl_context)
 # Honors the Retry-After header on HTTP 429 responses instead of a fixed sleep.
 client_bot.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))

@@ -29,7 +29,7 @@ sys.path.insert(0, ROOT)
 
 def title2channelID(title, session_number, paper_number):
     # Copy of modules/papers.py:title2channelID — importing that module pulls in
-    # utils/slack.py, which needs SLACK_TOKEN and a live workspace at import time.
+    # utils/slack.py, which needs SLACK_BOT_TOKEN and a live workspace at import time.
     prefix = f"p{session_number}-{paper_number}"
     cleaned = title.lstrip().lower()
     cleaned = re.sub(r"[+?._:,]", "", cleaned)

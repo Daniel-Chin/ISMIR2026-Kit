@@ -125,7 +125,7 @@ One-time: create a free test Slack workspace, create a Slack app with bot scopes
 `users:read.email`, install it, and put in `.env` (gitignored):
 
 ```
-SLACK_TOKEN=xoxb-...
+SLACK_BOT_TOKEN=xoxb-...
 DUMMY_EMAIL=<your-email-in-that-workspace>   # invites go here in non-prod mode
 ```
 

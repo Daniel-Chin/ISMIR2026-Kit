@@ -2,7 +2,7 @@ import argparse
 import os
 
 # module imports live inside the setup functions below: several modules pull in
-# utils.slack, which needs SLACK_TOKEN at import time — deferring keeps
+# utils.slack, which needs SLACK_BOT_TOKEN at import time — deferring keeps
 # credential-free actions (e.g. setup-zoom in dummy mode) runnable
 
 # Prepare for tutorials
@@ -180,7 +180,7 @@ if __name__ == "__main__":
             raise Exception("--path for the root directory for data is missing")
         if action == "setup-zoom":
             # zoom creds are only checked on first API call, so this import is
-            # safe without .env and setup-zoom never needs SLACK_TOKEN
+            # safe without .env and setup-zoom never needs SLACK_BOT_TOKEN
             from utils import zoom as zoomUtils
         else:
             from utils import slack as slackUtils

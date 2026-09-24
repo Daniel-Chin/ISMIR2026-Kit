@@ -59,7 +59,7 @@ the workspace (workspace admin, or an app-approval flow).
    The token must start with `xoxb-` or `xoxp-`. A token beginning with `xoxe`
    (for example, one shown by the Slack CLI or under app configuration tokens)
    is a different credential and is not the bot token expected by this
-   repository. Do not put it in `SLACK_TOKEN`. Return to **OAuth &
+   repository. Do not put it in `SLACK_BOT_TOKEN`. Return to **OAuth &
    Permissions**, install or reinstall the app, and copy the **Bot User OAuth
    Token** and **User OAuth Token** instead.
 
@@ -67,7 +67,7 @@ the workspace (workspace admin, or an app-approval flow).
 
    ```
    SLACK_USER_TOKEN=xoxp-...
-   SLACK_TOKEN=xoxb-...
+   SLACK_BOT_TOKEN=xoxb-...
    DUMMY_EMAIL=<your-email-in-that-workspace>   # invite target in non-prod mode
    ZOOM_REDIRECT_ACCESS_TOKEN=<put-random-string-here>
    ```
@@ -109,7 +109,7 @@ order after step 2.
 
 After scripts, manual setup include: setting the correct channels to be default; setting channel description.
 
-`SLACK_TOKEN` is needed for every step that talks to Slack (2–5). Importing
+`SLACK_BOT_TOKEN` is needed for every step that talks to Slack (2–5). Importing
 `utils/slack.py` without a token is safe — the client is built lazily and the
 first actual API call just fails with `invalid_auth` — so step 1
 (`setup-channels`), which only rewrites the CSV, runs without credentials.
@@ -284,7 +284,7 @@ members, and topic/purpose are simply overwritten.
 ## utils/slack.py API surface
 
 Importing the module is side-effect free apart from loading `.env`: the
-`WebClient` is built with whatever `SLACK_TOKEN` is present (possibly empty),
+`WebClient` is built with whatever `SLACK_BOT_TOKEN` is present (possibly empty),
 and the user/channel lookup maps are fetched from the API **on first use**,
 then cached for the life of the process. A missing token surfaces as
 `invalid_auth` on the first real call, not at import. All wrapped calls retry
@@ -354,7 +354,7 @@ end to end without touching real authors.
 
 | Symptom | Cause |
 |---|---|
-| `invalid_auth` | `SLACK_TOKEN` missing/empty (`.env` is read relative to the CWD — run from repo root), token revoked, wrong workspace, or app uninstalled |
+| `invalid_auth` | `SLACK_BOT_TOKEN` missing/empty (`.env` is read relative to the CWD — run from repo root), token revoked, wrong workspace, or app uninstalled |
 | Token starts with `xoxe.xoxp-` | wrong credential type — this project requires the app's `xoxb-` **Bot User OAuth Token** from **OAuth & Permissions** after installation |
 | `missing_scope` | a bot scope from the setup list wasn't added, or the app wasn't **reinstalled** after adding scopes |
 | `name_taken` on create | channel already exists **archived**, or is a private channel the bot can't see |

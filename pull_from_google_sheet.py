@@ -5,7 +5,6 @@ from urllib.parse import parse_qs, urlparse
 from urllib import request
 
 from scripts.calendar_csv2ics import calendar_csv2ics
-from scripts.calendar_ics2json import calendar_ics2json
 
 import dotenv
 
@@ -135,21 +134,14 @@ def pull_data_dir(target_dir: Path, mockup: bool) -> Path:
 
 
 def rebuild_calendar_for_data_dir(data_dir: Path) -> None:
-    """Rebuild the calendar assets from the freshest events CSV.
-
-    This replaces the shell commands that ran:
-      .venv/bin/python scripts/calendar_csv2ics.py
-      .venv/bin/python scripts/calendar_ics2json.py
-    """
+    """Rebuild the downloadable ICS calendar from the freshest events CSV."""
     events_csv = data_dir / "events.csv"
     calendar_ics = Path("static") / "calendar" / "ISMIR_2026.ics"
-    calendar_json = data_dir / "main_calendar.json"
 
     if not events_csv.exists():
         raise FileNotFoundError(f"Missing events CSV at {events_csv}")
 
     calendar_csv2ics(in_csv=str(events_csv), out_ics=str(calendar_ics))
-    calendar_ics2json(in_ics=str(calendar_ics), out_json=str(calendar_json))
     print("calendar rebuilt")
 
 

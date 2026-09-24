@@ -66,7 +66,6 @@ flowchart LR
 | `lbds.csv` | Late-breaking demos |
 | `music.csv` | Music program |
 | `industry.csv` | Sponsor/industry sessions |
-| `main_calendar.json` | Calendar data for the schedule view |
 
 It builds pages like posters (`/poster_<uid>.html`), schedule, tutorials, LBDs, music, and industry. Templates (e.g. `poster.html`) show a **Slack button** when `channel_url` is set.
 
@@ -99,7 +98,7 @@ python main.py --path sitedata/
 | `setup-tutorials-invite-attendees` | Add active/pending invited registrants to their selected tutorial channels |
 | `setup-tutorials` | Compatibility action: run both tutorial stages, leaving channels public |
 | `setup-sponsors` | Industry/sponsor channels + invite registered emails |
-| `prepare-calendar` | Converts schedule CSV → ICS → JSON |
+| `prepare-calendar` | Converts schedule CSV → downloadable ICS |
 | `remove-author-email` | Strips private contact info before publishing |
 | `process-new-users` | Re-runs tutorial + sponsor invites for new registrations |
 
@@ -192,7 +191,6 @@ python pull_from_google_sheet.py
 
 # Then rebuild the calendar:
 python scripts/calendar_csv2ics.py
-python scripts/calendar_ics2json.py
 ```
 
 Typical loop: **update Google Sheet → `python pull_from_google_sheet.py` → run Slack prep → sanitize → commit `sitedata/` → deploy**.

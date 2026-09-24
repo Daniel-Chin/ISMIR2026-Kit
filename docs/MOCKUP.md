@@ -23,7 +23,7 @@ Flow (each arrow is a script in this repo):
 
 ```
 Google Sheet ──python pull_from_google_sheet.py──▶ sitedata/*.csv
-sitedata/events.csv ──prepare-calendar──▶ ICS ──▶ sitedata/main_calendar.json
+sitedata/events.csv ──prepare-calendar──▶ ICS download
 sitedata/*.csv ──miniconf_prep.py setup-*──▶ Slack channels ──▶ channel_url written back to CSV
 sitedata/events.csv ──setup-zoom (utils/zoom.py)──▶ Zoom meetings ──▶ live/zoom links in CSV
 sitedata/ ──main.py (Flask)──▶ site preview ──make freeze──▶ static build ──▶ GitHub Pages
@@ -77,7 +77,7 @@ Produces:
   paper, LBD abstracts, sponsor decks).
 - Fake videos: every `video`/`youtube_id`/`yt_id` points at the CC-licensed
   Big Buck Bunny YouTube ID `aqz-KE-bpKQ`.
-- `sitedata_mock/main_calendar.json` + `static/calendar/ISMIR_2026.ics` — built with
+- `static/calendar/ISMIR_2026.ics` — built with
   the real `prepare-calendar` scripts (same ICS filename `main.py`'s `/getCalendar`
   download route serves).
 

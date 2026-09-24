@@ -30,6 +30,7 @@ from markupsafe import Markup
 
 from utils.zoom_redirect import build_zoom_redirect_url
 from utils.shared import load_site_config
+from utils.calendar import build_calendar
 
 
 def chain_functions(*functions: Callable) -> Callable:
@@ -123,6 +124,8 @@ def main(site_data_path: str):
     for f in glob.glob(site_data_path + "/*"):
         extra_files.append(f)
         name, typ = f.split("/")[-1].split(".")
+        if name == "main_calendar":
+            continue
         if typ == "json":
             site_data[name] = chain_functions(
                 open,
@@ -153,6 +156,8 @@ def main(site_data_path: str):
                 None,
                 include_token=False,
             )
+
+    site_data["main_calendar"] = build_calendar(site_data["events"], site_data["config"])
 
     site_data.setdefault("config", {})["zoom_redirect_access_token"] = os.environ.get(
         "ZOOM_REDIRECT_ACCESS_TOKEN", ""
@@ -770,7 +775,7 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--path", help="Pass the JSON data path and run the server", required=True
+        "--path", help="Pass the site data directory and run the server", required=True
     )
 
     args = parser.parse_args()

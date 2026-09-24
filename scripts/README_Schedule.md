@@ -1,34 +1,14 @@
 ## Adding a schedule to MiniConf
 
-1) Create a Calendar in you favorite calendar application.
-Be sure that you can export calendars as `.ics` files. 
-2) [optional] use the `location` field for links that you want to link out from 
-the calendar view (e.g. filtered poster sessions). 
-3) [optional] use hashtags in front of events to classify them.
-4) run the `parse_calendar.py` script:
+Edit `events.csv` in the site data directory passed to `main.py --path`.
+The website builds its calendar directly from these rows, using the timezone
+and calendar colors in that directory's `config.yml`.
+
+To regenerate the downloadable ICS calendar, run from the repository root:
 
 ```bash
-python calendar_ics2json.py --in sample_cal.ics
-``` 
-
-### Example
-
-An entry like this in iCal or Google Cal:
-
-```
-title: #talk Homer Simpson
-location: http://abc.de
-start: 7:00pm ET 
+python miniconf_prep.py --path sitedata --action prepare-calendar
 ```
 
-will appear in the schedule as box in color `#cccccc` (see `sitedate/config.yml`):
-
-```
-7:00 Homer Simpson
-```
-and will link to `http://abc.de`  on click. 
-
-### Pro Tip
-
-If you plan to add some infos automatically, you can create a script that 
-modifies `sitedate/main_calendar.json`  
+Use your selected site data directory in place of `sitedata`.
+No intermediate `main_calendar.json` file is needed.

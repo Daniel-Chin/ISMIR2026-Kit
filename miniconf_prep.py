@@ -263,7 +263,6 @@ if __name__ == "__main__":
         # Step3: Prepare for calendar
         # If links from schedule are not redirecting to the right page, check this code
         from scripts.calendar_csv2ics import calendar_csv2ics
-        from scripts.calendar_ics2json import calendar_ics2json
 
         if data_path is None:
             raise Exception("--path for the root directory for data is missing")
@@ -271,8 +270,4 @@ if __name__ == "__main__":
         calendar_csv2ics(
             in_csv=os.path.join(data_path, "events.csv"),
             out_ics=calendar_path,
-        )
-        calendar_ics2json(
-            in_ics=calendar_path,
-            out_json=os.path.join(data_path, "main_calendar.json"),
         )

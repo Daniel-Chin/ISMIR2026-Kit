@@ -14,11 +14,7 @@ python embeddings.py ../sitedata/papers.csv embeddings.torch
 python reduce.py ../sitedata/papers.csv embeddings.torch > ../sitedata/papers_projection.json
 ```
 
-* `parse_calendar.py` : to convert a local or remote ICS file to JSON. -- more on importing calendars see [README_Schedule.md](README_Schedule.md)
-
-```bash
-python calendar_ics2json.py --in sample_cal.ics
-```
+* `calendar_csv2ics.py`: converts events CSV to the downloadable ICS calendar. See [README_Schedule.md](README_Schedule.md).
 
 * Image-Extraction: https://github.com/Mini-Conf/image-extraction for pulling images from PDF files. 
 

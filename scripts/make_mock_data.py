@@ -2,10 +2,10 @@
 
 Creates:
   sitedata_mock/   - papers.csv, events.csv, lbds.csv, music.csv, industry.csv,
-                     config.yml, main_calendar.json
+                     config.yml
   mock_inputs/     - private-shaped fake registration input (never published)
   static/mock/     - placeholder PDFs (paper/poster/slides per paper, LBD, sponsor)
-  static/calendar/ISMIR_MOCK.ics
+  static/calendar/ISMIR_2026.ics
 
 Run from the repo root:
   python scripts/make_mock_data.py
@@ -413,15 +413,11 @@ def make_config():
 
 def make_calendar():
     from scripts.calendar_csv2ics import calendar_csv2ics
-    from scripts.calendar_ics2json import calendar_ics2json
 
     # Same filename main.py's /getCalendar route serves.
     ics_path = os.path.join(ROOT, "static", "calendar", "ISMIR_2026.ics")
     calendar_csv2ics(in_csv=os.path.join(MOCK_DIR, "events.csv"), out_ics=ics_path)
-    calendar_ics2json(
-        in_ics=ics_path, out_json=os.path.join(MOCK_DIR, "main_calendar.json")
-    )
-    print("wrote", ics_path, "and sitedata_mock/main_calendar.json")
+    print("wrote", ics_path)
 
 
 def main():

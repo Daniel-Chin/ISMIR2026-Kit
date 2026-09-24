@@ -84,33 +84,33 @@ the workspace (workspace admin, or an app-approval flow).
 
 ```bash
 # 1. (optional) regenerate channel names in papers.csv and events.csv from session/position/title
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-setup-channels
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-event-channels
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-setup-channels
+.venv/bin/python miniconf_prep.py --mockup --action setup-event-channels
 
 # 2. create channels, write channel_url back into papers.csv and events.csv
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-create-channels
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action create-event-channels
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-create-channels
+.venv/bin/python miniconf_prep.py --mockup --action create-event-channels
 
 # 3. invite authors into their channels (non-prod → invites DUMMY_EMAIL instead)
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-invite-authors
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-invite-authors
 
 # 4. set paper channel topic + purpose (title, authors, program-site URL, poster-session Slack link)
 #    Run setup-zoom first: this step requires each poster session's live_url. See ./ZOOM.md
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-set-desc
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-set-desc
 
 # 5. set event channel purpose for all event rows
 #    Run setup-zoom first: this step requires each event's live_url. See ./ZOOM.md
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action set-event-channel-desc
+.venv/bin/python miniconf_prep.py --mockup --action set-event-channel-desc
 ```
 
-Use `--path sitedata` for the real conference data and add `--prod true` for
+Omit `--mockup` for the real conference data and add `--prod true` for
 step 3 to invite the real `author_emails`. Steps 3, 4, and 5 can run in any
 order after step 2.
 
 After scripts, manual setup include: setting the correct channels to be default; setting channel description.
 
 `SLACK_BOT_TOKEN` is needed for every step that talks to Slack (2–5). Importing
-`utils/slack.py` without a token is safe — the client is built lazily and the
+`utils/slack.py` without a token is safe — no API calls are made until needed and the
 first actual API call just fails with `invalid_auth` — so step 1
 (`setup-channels`), which only rewrites the CSV, runs without credentials.
 
@@ -196,7 +196,6 @@ CLI stages:
 # Stage 1: create permanent onboarding + public tutorial channels, and write
 # tutorial channel_url values to events.csv
 uv run python miniconf_prep.py \
-  --path sitedata/ \
   --action setup-tutorials-create-channels
 
 # Manual: make #general and #help etc. permanent defaults, make tutorial
@@ -204,7 +203,6 @@ uv run python miniconf_prep.py \
 
 # Stage 2: assign active or pending invited attendees to their tutorials
 uv run python miniconf_prep.py \
-  --path sitedata/ \
   --registration-csv /secure/path/registration.csv \
   --action setup-tutorials-invite-attendees \
   --prod true
@@ -280,6 +278,22 @@ by hand. Once channels exist, treat `slack_channel` as frozen.
 
 `invite-authors` and `set-desc` are also safe to re-run: invites skip existing
 members, and topic/purpose are simply overwritten.
+
+## Live and mockup credentials
+
+Provisioning uses `SLACK_BOT_TOKEN` and `SLACK_USER_TOKEN` by default. Add
+`--mockup` to any `miniconf_prep.py` command to select `MOCKUP_SLACK_BOT_TOKEN`
+and `MOCKUP_SLACK_USER_TOKEN`. The announcement bot's `--mockup` selects
+`MOCKUP_SLACK_TOKEN_ANNOUNCEMENT_BOT`; otherwise it uses
+`SLACK_TOKEN_ANNOUNCEMENT_BOT`. There is no fallback to live credentials.
+
+`--mockup` selects both `sitedata_mock/` and mockup credentials. Without it,
+commands use `sitedata/` and live credentials. `--prod` still controls dummy data
+and invitation recipients, not the Slack workspace.
+
+For direct Python use, call `utils.slack.configure_clients(is_mockup=True)`
+before Slack operations. Switching credentials clears cached channel/user IDs.
+The separate LLM and self-service apps retain their own documented credentials.
 
 ## utils/slack.py API surface
 

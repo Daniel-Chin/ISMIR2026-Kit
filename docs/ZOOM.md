@@ -97,15 +97,15 @@ settings:
 
 ```bash
 # dry-run: prints what would be created, no API calls
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-zoom
+.venv/bin/python miniconf_prep.py --mockup --action setup-zoom
 
 # real run: creates poster-session meetings and the shared webinar, then writes
 # live_url back into events.csv
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-zoom --prod true
+.venv/bin/python miniconf_prep.py --mockup --action setup-zoom --prod true
 ```
 
-Use `--path sitedata` for the real conference data. `setup-zoom` needs only the
-Zoom credentials — no `SLACK_TOKEN` (module imports in `miniconf_prep.py` are
+Omit `--mockup` for the real conference data. `setup-zoom` needs only the
+Zoom credentials — no `SLACK_BOT_TOKEN` (module imports in `miniconf_prep.py` are
 deferred per action for exactly this reason).
 
 Set the same passcode for all poster-session meetings and for the shared

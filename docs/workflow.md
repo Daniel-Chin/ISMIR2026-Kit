@@ -73,7 +73,7 @@ It builds pages like posters (`/poster_<uid>.html`), schedule, tutorials, LBDs, 
 
 ```bash
 export FLASK_DEBUG=True FLASK_DEVELOPMENT=True
-python main.py --path sitedata/
+python main.py
 ```
 
 ### Deploy
@@ -84,7 +84,7 @@ python main.py --path sitedata/
 
 ## Part 2: Data Prep & Slack Automation (`miniconf_prep.py`)
 
-`miniconf_prep.py` is the **orchestrator** for conference setup. Run it with `--action` and `--path sitedata/`:
+`miniconf_prep.py` is the **orchestrator** for conference setup. Run it with `--action` (add `--mockup` for `sitedata_mock/`):
 
 | Action | What it does |
 |--------|----------------|
@@ -194,7 +194,7 @@ Typical loop: **update Google Sheet → `python pull_from_google_sheet.py` → r
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/python main.py --path sitedata/
+.venv/bin/python main.py
 # → http://127.0.0.1:10000
 ```
 
@@ -205,10 +205,10 @@ python3 -m venv .venv
 SLACK_BOT_TOKEN=xoxb-...
 DUMMY_EMAIL=you@your-workspace-email.com   # must be a real user in your test workspace
 
-python miniconf_prep.py --action setup-papers-create-channels --path sitedata/
-python miniconf_prep.py --action setup-papers-invite-authors --path sitedata/
-python miniconf_prep.py --action setup-papers-set-desc --path sitedata/
-python miniconf_prep.py --action set-event-channel-desc --path sitedata/
+python miniconf_prep.py --action setup-papers-create-channels
+python miniconf_prep.py --action setup-papers-invite-authors
+python miniconf_prep.py --action setup-papers-set-desc
+python miniconf_prep.py --action set-event-channel-desc
 ```
 
 Notes for dummy Slack runs:
@@ -218,7 +218,7 @@ Notes for dummy Slack runs:
 - Slack caps channel creation at ~90 per run; 111 papers may need two runs.
 - `setup-tutorials-invite-attendees` / `setup-tutorials` / `setup-sponsors`
   need a registration CSV supplied with `--registration-csv`; the legacy 2022
-  filename under `--path` remains the fallback.
+  filename under the selected site data directory remains the fallback.
 
 
 ### Sensitivity and publishing

@@ -31,15 +31,27 @@ ssl_context = ssl.create_default_context(cafile=certifi.where())
 env_path = Path(".") / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# [Workaround 1 Step 2]
-# Add ssl info to the WebClient if you get [SSL: CERTIFICATE_VERIFY_FAILED] error.
-# Token may be absent when running non-Slack actions; API calls will then fail
-# with invalid_auth, but importing this module stays safe.
-client_bot = slack_sdk.WebClient(token=os.environ.get("SLACK_BOT_TOKEN", ""), ssl=ssl_context)
-client_user = slack_sdk.WebClient(token=os.environ.get("SLACK_USER_TOKEN", ""), ssl=ssl_context)
-# Honors the Retry-After header on HTTP 429 responses instead of a fixed sleep.
-client_bot.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
-client_user.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
+def configure_clients(is_mockup: bool = False) -> None:
+    """Select one workspace's credentials and discard workspace-specific caches.
+
+    Missing tokens stay empty, allowing local-only actions without credentials.
+    Mockup mode never falls back to live tokens.
+    """
+    global client_bot, client_user, _user_maps, _channel_maps
+    prefix = "MOCKUP_" if is_mockup else ""
+    client_bot = slack_sdk.WebClient(
+        token=os.environ.get(f"{prefix}SLACK_BOT_TOKEN", ""), ssl=ssl_context
+    )
+    client_user = slack_sdk.WebClient(
+        token=os.environ.get(f"{prefix}SLACK_USER_TOKEN", ""), ssl=ssl_context
+    )
+    for client in (client_bot, client_user):
+        client.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
+    _user_maps = None
+    _channel_maps = None
+
+
+configure_clients()
 
 # Slack recommends requesting at most 200 items per page on cursor-paginated
 # methods (users.list, conversations.list, conversations.members).

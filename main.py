@@ -192,7 +192,7 @@ def markdown_filter(value):
 def _data():
     if "config" not in site_data:
         raise RuntimeError(
-            "Site data is not initialized. Start with --path or call main(<data_path>) first."
+            "Site data is not initialized. Run the CLI or call main(<data_path>) first."
         )
     data = {}
     data["config"] = site_data["config"]
@@ -775,7 +775,8 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--path", help="Pass the site data directory and run the server", required=True
+        "--mockup", action="store_true",
+        help="Use sitedata_mock instead of sitedata",
     )
 
     args = parser.parse_args()
@@ -784,10 +785,7 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
-    data_path = args.path
-
-    if data_path is None:
-        raise Exception("--path for the root directory for data is missing")
+    data_path = "sitedata_mock" if args.mockup else "sitedata"
 
     extra_files = main(data_path)
     if args.build:

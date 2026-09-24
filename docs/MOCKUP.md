@@ -97,7 +97,7 @@ the Drive API, which can't add tabs — the CSV-export mechanism is identical.
 **`python pull_from_google_sheet.py --mockup`** pulls all five sheets into
 `sitedata_mock/*.csv` via unauthenticated export URLs and rebuilds the calendar.
 Verified end-to-end: edit sheet → `python pull_from_google_sheet.py --mockup`
-→ `python main.py --path sitedata_mock/` → poster pages embed the Drive PDFs.
+→ `python main.py --mockup` → poster pages embed the Drive PDFs.
 
 If you prefer the literal single-sheet setup, `scripts/make_sheet_export.py`
 writes paste-ready **TSVs** to `sheet_export/` — paste each into a tab of one
@@ -112,7 +112,7 @@ and LBD/music use YouTube IDs anyway.
 ### 1. Website (no credentials) — verified working
 
 ```bash
-.venv/bin/python main.py --path sitedata_mock/
+.venv/bin/python main.py --mockup
 # → http://127.0.0.1:10000  (calendar, papers, poster_1..6, lbds, music_1, industry, day_1)
 ```
 
@@ -125,30 +125,30 @@ One-time: create a free test Slack workspace, create a Slack app with bot scopes
 `users:read.email`, install it, and put in `.env` (gitignored):
 
 ```
-SLACK_BOT_TOKEN=xoxb-...
+MOCKUP_SLACK_BOT_TOKEN=xoxb-...
+MOCKUP_SLACK_USER_TOKEN=xoxp-...
+MOCKUP_SLACK_TOKEN_ANNOUNCEMENT_BOT=xoxb-...
 DUMMY_EMAIL=<your-email-in-that-workspace>   # invites go here in non-prod mode
 ```
 
 Create and populate the paper channels:
 
 ```bash
-python miniconf_prep.py --action setup-papers-create-channels --path sitedata_mock/
-python miniconf_prep.py --action setup-papers-invite-authors  --path sitedata_mock/   # non-prod → invites DUMMY_EMAIL
-python miniconf_prep.py --action setup-papers-set-desc        --path sitedata_mock/
-python miniconf_prep.py --action set-event-channel-desc        --path sitedata_mock/
+python miniconf_prep.py --mockup --action setup-papers-create-channels
+python miniconf_prep.py --mockup --action setup-papers-invite-authors     # non-prod → invites DUMMY_EMAIL
+python miniconf_prep.py --mockup --action setup-papers-set-desc
+python miniconf_prep.py --mockup --action set-event-channel-desc
 ```
 
 Rehearse the staged tutorial workflow with the included fake registration:
 
 ```bash
-python miniconf_prep.py \
-  --path sitedata_mock/ \
+python miniconf_prep.py --mockup \
   --action setup-tutorials-create-channels
 
 # Manually make #announcements and #help permanent defaults and
 # #tutorial-reproducible-mir a temporary default, then:
-python miniconf_prep.py \
-  --path sitedata_mock/ \
+python miniconf_prep.py --mockup \
   --registration-csv mock_inputs/tutorial_registration.csv \
   --action setup-tutorials-invite-attendees
 ```
@@ -184,8 +184,8 @@ clientSecret=...
 The `setup-zoom` action is fully wired:
 
 ```bash
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-zoom             # dry-run, no API calls
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-zoom --prod true # creates meetings
+.venv/bin/python miniconf_prep.py --mockup  --action setup-zoom             # dry-run, no API calls
+.venv/bin/python miniconf_prep.py --mockup  --action setup-zoom --prod true # creates meetings
 ```
 
 `ZoomCreator` skips the `Tutorials`/`Lunch`/`Social` categories (the mock buffer

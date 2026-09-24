@@ -11,7 +11,7 @@ Run from the repo root:
   python scripts/make_mock_data.py
 
 Then preview the site:
-  python main.py --path sitedata_mock/
+  python main.py --mockup
 
 Slack channel names follow the real pipeline (modules/papers.py:title2channelID).
 channel_url / live_url columns are left empty: they get filled by
@@ -29,7 +29,7 @@ sys.path.insert(0, ROOT)
 
 def title2channelID(title, session_number, paper_number):
     # Copy of modules/papers.py:title2channelID — importing that module pulls in
-    # utils/slack.py, which needs SLACK_BOT_TOKEN and a live workspace at import time.
+    # utils/slack.py, which configures Slack clients at import time.
     prefix = f"p{session_number}-{paper_number}"
     cleaned = title.lstrip().lower()
     cleaned = re.sub(r"[+?._:,]", "", cleaned)
@@ -432,7 +432,7 @@ def main():
     make_industry()
     make_config()
     make_calendar()
-    print("\nDone. Preview with: python main.py --path sitedata_mock/")
+    print("\nDone. Preview with: python main.py --mockup")
 
 
 if __name__ == "__main__":

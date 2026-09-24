@@ -2,8 +2,8 @@ import argparse
 import os
 
 # module imports live inside the setup functions below: several modules pull in
-# utils.slack, which needs SLACK_BOT_TOKEN at import time — deferring keeps
-# credential-free actions (e.g. setup-zoom in dummy mode) runnable
+# utils.slack; deferring imports keeps unrelated integrations out of
+# credential-free actions (e.g. setup-zoom in dummy mode).
 
 # Prepare for tutorials
 # 1. Go to /static/tutorials
@@ -27,9 +27,9 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="MiniConf Prep Script")
 
     parser.add_argument(
-        "--path",
-        help="Pass the path of directory containing the master data.",
-        required=False,
+        "--mockup",
+        action="store_true",
+        help="Use sitedata_mock and MOCKUP_SLACK_* credentials instead of live data and credentials.",
     )
 
     parser.add_argument(
@@ -161,7 +161,7 @@ def removeAuthorEmails():
 
 if __name__ == "__main__":
     args = parse_arguments()
-    data_path = args.path
+    data_path = "sitedata_mock" if args.mockup else "sitedata"
     useDummyValues = not args.prod
     action = args.action
     registration_csv = args.registration_csv or (
@@ -175,15 +175,17 @@ if __name__ == "__main__":
             "setup-tutorials-invite-attendees."
         )
 
-    if "setup" in action or "process" in action:
-        if data_path is None:
-            raise Exception("--path for the root directory for data is missing")
+    if "setup" in action or "process" in action or action in {
+        "create-event-channels", "set-event-channel-desc"
+    }:
         if action == "setup-zoom":
             # zoom creds are only checked on first API call, so this import is
             # safe without .env and setup-zoom never needs SLACK_BOT_TOKEN
             from utils import zoom as zoomUtils
         else:
             from utils import slack as slackUtils
+
+            slackUtils.configure_clients(is_mockup=args.mockup)
 
     if action == "setup-zoom":
         setupZoom(
@@ -264,8 +266,6 @@ if __name__ == "__main__":
         # If links from schedule are not redirecting to the right page, check this code
         from scripts.calendar_csv2ics import calendar_csv2ics
 
-        if data_path is None:
-            raise Exception("--path for the root directory for data is missing")
         calendar_path = os.path.join("static", "calendar", "ISMIR_2026.ics")
         calendar_csv2ics(
             in_csv=os.path.join(data_path, "events.csv"),

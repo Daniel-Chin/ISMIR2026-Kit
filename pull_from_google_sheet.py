@@ -43,11 +43,6 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--data-dir",
-        default=None,
-        help="Optional directory to write CSVs into; defaults to sitedata or sitedata_mock.",
-    )
-    parser.add_argument(
         "--skip-download",
         action="store_true",
         help=(
@@ -150,9 +145,7 @@ def main():
 
     args = parse_args()
 
-    target_dir = Path(args.data_dir) if args.data_dir else (
-        Path("sitedata_mock") if args.mockup else Path("sitedata")
-    )
+    target_dir = Path("sitedata_mock" if args.mockup else "sitedata")
     if not args.skip_download:
         pull_data_dir(target_dir, args.mockup)
     rebuild_calendar_for_data_dir(target_dir)

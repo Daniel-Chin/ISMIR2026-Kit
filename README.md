@@ -6,7 +6,7 @@ Run with Python 3.12
 
 1. Clone this repo 
 2. Run `>> python miniconf_prep.py` this will prepare the data as required by miniconf. Read through this code for the details of preprocessing
-3. To build the miniconf site and run it locally try: `>> export FLASK_DEBUG=True; export FLASK_DEVELOPMENT=True; python main.py --path sitedata/`
+3. To build the miniconf site and run it locally try: `>> export FLASK_DEBUG=True; export FLASK_DEVELOPMENT=True; python main.py`
 4. To build the site in production push the committed changes to the `main` branch of remote.
 
 ## Contributing Guidelines
@@ -23,23 +23,27 @@ Run with Python 3.12
 
 ## Paper Slack Channel Setup
 
+For mockup runs, add `--mockup` to prep commands; these
+use `MOCKUP_SLACK_BOT_TOKEN` and `MOCKUP_SLACK_USER_TOKEN` from `.env`.
+
 See [docs/SLACK.md](docs/SLACK.md) for the full pipeline (app/token setup, what each step does, idempotence, troubleshooting). Short version:
 
 ```bash
-export SLACK_TOKEN=...
+export SLACK_BOT_TOKEN=...
+export SLACK_USER_TOKEN=...
 
 # create channel with the given name, add channel link to the data sheet
-python miniconf_prep.py --action setup-papers-create-channels --path sitedata/
+python miniconf_prep.py --action setup-papers-create-channels
 
 # the following two orders don't matter
 # invite primary authors to their corresponding channel
-python miniconf_prep.py --action setup-papers-invite-authors --path sitedata/
+python miniconf_prep.py --action setup-papers-invite-authors
 
 # add paper-channel metadata, including the poster-session Slack link and miniconf link
-python miniconf_prep.py --action setup-papers-set-desc --path sitedata/
+python miniconf_prep.py --action setup-papers-set-desc
 
 # set event/channel descriptions for all event rows with link to live Zoom
-python miniconf_prep.py --action set-event-channel-desc --path sitedata/
+python miniconf_prep.py --action set-event-channel-desc
 ```
 
 ## Repo lineage

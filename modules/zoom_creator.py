@@ -11,8 +11,8 @@ class ZoomCreator:
     channel, so the poster craze can split into per-paper rooms.
     """
 
-    # Tutorials are created manually; Lunch and Social need no call.
-    SKIP_CATEGORIES = ("Tutorials", "Lunch", "Social")
+    # Tutorials are created manually; the other skipped categories need no call.
+    SKIP_CATEGORIES = ("Tutorials", "Social", "Registration", "Majlis")
 
     POSTER_SESSION_RE = re.compile(r"Poster Session - (\d+)")
 

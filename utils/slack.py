@@ -31,22 +31,34 @@ ssl_context = ssl.create_default_context(cafile=certifi.where())
 env_path = Path(".") / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# [Workaround 1 Step 2]
-# Add ssl info to the WebClient if you get [SSL: CERTIFICATE_VERIFY_FAILED] error.
-# Token may be absent when running non-Slack actions; API calls will then fail
-# with invalid_auth, but importing this module stays safe.
-client_bot = slack_sdk.WebClient(token=os.environ.get("SLACK_TOKEN", ""), ssl=ssl_context)
-client_user = slack_sdk.WebClient(token=os.environ.get("SLACK_USER_TOKEN", ""), ssl=ssl_context)
-# Honors the Retry-After header on HTTP 429 responses instead of a fixed sleep.
-client_bot.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
-client_user.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
+def configure_clients(is_mockup: bool = False) -> None:
+    """Select one workspace's credentials and discard workspace-specific caches.
+
+    Missing tokens stay empty, allowing local-only actions without credentials.
+    Mockup mode never falls back to live tokens.
+    """
+    global client_bot, client_user, _user_maps, _channel_maps
+    prefix = "MOCKUP_" if is_mockup else ""
+    client_bot = slack_sdk.WebClient(
+        token=os.environ.get(f"{prefix}SLACK_BOT_TOKEN", ""), ssl=ssl_context
+    )
+    client_user = slack_sdk.WebClient(
+        token=os.environ.get(f"{prefix}SLACK_USER_TOKEN", ""), ssl=ssl_context
+    )
+    for client in (client_bot, client_user):
+        client.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
+    _user_maps = None
+    _channel_maps = None
+
+
+configure_clients()
 
 # Slack recommends requesting at most 200 items per page on cursor-paginated
 # methods (users.list, conversations.list, conversations.members).
 PAGE_LIMIT = 200
 
 
-def normalize_channel_title(title: str, max_words: int = 3) -> str:
+def normalize_channel_title(title: str, max_words: int | None = 3) -> str:
     cleaned_title = str(title or "").strip().lower()
     cleaned_title = re.sub(r"[^a-z0-9_]+", "-", cleaned_title)
     cleaned_title = re.sub(r"[-_]+", "-", cleaned_title)
@@ -55,7 +67,7 @@ def normalize_channel_title(title: str, max_words: int = 3) -> str:
     return "-".join(parts[:max_words])
 
 
-def build_channel_name(prefix: str, title: str, max_words: int = 3) -> str:
+def build_channel_name(prefix: str, title: str, max_words: int | None = 3) -> str:
     slug = normalize_channel_title(title, max_words=max_words)
     sanitized_prefix = re.sub(r"[^a-z0-9_]+", "-", str(prefix or "").strip().lower())
     sanitized_prefix = sanitized_prefix.strip("-")
@@ -133,8 +145,12 @@ def createSlackChannelAsBot(channelName, boolChannelPrivacyON):
         is_private=boolChannelPrivacyON,
     )
     # Log the result which includes information like the ID of the conversation
-    print(result)
-    print("Channel Created!")
+    if result['ok']:
+        print("Channel Created!")
+    else:
+        print('Failed to create channel.')
+        print(result)
+        input("Press Enter to continue...")
     # Keep the cached channel maps in sync without refetching the full list
     if _channel_maps is not None:
         _channel_maps[0][result["channel"]["name"]] = result["channel"]["id"]

@@ -30,6 +30,7 @@ from markupsafe import Markup
 
 from utils.zoom_redirect import build_zoom_redirect_url
 from utils.shared import load_site_config
+from utils.calendar import build_calendar
 
 
 def chain_functions(*functions: Callable) -> Callable:
@@ -123,6 +124,8 @@ def main(site_data_path: str):
     for f in glob.glob(site_data_path + "/*"):
         extra_files.append(f)
         name, typ = f.split("/")[-1].split(".")
+        if name == "main_calendar":
+            continue
         if typ == "json":
             site_data[name] = chain_functions(
                 open,
@@ -153,6 +156,8 @@ def main(site_data_path: str):
                 None,
                 include_token=False,
             )
+
+    site_data["main_calendar"] = build_calendar(site_data["events"], site_data["config"])
 
     site_data.setdefault("config", {})["zoom_redirect_access_token"] = os.environ.get(
         "ZOOM_REDIRECT_ACCESS_TOKEN", ""
@@ -187,7 +192,7 @@ def markdown_filter(value):
 def _data():
     if "config" not in site_data:
         raise RuntimeError(
-            "Site data is not initialized. Start with --path or call main(<data_path>) first."
+            "Site data is not initialized. Run the CLI or call main(<data_path>) first."
         )
     data = {}
     data["config"] = site_data["config"]
@@ -432,7 +437,6 @@ def format_paper(v):
         "session": v["session"],
         "position": v["position"],
         "forum": v["uid"],
-        "pic_id": v["thumbnail"],
         "content": {
             "title": v["title"],
             "summary_of_updates_post_review": v.get(
@@ -457,11 +461,11 @@ def format_paper(v):
             # )
             ,
             "TLDR": v["abstract"],
-            "poster_pdf": v.get("poster_pdf", ""),
             "session": list_fields["session"],
-            "pdf_path": v.get("pdf_path", ""),
+            "pdf_path": convert_drive_link(v.get("raw_pdf_path", "")),
+            "poster_pdf": convert_drive_link(v.get("raw_poster_pdf", "")),
+            "slides": convert_drive_link(v.get("raw_slides_pdf", "")),
             "video": v["video"].replace("/open?id=", "/uc?export=preview&id="),
-            "slides": v["slides_pdf"],
             "channel_url": v["channel_url"],
             "slack_channel": v["slack_channel"],
             "day": v["day"],
@@ -771,7 +775,8 @@ def parse_arguments():
     )
 
     parser.add_argument(
-        "--path", help="Pass the JSON data path and run the server", required=True
+        "--mockup", action="store_true",
+        help="Use sitedata_mock instead of sitedata",
     )
 
     args = parser.parse_args()
@@ -780,10 +785,7 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
-    data_path = args.path
-
-    if data_path is None:
-        raise Exception("--path for the root directory for data is missing")
+    data_path = "sitedata_mock" if args.mockup else "sitedata"
 
     extra_files = main(data_path)
     if args.build:

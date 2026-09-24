@@ -11,8 +11,8 @@ is the shared contract and is vendored into the bot image at build time.
 ## Operator loop (during the conference)
 
 ```bash
-# 1. Pull fresh sheet data (existing workflow)
-./migrate.sh                       # or migrate_mock.sh for the mock conference
+# 1. Pull fresh sheet data
+python pull_from_google_sheet.py      # or: python pull_from_google_sheet.py --mockup
 
 # 2. Build the catalogue (strips all private columns, validates schema)
 python catalogue/build_catalogue.py --path sitedata/ --out-dir build/catalogue/

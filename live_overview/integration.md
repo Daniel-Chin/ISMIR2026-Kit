@@ -34,7 +34,8 @@ This document is at `./live_overview/integration.md`. In this document, `.` refe
     - Each row is a paper.
     - Columns "session" and "position" will be deprecated; do not use.
   - `{data_path}/session_assignment.csv`
-    - this is todo. For now, ignore paper session assignment in Live Overview.
+    - Defines each paper's session number and position number.
+    - Refer to [./utils/session_assignment.py](../utils/session_assignment.py) as a reference parser, but write your own in js.  
   - `{data_path}/config.yml`
     - Overall conference information. You should extract:
       - `name`.

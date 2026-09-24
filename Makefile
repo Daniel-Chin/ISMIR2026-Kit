@@ -20,10 +20,10 @@ format-web:
 format: format-python format-web
 
 run:
-	export FLASK_DEBUG=True; export FLASK_DEVELOPMENT=True; python3 main.py --path sitedata/
+	export FLASK_DEBUG=True; export FLASK_DEVELOPMENT=True; python3 main.py
 
 freeze:
-	python3 main.py --path sitedata/ --build
+	python3 main.py --build
 
 # check code format
 format-check:

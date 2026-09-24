@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 import pandas as pd
@@ -79,7 +79,6 @@ def calendar_csv2ics(
     color_dict = {
         "Tutorials": "tut",
         "Opening": "open",
-        "Keynote session": "key",
         "Oral session": "oral",
         "All Meeting": "all",
         "Poster session": "pos",
@@ -95,6 +94,10 @@ def calendar_csv2ics(
         "LBD": "lbd",
         "Awards": "awards",
         "Performance": "performance",
+        "Award nominee": "awardnominee",
+        "Majlis": "majlis",
+        "Unconference": "unconference",
+        "Special": "special",
     }
 
     cal = Calendar()
@@ -110,7 +113,11 @@ def calendar_csv2ics(
             continue
         e_date = [int(x) for x in event["start_date"].split("-")]
         e_start_time = [int(x) for x in event["start_time"].split(":")]
-        e_end_time = [int(x) for x in event["end_time"].split(":")]
+        e_end_time = (
+            None
+            if str(event["end_time"]).strip().lower() == "tbd"
+            else [int(x) for x in event["end_time"].split(":")]
+        )
         # make uid a string and add a domain to be a valid UID
         e_cal.add("uid", f"{int(event['uid'])}@ismir2026virtual")
         # use current UTC time for dtstamp
@@ -138,7 +145,10 @@ def calendar_csv2ics(
             ),
         )
 
-        if e_end_time[0] < e_start_time[0]:
+        if e_end_time is None:
+            # Unknown end times use a two-hour duration, even across midnight.
+            e_cal.add("dtend", e_cal.decoded("dtstart") + timedelta(hours=2))
+        elif e_end_time[0] < e_start_time[0]:
             e_cal.add(
                 "dtend",
                 make_dt(

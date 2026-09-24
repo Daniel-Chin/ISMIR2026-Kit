@@ -22,8 +22,8 @@ Inputs, in the order they arrive during a real conference:
 Flow (each arrow is a script in this repo):
 
 ```
-Google Sheet ──migrate.sh──▶ sitedata/*.csv
-sitedata/events.csv ──prepare-calendar──▶ ICS ──▶ sitedata/main_calendar.json
+Google Sheet ──python pull_from_google_sheet.py──▶ sitedata/*.csv
+sitedata/events.csv ──prepare-calendar──▶ ICS download
 sitedata/*.csv ──miniconf_prep.py setup-*──▶ Slack channels ──▶ channel_url written back to CSV
 sitedata/events.csv ──setup-zoom (utils/zoom.py)──▶ Zoom meetings ──▶ live/zoom links in CSV
 sitedata/ ──main.py (Flask)──▶ site preview ──make freeze──▶ static build ──▶ GitHub Pages
@@ -77,7 +77,7 @@ Produces:
   paper, LBD abstracts, sponsor decks).
 - Fake videos: every `video`/`youtube_id`/`yt_id` points at the CC-licensed
   Big Buck Bunny YouTube ID `aqz-KE-bpKQ`.
-- `sitedata_mock/main_calendar.json` + `static/calendar/ISMIR_2026.ics` — built with
+- `static/calendar/ISMIR_2026.ics` — built with
   the real `prepare-calendar` scripts (same ICS filename `main.py`'s `/getCalendar`
   download route serves).
 
@@ -90,20 +90,19 @@ permission — embeds work without login (verified).
 
 The same folder holds five **Google Sheets** named `papers`, `events`, `lbds`,
 `music`, `industry` (IDs under `sheets` in `scripts/mock_drive_ids.json`),
-pre-filled with the mock data and real Drive media links (`raw_* = open?id=...`,
-embed columns = `/file/d/<id>/preview`). The real conference uses one sheet
+pre-filled with the mock data and real Drive media links (`raw_* = open?id=...`). The real conference uses one sheet
 with 5 tabs; the mock uses 5 single-tab sheets because they were created via
 the Drive API, which can't add tabs — the CSV-export mechanism is identical.
 
-**`./migrate_mock.sh`** plays the role of `migrate.sh`: pulls all five sheets
-into `sitedata_mock/*.csv` via unauthenticated export URLs and rebuilds the
-calendar. Verified end-to-end: edit sheet → `./migrate_mock.sh` →
-`python main.py --path sitedata_mock/` → poster pages embed the Drive PDFs.
+**`python pull_from_google_sheet.py --mockup`** pulls all five sheets into
+`sitedata_mock/*.csv` via unauthenticated export URLs and rebuilds the calendar.
+Verified end-to-end: edit sheet → `python pull_from_google_sheet.py --mockup`
+→ `python main.py --mockup` → poster pages embed the Drive PDFs.
 
 If you prefer the literal single-sheet setup, `scripts/make_sheet_export.py`
 writes paste-ready **TSVs** to `sheet_export/` — paste each into a tab of one
 sheet (cell A1; TSV splits into columns on paste, CSV does not) and use the
-original `migrate.sh` with that sheet's ID + tab gids.
+original `pull_from_google_sheet.py` with that sheet's ID + tab gids.
 
 Videos stay YouTube (`aqz-KE-bpKQ`) — the video columns accept any iframe URL,
 and LBD/music use YouTube IDs anyway.
@@ -113,7 +112,7 @@ and LBD/music use YouTube IDs anyway.
 ### 1. Website (no credentials) — verified working
 
 ```bash
-.venv/bin/python main.py --path sitedata_mock/
+.venv/bin/python main.py --mockup
 # → http://127.0.0.1:10000  (calendar, papers, poster_1..6, lbds, music_1, industry, day_1)
 ```
 
@@ -126,30 +125,30 @@ One-time: create a free test Slack workspace, create a Slack app with bot scopes
 `users:read.email`, install it, and put in `.env` (gitignored):
 
 ```
-SLACK_TOKEN=xoxb-...
+MOCKUP_SLACK_BOT_TOKEN=xoxb-...
+MOCKUP_SLACK_USER_TOKEN=xoxp-...
+MOCKUP_SLACK_TOKEN_ANNOUNCEMENT_BOT=xoxb-...
 DUMMY_EMAIL=<your-email-in-that-workspace>   # invites go here in non-prod mode
 ```
 
 Create and populate the paper channels:
 
 ```bash
-python miniconf_prep.py --action setup-papers-create-channels --path sitedata_mock/
-python miniconf_prep.py --action setup-papers-invite-authors  --path sitedata_mock/   # non-prod → invites DUMMY_EMAIL
-python miniconf_prep.py --action setup-papers-set-desc        --path sitedata_mock/
-python miniconf_prep.py --action set-event-channel-desc        --path sitedata_mock/
+python miniconf_prep.py --mockup --action setup-papers-create-channels
+python miniconf_prep.py --mockup --action setup-papers-invite-authors     # non-prod → invites DUMMY_EMAIL
+python miniconf_prep.py --mockup --action setup-papers-set-desc
+python miniconf_prep.py --mockup --action set-event-channel-desc
 ```
 
 Rehearse the staged tutorial workflow with the included fake registration:
 
 ```bash
-python miniconf_prep.py \
-  --path sitedata_mock/ \
+python miniconf_prep.py --mockup \
   --action setup-tutorials-create-channels
 
 # Manually make #announcements and #help permanent defaults and
 # #tutorial-reproducible-mir a temporary default, then:
-python miniconf_prep.py \
-  --path sitedata_mock/ \
+python miniconf_prep.py --mockup \
   --registration-csv mock_inputs/tutorial_registration.csv \
   --action setup-tutorials-invite-attendees
 ```
@@ -185,8 +184,8 @@ clientSecret=...
 The `setup-zoom` action is fully wired:
 
 ```bash
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-zoom             # dry-run, no API calls
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-zoom --prod true # creates meetings
+.venv/bin/python miniconf_prep.py --mockup  --action setup-zoom             # dry-run, no API calls
+.venv/bin/python miniconf_prep.py --mockup  --action setup-zoom --prod true # creates meetings
 ```
 
 `ZoomCreator` skips the `Tutorials`/`Lunch`/`Social` categories (the mock buffer
@@ -201,7 +200,7 @@ rooms at 50/meeting and names at 32 chars. `ZoomCreator` calls
 `utils/zoom.py:createZoomLinksIfNeeded`, which creates one meeting per remaining
 row and writes the `join_url` into `live_url` in `events.csv`. It is idempotent
 by meeting topic: rows whose title already has a Zoom meeting get the existing
-URL backfilled instead of a duplicate — so when `./migrate_mock.sh` re-pulls the
+URL backfilled instead of a duplicate — so when `python pull_from_google_sheet.py --mockup` re-pulls the
 sheet and wipes `live_url`, re-running `setup-zoom` restores the links (copy them
 back into the events sheet if the sheet should stay authoritative). Meeting start
 times are interpreted in the timezone configured in

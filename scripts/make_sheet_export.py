@@ -5,15 +5,14 @@ IDs of the uploaded mock PDFs (scripts/mock_drive_ids.json) and writes one
 .tsv per sheet tab into sheet_export/. TSV because pasting tab-separated text
 into Google Sheets splits into columns automatically; CSV pastes as one column.
 
-The media columns are rewritten from repo-local static/mock/ paths to real
-Drive links, mimicking what authors deliver:
-  raw_*  -> https://drive.google.com/open?id=<ID>&usp=drive_copy
-  final  -> https://drive.google.com/file/d/<ID>/preview
+The paper media columns are rewritten from repo-local static/mock/ paths to
+author-style Drive share links:
+    raw_*  -> https://drive.google.com/open?id=<ID>&usp=drive_copy
 
 Usage:
   python scripts/make_sheet_export.py
-Then paste each sheet_export/<tab>.tsv into its tab, and point migrate.sh
-at the sheet to pull them back down as sitedata CSVs.
+Then paste each sheet_export/<tab>.tsv into its tab, and point
+`pull_from_google_sheet.py` at the sheet to pull them back down as sitedata CSVs.
 """
 
 import csv
@@ -32,20 +31,15 @@ def raw_link(key):
     return f"https://drive.google.com/open?id={DRIVE[key]}&usp=drive_copy"
 
 
-def preview_link(key):
-    return f"https://drive.google.com/file/d/{DRIVE[key]}/preview"
-
-
 def transform_papers(row):
     uid = row["uid"]
-    for kind, raw_col, final_col in [
-        ("paper", "raw_pdf_path", "pdf_path"),
-        ("poster", "raw_poster_pdf", "poster_pdf"),
-        ("slides", "raw_slides_pdf", "slides_pdf"),
+    for kind, raw_col in [
+        ("paper", "raw_pdf_path"),
+        ("poster", "raw_poster_pdf"),
+        ("slides", "raw_slides_pdf"),
     ]:
         key = f"{kind}_{uid}"
         row[raw_col] = raw_link(key)
-        row[final_col] = preview_link(key)
     # video stays a YouTube embed URL — the video column accepts any iframe src
     return row
 
@@ -59,7 +53,8 @@ def transform_lbds(row):
 
 
 def transform_industry(row):
-    row["pdf"] = preview_link(f"sponsor_{row['uid']}")
+    key = f"sponsor_{row['uid']}"
+    row["pdf"] = f"https://drive.google.com/file/d/{DRIVE[key]}/preview"
     return row
 
 

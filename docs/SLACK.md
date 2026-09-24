@@ -34,11 +34,12 @@ sitedata/papers.csv ── miniconf_prep.py --action setup-papers-<step>
 Slack app creation is browser-only. The person must be able to install apps to
 the workspace (workspace admin, or an app-approval flow).
 
-1. Create the workspace if needed (a free workspace is fine for the mock run).
-2. Create an app at <https://api.slack.com/apps?new_app=1> ("From scratch",
+1. Create the workspace if needed (a free workspace is fine).  
+2. Follow the beginning of ["Operational sequence"](#operational-sequence).  
+3. Create an app at <https://api.slack.com/apps?new_app=1> ("From scratch",
    pick the workspace).
    - The "app name" will be shown in Slack channels, so use something like "Service Bot".
-3. **OAuth & Permissions → Scopes → Bot Token Scopes**, add:
+4. **OAuth & Permissions → Scopes → Bot Token Scopes**, add:
    - `channels:manage` — create public channels, invite, set topic/purpose
    - `channels:read` — list channels
    - `groups:write` + `groups:read` — manage tutorial channels after they are
@@ -50,66 +51,68 @@ the workspace (workspace admin, or an app-approval flow).
    - `groups:history`
    - `mpim:history`
    - `im:history`
-4. **OAuth & Permissions → Scopes → User Token Scopes**, add:
+5. **OAuth & Permissions → Scopes → User Token Scopes**, add:
    - `chat:write`
-5. **Install App to Workspace** and copy the two **OAuth Tokens**
+6. **Install App to Workspace** and copy the two **OAuth Tokens**
    (`xox?-...`).
 
    The token must start with `xoxb-` or `xoxp-`. A token beginning with `xoxe`
    (for example, one shown by the Slack CLI or under app configuration tokens)
    is a different credential and is not the bot token expected by this
-   repository. Do not put it in `SLACK_TOKEN`. Return to **OAuth &
+   repository. Do not put it in `SLACK_BOT_TOKEN`. Return to **OAuth &
    Permissions**, install or reinstall the app, and copy the **Bot User OAuth
    Token** and **User OAuth Token** instead.
 
-6. In the repo root, add to `.env` (already gitignored — never commit it):
+7. In the repo root, add to `.env` (already gitignored — never commit it):
 
    ```
    SLACK_USER_TOKEN=xoxp-...
-   SLACK_TOKEN=xoxb-...
+   SLACK_BOT_TOKEN=xoxb-...
    DUMMY_EMAIL=<your-email-in-that-workspace>   # invite target in non-prod mode
    ZOOM_REDIRECT_ACCESS_TOKEN=<put-random-string-here>
    ```
 
-7. Smoke test (read-only, creates nothing):
+8. Smoke test (read-only, creates nothing):
 
    ```bash
    .venv/bin/python -c "from utils import slack; print(len(slack.get_all_channels_data()), 'channels')"
    ```
 
-8. Give a nice profile image to the bot.  
+9. Give a nice profile image to the bot.  
 
 ## Running it
 
 ```bash
 # 1. (optional) regenerate channel names in papers.csv and events.csv from session/position/title
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-setup-channels
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-event-channels
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-setup-channels
+.venv/bin/python miniconf_prep.py --mockup --action setup-event-channels
+
+# Manually remove sessions that don't need a channel (e.g. registration, welcome reception)  
 
 # 2. create channels, write channel_url back into papers.csv and events.csv
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-create-channels
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action create-event-channels
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-create-channels
+.venv/bin/python miniconf_prep.py --mockup --action create-event-channels
 
 # 3. invite authors into their channels (non-prod → invites DUMMY_EMAIL instead)
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-invite-authors
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-invite-authors
 
 # 4. set paper channel topic + purpose (title, authors, program-site URL, poster-session Slack link)
 #    Run setup-zoom first: this step requires each poster session's live_url. See ./ZOOM.md
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action setup-papers-set-desc
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-set-desc
 
 # 5. set event channel purpose for all event rows
 #    Run setup-zoom first: this step requires each event's live_url. See ./ZOOM.md
-.venv/bin/python miniconf_prep.py --path sitedata_mock --action set-event-channel-desc
+.venv/bin/python miniconf_prep.py --mockup --action set-event-channel-desc
 ```
 
-Use `--path sitedata` for the real conference data and add `--prod true` for
+Omit `--mockup` for the real conference data and add `--prod true` for
 step 3 to invite the real `author_emails`. Steps 3, 4, and 5 can run in any
 order after step 2.
 
 After scripts, manual setup include: setting the correct channels to be default; setting channel description.
 
-`SLACK_TOKEN` is needed for every step that talks to Slack (2–5). Importing
-`utils/slack.py` without a token is safe — the client is built lazily and the
+`SLACK_BOT_TOKEN` is needed for every step that talks to Slack (2–5). Importing
+`utils/slack.py` without a token is safe — no API calls are made until needed and the
 first actual API call just fails with `invalid_auth` — so step 1
 (`setup-channels`), which only rewrites the CSV, runs without credentials.
 
@@ -164,27 +167,30 @@ and temporarily making tutorial channels default channels. This reduced
 last-minute manual support when registration emails did not match the email
 people used to join Slack.
 
-Operational sequence:
-
-1. Create `#social`, `#random`, `#help`, and the tutorial channels as **public**
+### Operational sequence:
+1. Rename the general channel to "#general". 
+2. Set `#general` so only managers can post. 
+3. Create `#social`, `#random`, `#help`, and the tutorial channels as **public**
    channels before sending workspace invitations. Ensure the provisioning bot
    is a member so it retains access after tutorial channels become private.
-2. Add `#general`, `#social`, `#random`, `#help`, opening session, and the tutorial channels to Slack's
+4. Go to Workspace Settings.
+5. Require admin approval when member invite new people to your workspace.  
+6. Add `#general`, `#social`, `#random`, `#help`, opening session, and the tutorial channels to Slack's
    **Default Channels** list. The first two are permanent defaults; tutorial
    channels are temporary defaults.
-3. Send targeted workspace invitations to tutorial attendees. Tell them to use
+7. Send targeted workspace invitations to tutorial attendees. Tell them to use
    the same email address they used for registration.
-4. Monitor pending and accepted invitations and handle email mismatches.
-5. Once most tutorial attendees have joined, remove only the tutorial channels
+8. Monitor pending and accepted invitations and handle email mismatches.
+9. Once most tutorial attendees have joined, remove only the tutorial channels
    from the default list. Keep `#general`... as defaults.
-6. Audit channel membership, then convert each tutorial channel from public to
+10. Audit channel membership, then convert each tutorial channel from public to
    private: **channel name → Settings → Change to a private channel**.
-7. Verify that the channels are private, then add restricted materials such as
+11. Verify that the channels are private, then add restricted materials such as
    Zoom links.
-8. Send workspace invitations to the general conference audience.
-9. Manually handle late tutorial registrants or assign them with
+12. Send workspace invitations to the general conference audience.
+13. Manually handle late tutorial registrants or assign them with
    `setup-tutorials-invite-attendees` after Slack knows their account.
-10. Invite volunteers to Slack.
+14. Invite volunteers to Slack.
 
 CLI stages:
 
@@ -192,7 +198,6 @@ CLI stages:
 # Stage 1: create permanent onboarding + public tutorial channels, and write
 # tutorial channel_url values to events.csv
 uv run python miniconf_prep.py \
-  --path sitedata/ \
   --action setup-tutorials-create-channels
 
 # Manual: make #general and #help etc. permanent defaults, make tutorial
@@ -200,7 +205,6 @@ uv run python miniconf_prep.py \
 
 # Stage 2: assign active or pending invited attendees to their tutorials
 uv run python miniconf_prep.py \
-  --path sitedata/ \
   --registration-csv /secure/path/registration.csv \
   --action setup-tutorials-invite-attendees \
   --prod true
@@ -261,12 +265,13 @@ We use the #general channel and we do not have an #announcement channel because 
 ## Idempotence and the sheet round-trip
 
 Channels are keyed by **name**. `create-channels` checks `isChannel()` before
-creating, so re-running never duplicates. This matters because `migrate.sh` /
-`migrate_mock.sh` re-pull the Google Sheet and overwrite `papers.csv` —
-including `channel_url`. The recovery is to re-run
-`setup-papers-create-channels`: existing channels are found by name and their
-URLs backfilled. If the sheet should stay the source of truth, paste the
-generated `channel_url` values back into the sheet after the first real run.
+creating, so re-running never duplicates. This matters because
+`python pull_from_google_sheet.py` / `python pull_from_google_sheet.py --mockup`
+re-pull the Google Sheet data and overwrite `papers.csv` — including
+`channel_url`. The recovery is to re-run `setup-papers-create-channels`:
+existing channels are found by name and their URLs backfilled. If the sheet
+should stay the source of truth, paste the generated `channel_url` values back
+into the sheet after the first real run.
 
 Corollary: **channel names are identity**. Rerunning `setup-channels` after a
 title or session/position change in the sheet produces a *new* name, and
@@ -276,10 +281,26 @@ by hand. Once channels exist, treat `slack_channel` as frozen.
 `invite-authors` and `set-desc` are also safe to re-run: invites skip existing
 members, and topic/purpose are simply overwritten.
 
+## Live and mockup credentials
+
+Provisioning uses `SLACK_BOT_TOKEN` and `SLACK_USER_TOKEN` by default. Add
+`--mockup` to any `miniconf_prep.py` command to select `MOCKUP_SLACK_BOT_TOKEN`
+and `MOCKUP_SLACK_USER_TOKEN`. The announcement bot's `--mockup` selects
+`MOCKUP_SLACK_TOKEN_ANNOUNCEMENT_BOT`; otherwise it uses
+`SLACK_TOKEN_ANNOUNCEMENT_BOT`. There is no fallback to live credentials.
+
+`--mockup` selects both `sitedata_mock/` and mockup credentials. Without it,
+commands use `sitedata/` and live credentials. `--prod` still controls dummy data
+and invitation recipients, not the Slack workspace.
+
+For direct Python use, call `utils.slack.configure_clients(is_mockup=True)`
+before Slack operations. Switching credentials clears cached channel/user IDs.
+The separate LLM and self-service apps retain their own documented credentials.
+
 ## utils/slack.py API surface
 
 Importing the module is side-effect free apart from loading `.env`: the
-`WebClient` is built with whatever `SLACK_TOKEN` is present (possibly empty),
+`WebClient` is built with whatever `SLACK_BOT_TOKEN` is present (possibly empty),
 and the user/channel lookup maps are fetched from the API **on first use**,
 then cached for the life of the process. A missing token surfaces as
 `invalid_auth` on the first real call, not at import. All wrapped calls retry
@@ -349,12 +370,12 @@ end to end without touching real authors.
 
 | Symptom | Cause |
 |---|---|
-| `invalid_auth` | `SLACK_TOKEN` missing/empty (`.env` is read relative to the CWD — run from repo root), token revoked, wrong workspace, or app uninstalled |
+| `invalid_auth` | `SLACK_BOT_TOKEN` missing/empty (`.env` is read relative to the CWD — run from repo root), token revoked, wrong workspace, or app uninstalled |
 | Token starts with `xoxe.xoxp-` | wrong credential type — this project requires the app's `xoxb-` **Bot User OAuth Token** from **OAuth & Permissions** after installation |
 | `missing_scope` | a bot scope from the setup list wasn't added, or the app wasn't **reinstalled** after adding scopes |
 | `name_taken` on create | channel already exists **archived**, or is a private channel the bot can't see |
 | `invalid_name` | uppercase/punctuation in `slack_channel` — regenerate with `setup-channels` |
 | `User <email> does not exist in the workspace.` | author not yet a workspace member — workspace invites are manual, then re-run `invite-authors` |
 | `Rate limit exceeded. Retrying...` loops | expected on bulk runs; Slack caps ~90 channel creations per run |
-| `channel_url` empty after `migrate.sh` pull | expected — re-run `setup-papers-create-channels` to backfill |
+| `channel_url` empty after the data pull | expected — re-run `setup-papers-create-channels` to backfill |
 | `[SSL: CERTIFICATE_VERIFY_FAILED]` | handled — the client pins `certifi`'s CA bundle (`utils/slack.py` top) |

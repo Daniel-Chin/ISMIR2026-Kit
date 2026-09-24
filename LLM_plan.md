@@ -17,7 +17,7 @@ Sheets/Drive directly. Reality:
 - **Provisioning code lives at the repo root** — `miniconf_prep.py`
   (orchestrator), `modules/` (papers, lbds, music, industry, tutorials,
   zoom_creator), `utils/slack.py`, `utils/zoom.py`. We do **not** move it.
-- **`sitedata/` is the source of truth**, not Google Sheets. `migrate.sh`
+- Although Google Sheets is the source of truth, **`sitedata/` is the intentional local bottleneck**. `python pull_from_google_sheet.py`
   pulls the master Sheet into `sitedata/*.csv`; all provisioning and the
   Flask site read those CSVs. The assistant's catalogue builds from
   `sitedata/`, never from Sheets directly.
@@ -49,8 +49,9 @@ Sheets/Drive directly. Reality:
   validated against 2026 data when it exists (committed data is the 2025
   sample; 2026 dates are TBD in `config.yml`). Timezone: GMT+4.
 - **No logistics data exists in the repo.** We add a `logistics` tab to the
-  master Sheet + one line in `migrate.sh` → `sitedata/logistics.csv`
-  (columns: `id,title,body`). Until then the builder emits an empty list.
+  master Sheet + a corresponding update in `pull_from_google_sheet.py` →
+  `sitedata/logistics.csv` (columns: `id,title,body`). Until then the builder
+  emits an empty list.
 - **No GitHub Actions exist.** Site deploys via `make deploy` (gh-pages
   subtree push); provisioning runs manually from an operator machine. So
   the spec's "split CI" risk is moot in one direction: provisioning has no
@@ -175,7 +176,7 @@ Worker downloads `latest.json` at boot, then the artifacts; re-checks
 `sitedata_mock/`-built artifacts).
 
 Operator loop during the conference stays the familiar one:
-**update Sheet → `migrate.sh` → Slack prep (if needed) → run
+**update Sheet → `python pull_from_google_sheet.py` → Slack prep (if needed) → run
 `catalogue/build_catalogue.py && build_index.py && upload.py`** — data
 fixes reach the bot within 15 minutes, no redeploy.
 
@@ -352,6 +353,6 @@ Each deployable and testable on its own; build in order.
 
 Prerequisite checkpoints on the provisioning side (existing workflows, run
 before milestone 1 matters on real data): 2026 `sitedata/` populated via
-`migrate.sh`; `setup-papers-create-channels` and `setup-lbd` run so
+`python pull_from_google_sheet.py`; `setup-papers-create-channels` and `setup-lbd` run so
 `channel_url` is filled; `logistics` tab added to the master Sheet and
-`migrate.sh`; paper-session ↔ `events.csv` join validated on 2026 data.
+`python pull_from_google_sheet.py`; paper-session ↔ `events.csv` join validated on 2026 data.

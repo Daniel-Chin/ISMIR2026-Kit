@@ -57,11 +57,11 @@ jobs:
 
       - name: Build website
         if: ${{ !inputs.mockup }}
-        run: uv run python main.py --path sitedata/ --build
+        run: uv run python main.py --build
 
       - name: Build mockup website
         if: ${{ inputs.mockup }}
-        run: uv run python main.py --path sitedata_mock/ --build
+        run: uv run python main.py --mockup --build
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6.0.0

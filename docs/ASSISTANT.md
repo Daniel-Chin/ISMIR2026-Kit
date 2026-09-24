@@ -94,11 +94,11 @@ days post-conference unless opted in.
    printed ingress URL (path `/slack/events`) as the Slack app's request
    URL / slash-command URL / interactivity URL and re-apply the manifest.
 4. **Data prerequisites** (existing workflows): 2026 `sitedata/` via
-   `migrate.sh`; `setup-papers-create-channels` + `setup-lbd` run so
-   `channel_url` is populated; add a `logistics` tab (columns
-   `id,title,body`) to the master Sheet and a matching line in
-   `migrate.sh`; **validate the paper-session ↔ `events.csv` join on 2026
-   data** (builder matches titles `Oral/Poster Session - N`).
+   `python pull_from_google_sheet.py`; `setup-papers-create-channels` +
+   `setup-lbd` run so `channel_url` is populated; add a `logistics` tab
+   (columns `id,title,body`) to the master Sheet and a matching update in
+   `pull_from_google_sheet.py`; **validate the paper-session ↔ `events.csv`
+   join on 2026 data** (builder matches titles `Oral/Poster Session - N`).
 5. **Tune the scope gate**: with real embeddings,
    `cd bot && CATALOGUE_DIR=../build/catalogue uv run python
    evals/run_scope_eval.py`, adjust `SIM_STRONG`/`SIM_WEAK` in
@@ -109,7 +109,7 @@ days post-conference unless opted in.
 Data fixes reach the bot within ~15 minutes, no redeploy:
 
 ```bash
-./migrate.sh                                     # Sheet -> sitedata/
+python pull_from_google_sheet.py                 # Sheet -> sitedata/
 python catalogue/build_catalogue.py --path sitedata/ --out-dir build/catalogue/
 python catalogue/build_index.py --catalogue build/catalogue/catalogue-$(date +%F).json
 python catalogue/upload.py --dir build/catalogue/ --version $(date +%F) \

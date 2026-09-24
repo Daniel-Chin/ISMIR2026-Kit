@@ -15,8 +15,8 @@
     - Set a profile image.  
 
 Example CLI:
-    - `uv run python -m announcement_bot.announcement_bot --mockup --path sitedata_mock`
-    - `uv run python -m announcement_bot.announcement_bot`
+    - `uv run python -m long_running_bots.announcement_bot --mockup `
+    - `uv run python -m long_running_bots.announcement_bot`
 
 Details:
 - Stateless. Can restart anytime during conference without reconfiguring.
@@ -145,13 +145,14 @@ def parse_event_start_datetime(
     return datetime.combine(event_date, event_time, tzinfo=timezone)
 
 
-def create_slack_client() -> Any:
+def create_slack_client(is_mockup: bool = False) -> Any:
     env_path = Path(".") / ".env"
     load_dotenv(dotenv_path=env_path)
-    token = os.environ.get(BOT_TOKEN_ENV_VAR, "")
+    token_env_var = ("MOCKUP_" if is_mockup else "") + BOT_TOKEN_ENV_VAR
+    token = os.environ.get(token_env_var, "").strip()
     if not token:
         raise RuntimeError(
-            f"Missing {BOT_TOKEN_ENV_VAR} in environment or .env file."
+            f"Missing {token_env_var} in environment or .env file."
         )
     slack_sdk = importlib.import_module("slack_sdk")
     return slack_sdk.WebClient(token=token)
@@ -325,7 +326,7 @@ def run(site_data_path: str, is_mockup: bool = False) -> None:
     if not events:
         raise RuntimeError(f"No announceable events found in {site_data_path}/events.csv.")
 
-    client = create_slack_client()
+    client = create_slack_client(is_mockup=is_mockup)
     announcements_channel_id = find_channel_id(
         client, ANNOUNCEMENTS_CHANNEL
     )
@@ -370,18 +371,17 @@ def run(site_data_path: str, is_mockup: bool = False) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--path", default="sitedata", help="Directory containing config.yml and events.csv")
     parser.add_argument(
         "--mockup",
         action="store_true",
-        help="Post mockup-formatted announcements to the mock announcements channel.",
+        help="Use sitedata_mock, MOCKUP_SLACK_TOKEN_ANNOUNCEMENT_BOT, and mockup-formatted announcements.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    run(args.path, is_mockup=args.mockup)
+    run("sitedata_mock" if args.mockup else "sitedata", is_mockup=args.mockup)
 
 
 if __name__ == "__main__":

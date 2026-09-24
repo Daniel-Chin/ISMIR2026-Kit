@@ -145,8 +145,12 @@ def createSlackChannelAsBot(channelName, boolChannelPrivacyON):
         is_private=boolChannelPrivacyON,
     )
     # Log the result which includes information like the ID of the conversation
-    print(result)
-    print("Channel Created!")
+    if result['ok']:
+        print("Channel Created!")
+    else:
+        print('Failed to create channel.')
+        print(result)
+        input("Press Enter to continue...")
     # Keep the cached channel maps in sync without refetching the full list
     if _channel_maps is not None:
         _channel_maps[0][result["channel"]["name"]] = result["channel"]["id"]

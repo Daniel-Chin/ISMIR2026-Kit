@@ -36,8 +36,9 @@ def build_calendar(events, config):
         start = datetime.strptime(
             f"{event['start_date']} {event['start_time']}", "%Y-%m-%d %H:%M"
         )
-        if event["end_time"].strip().lower() == "tbd":
-            end = timezone.localize(start) + timedelta(hours=2)
+        end_time_tbd = event["end_time"].strip().lower() == "tbd"
+        if end_time_tbd:
+            end = timezone.localize(start) + timedelta(hours=3)
         else:
             end = datetime.strptime(
                 f"{event['start_date']} {event['end_time']}", "%Y-%m-%d %H:%M"
@@ -77,5 +78,6 @@ def build_calendar(events, config):
             "category": "time",
             "calendarId": CALENDAR_IDS.get(category, "other"),
             "scrollKey": "\n".join(description),
+            "raw": {"endTimeTbd": end_time_tbd},
         })
     return schedules

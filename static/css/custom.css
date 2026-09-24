@@ -76,3 +76,8 @@ sat: '#A79B8E' */
 .full-card-link:hover {
   color: inherit;
 }
+.tui-full-calendar-time-date-schedule-block:has(.calendar-end-tbd) {
+  /* An unknown end time fades out instead of showing a definite bottom edge. */
+  -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+}

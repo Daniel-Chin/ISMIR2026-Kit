@@ -8,6 +8,12 @@ function make_cal(name) {
     let localStart = 7 // 07:00 local time
     let startOffsets = [0,0]
 
+    const eventTitle = schedule => {
+        const className = schedule.raw && schedule.raw.endTimeTbd
+            ? 'calendar-end-tbd' : '';
+        return `<span class="${className}">${schedule.title}</span>`;
+    };
+
     const setupTZSelector = () => {
         const tzOptons = d3.select('#tzOptions')
         tzOptons.selectAll('option').data(tzNames)
@@ -128,7 +134,7 @@ function make_cal(name) {
                         }
                         return `<strong class=${class_name}>` + moment(schedule.start.getTime())
                           .tz(timezoneName)
-                          .format('HH:mm') + '</strong> ' + schedule.title;
+                          .format('HH:mm') + '</strong> ' + eventTitle(schedule);
                     },
                     milestone: function (schedule) {
                         return '<span class="calendar-font-icon ic-milestone-b"></span> <span style="background-color: ' + schedule.bgColor + '"> M: ' + schedule.title + '</span>';
@@ -179,6 +185,13 @@ function make_cal(name) {
                 c_sm.append('div').attr('id', 'cal__' + i);
                 const cal = new Calendar('#cal__' + i, {
                     defaultView: 'day',
+                    template: {
+                        time: function (schedule) {
+                            return '<strong>' + moment(schedule.start.getTime())
+                                .tz(timezoneName).format('HH:mm')
+                                + '</strong> ' + eventTitle(schedule);
+                        },
+                    },
                     isReadOnly: true,
                     // useDetailPopup: true,
                     taskView: false,

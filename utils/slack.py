@@ -58,7 +58,7 @@ configure_clients()
 PAGE_LIMIT = 200
 
 
-def normalize_channel_title(title: str, max_words: int = 3) -> str:
+def normalize_channel_title(title: str, max_words: int | None = 3) -> str:
     cleaned_title = str(title or "").strip().lower()
     cleaned_title = re.sub(r"[^a-z0-9_]+", "-", cleaned_title)
     cleaned_title = re.sub(r"[-_]+", "-", cleaned_title)
@@ -67,7 +67,7 @@ def normalize_channel_title(title: str, max_words: int = 3) -> str:
     return "-".join(parts[:max_words])
 
 
-def build_channel_name(prefix: str, title: str, max_words: int = 3) -> str:
+def build_channel_name(prefix: str, title: str, max_words: int | None = 3) -> str:
     slug = normalize_channel_title(title, max_words=max_words)
     sanitized_prefix = re.sub(r"[^a-z0-9_]+", "-", str(prefix or "").strip().lower())
     sanitized_prefix = sanitized_prefix.strip("-")

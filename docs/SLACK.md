@@ -87,6 +87,8 @@ the workspace (workspace admin, or an app-approval flow).
 .venv/bin/python miniconf_prep.py --mockup --action setup-papers-setup-channels
 .venv/bin/python miniconf_prep.py --mockup --action setup-event-channels
 
+# Manually remove sessions that don't need a channel (e.g. registration, welcome reception)  
+
 # 2. create channels, write channel_url back into papers.csv and events.csv
 .venv/bin/python miniconf_prep.py --mockup --action setup-papers-create-channels
 .venv/bin/python miniconf_prep.py --mockup --action create-event-channels

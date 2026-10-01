@@ -175,22 +175,23 @@ people used to join Slack.
    is a member so it retains access after tutorial channels become private.
 4. Go to Workspace Settings.
 5. Require admin approval when member invite new people to your workspace.  
-6. Add `#general`, `#social`, `#random`, `#help`, opening session, and the tutorial channels to Slack's
+6. Remove "Members" from permission to "Use @everyone in channels".  
+7. Add `#general`, `#social`, `#random`, `#help`, opening session, and the tutorial channels to Slack's
    **Default Channels** list. The first two are permanent defaults; tutorial
    channels are temporary defaults.
-7. Send targeted workspace invitations to tutorial attendees. Tell them to use
+8. Send targeted workspace invitations to tutorial attendees. Tell them to use
    the same email address they used for registration.
-8. Monitor pending and accepted invitations and handle email mismatches.
-9. Once most tutorial attendees have joined, remove only the tutorial channels
+9. Monitor pending and accepted invitations and handle email mismatches.
+10. Once most tutorial attendees have joined, remove only the tutorial channels
    from the default list. Keep `#general`... as defaults.
-10. Audit channel membership, then convert each tutorial channel from public to
+11. Audit channel membership, then convert each tutorial channel from public to
    private: **channel name → Settings → Change to a private channel**.
-11. Verify that the channels are private, then add restricted materials such as
+12. Verify that the channels are private, then add restricted materials such as
    Zoom links.
-12. Send workspace invitations to the general conference audience.
-13. Manually handle late tutorial registrants or assign them with
+13. Send workspace invitations to the general conference audience.
+14. Manually handle late tutorial registrants or assign them with
    `setup-tutorials-invite-attendees` after Slack knows their account.
-14. Invite volunteers to Slack.
+15. Invite volunteers to Slack.
 
 CLI stages:
 

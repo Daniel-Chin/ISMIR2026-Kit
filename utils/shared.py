@@ -52,23 +52,27 @@ def _normalize_session_datetime(dt: datetime, zone_info: ZoneInfo) -> datetime:
 
 def _format_session_window_datetimes(
     start_datetime: datetime,
-    end_datetime: datetime,
+    end_datetime: datetime | None,
     zone_info: ZoneInfo,
 ) -> str:
     start_local = _normalize_session_datetime(start_datetime, zone_info)
-    end_local = _normalize_session_datetime(end_datetime, zone_info)
+    end_local = (
+        _normalize_session_datetime(end_datetime, zone_info)
+        if end_datetime is not None else None
+    )
     tz_label = _timezone_label(start_local, zone_info.key)
 
-    if start_local.date() != end_local.date():
+    if end_local is not None and start_local.date() != end_local.date():
         return (
             f"{start_local.strftime('%a, %b %d, %H:%M')} - "
             f"{end_local.strftime('%a, %b %d, %H:%M')} "
             f"{tz_label}"
         )
 
+    end_label = end_local.strftime('%H:%M') if end_local is not None else 'TBD'
     return (
         f"{start_local.strftime('%a, %b %d')}, "
-        f"{start_local.strftime('%H:%M')}-{end_local.strftime('%H:%M')} "
+        f"{start_local.strftime('%H:%M')}-{end_label} "
         f"{tz_label}"
     )
 
@@ -87,7 +91,7 @@ def format_session_window(
 @overload
 def format_session_window(
     start_datetime: datetime,
-    end_datetime: datetime,
+    end_datetime: datetime | None,
     zone_info: ZoneInfo,
     /,
 ) -> str:
@@ -107,8 +111,8 @@ def format_session_window(
     """
     if len(args) == 3 and isinstance(args[0], datetime):
         start_datetime, end_datetime, zone_info = args
-        if not isinstance(end_datetime, datetime):
-            raise TypeError("end_datetime must be a datetime")
+        if end_datetime is not None and not isinstance(end_datetime, datetime):
+            raise TypeError("end_datetime must be a datetime or None")
         if not isinstance(zone_info, ZoneInfo):
             raise TypeError("zone_info must be a ZoneInfo")
 
@@ -133,13 +137,15 @@ def format_session_window(
     try:
         year, month, day = [int(x) for x in str(start_date).split("-")]
         start_hour, start_minute = [int(x) for x in str(start_time).split(":")[:2]]
-        end_hour, end_minute = [int(x) for x in str(end_time).split(":")[:2]]
+        start_local = datetime(year, month, day, start_hour, start_minute, tzinfo=tz)
+        end_local = None
+        if end_time != 'tbd':
+            end_hour, end_minute = [int(x) for x in str(end_time).split(":")[:2]]
+            end_local = datetime(year, month, day, end_hour, end_minute, tzinfo=tz)
     except (TypeError, ValueError) as exc:
         raise ValueError("Invalid session date or time") from exc
 
-    start_local = datetime(year, month, day, start_hour, start_minute, tzinfo=tz)
-    end_local = datetime(year, month, day, end_hour, end_minute, tzinfo=tz)
-    if end_local < start_local:
+    if end_local is not None and end_local < start_local:
         end_local += timedelta(days=1)
 
     return _format_session_window_datetimes(start_local, end_local, tz)

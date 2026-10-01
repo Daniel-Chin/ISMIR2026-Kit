@@ -630,7 +630,7 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
         category_ = category.lower().strip()
         if category_ == 'poster session':
             buf.append("During that time, use this Zoom room for live interaction with authors and audiences:\n")
-            buf.append(zoom_link)
+            buf.append('<' + zoom_link + '>')
         else:
             buf.append("If you aren't onsite, you can join the ")
             match category_:

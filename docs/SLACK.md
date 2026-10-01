@@ -90,8 +90,8 @@ the workspace (workspace admin, or an app-approval flow).
 # Manually remove sessions that don't need a channel (e.g. registration, welcome reception)  
 
 # 2. create channels, write channel_url back into papers.csv and events.csv
-.venv/bin/python miniconf_prep.py --mockup --action setup-papers-create-channels
 .venv/bin/python miniconf_prep.py --mockup --action create-event-channels
+.venv/bin/python miniconf_prep.py --mockup --action setup-papers-create-channels
 
 # 3. invite authors into their channels (non-prod → invites DUMMY_EMAIL instead)
 .venv/bin/python miniconf_prep.py --mockup --action setup-papers-invite-authors

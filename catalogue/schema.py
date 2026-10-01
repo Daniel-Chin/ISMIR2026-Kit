@@ -100,8 +100,8 @@ def _walk_forbidden(obj, where, errors):
             _walk_forbidden(value, "{}[{}]".format(where, i), errors)
 
 
-def validate_catalogue(cat: Dict[str, Any]) -> List[str]:
-    """Return a list of validation errors (empty list == valid)."""
+def validate_catalogue(cat: Dict[str, Any]) -> None:
+    """Raise ValueError with all detected catalogue validation errors."""
     errors: List[str] = []
     _check_fields(cat, TOP_LEVEL_REQUIRED, "catalogue", errors)
 
@@ -146,4 +146,5 @@ def validate_catalogue(cat: Dict[str, Any]) -> List[str]:
             )
 
     _walk_forbidden(cat, "catalogue", errors)
-    return errors
+    if errors:
+        raise ValueError("Invalid catalogue: " + "; ".join(errors))

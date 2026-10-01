@@ -102,7 +102,7 @@ const start = () => {
         // console.log(uniqueSessions);
         render();
 
-    }).catch(e => console.error(e))
+    })
 }
 
 const updateFilterSelectionBtn = value => {
@@ -157,16 +157,4 @@ fetch('https://youtube.com', {mode: 'no-cors'}).then(r=>{
   $('.video-day-buttons .vid-link').each(function(i) {
     $(this).attr('href', yt_links[i]);
   })
-  })
-  .catch(e=>{
-    // BB EMBED
-    console.log('youtube is not there');
-    let bb_links = [
-      'https://space.bilibili.com/690281118/channel/detail?cid=152508',
-      'https://space.bilibili.com/690281118/channel/detail?cid=152509',
-      'https://space.bilibili.com/690281118/channel/detail?cid=152510'];
-
-    $('.video-day-buttons .vid-link').each(function(i) {
-      $(this).attr('href', bb_links[i]);
-    })
-    });
+  });

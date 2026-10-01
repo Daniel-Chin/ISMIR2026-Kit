@@ -55,10 +55,9 @@ def test_duplicate_delivery_one_answer(client):
     assert len(client.delivered) == 1
 
 
-def test_malformed_task_dropped_not_retried(client):
+def test_malformed_task_rejected(client):
     resp = client.post("/task", json={"job_id": "x"})
-    assert resp.status_code == 200  # 2xx: Cloud Tasks must NOT retry
-    assert resp.get_json()["dropped"] is True
+    assert resp.status_code == 400
     assert client.delivered == []
 
 

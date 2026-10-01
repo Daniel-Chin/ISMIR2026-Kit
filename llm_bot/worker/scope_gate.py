@@ -8,15 +8,12 @@ No profanity keyword filters: "which paper detects explicit lyrics" is a
 legitimate MIR question. Moderate behaviour, not vocabulary.
 """
 
-import logging
 import re
 from typing import Tuple
 
 from shared.catalogue import Snapshot
 from shared.config import settings
 from worker import retrieval
-
-log = logging.getLogger("scope_gate")
 
 # Cosine thresholds for real embedding models (tuned in milestone 5 against
 # the eval set; meaningless for the fake test embedder, so tests monkeypatch)
@@ -68,11 +65,7 @@ def check(snapshot: Snapshot, question: str) -> Tuple[bool, str]:
     if CONFERENCE_TERMS.search(question):
         return True, "conference term"
 
-    try:
-        sim = retrieval.max_similarity(snapshot, question)
-    except Exception:
-        log.exception("similarity check failed — passing through to the agent")
-        return True, "similarity unavailable"
+    sim = retrieval.max_similarity(snapshot, question)
 
     if sim >= SIM_STRONG:
         return True, "similarity {:.2f}".format(sim)
@@ -82,9 +75,5 @@ def check(snapshot: Snapshot, question: str) -> Tuple[bool, str]:
         return False, "similarity {:.2f}".format(sim)
 
     # Ambiguous zone: one Haiku-class yes/no
-    try:
-        verdict = _llm_says_in_scope(question)
-        return verdict, "llm classifier at similarity {:.2f}".format(sim)
-    except Exception:
-        log.exception("scope classifier failed — failing open")
-        return True, "classifier unavailable"
+    verdict = _llm_says_in_scope(question)
+    return verdict, "llm classifier at similarity {:.2f}".format(sim)

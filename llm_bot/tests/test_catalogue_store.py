@@ -1,5 +1,7 @@
 """Hot-swap: the store picks up a new version after the refresh window."""
 
+import pytest
+
 import json
 import sqlite3
 
@@ -41,7 +43,7 @@ def test_local_store_hot_swaps(tmp_path, monkeypatch):
     assert store.get().version == "2026-01-02"
 
 
-def test_refresh_failure_keeps_current(tmp_path, monkeypatch):
+def test_refresh_failure_raises(tmp_path, monkeypatch):
     write_artifacts(tmp_path, "v1")
     source = LocalSource(str(tmp_path))
     store = CatalogueStore(source=source)
@@ -51,4 +53,5 @@ def test_refresh_failure_keeps_current(tmp_path, monkeypatch):
     monkeypatch.setattr(
         source, "latest_version", lambda: (_ for _ in ()).throw(IOError("gcs down"))
     )
-    assert store.get().version == "v1"  # keeps serving the old snapshot
+    with pytest.raises(IOError, match="gcs down"):
+        store.get()

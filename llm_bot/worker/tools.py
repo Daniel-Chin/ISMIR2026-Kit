@@ -217,7 +217,7 @@ def _run_profile_tool(
     if name in ("save_paper", "remove_saved_paper", "record_feedback"):
         item_type = _resolve_type(snapshot, args["item_id"])
         if item_type is None:
-            return {"error": "no item with id {}".format(args["item_id"])}
+            raise ValueError("no item with id {}".format(args["item_id"]))
         if name == "save_paper":
             changed = profiles.save_paper(store, user_id, item_type, args["item_id"])
             return {"saved": changed, "already_saved": not changed}
@@ -244,13 +244,13 @@ def _run_profile_tool(
             snapshot, store.get(user_id), k=args.get("k") or 5
         )
         if not items:
-            return {"error": "no saved papers yet — save some first"}
+            raise LookupError("no recommendations available for the saved papers")
         return [_compact(item, item["item_type"]) for item in items]
 
     if name == "build_personal_schedule":
         return recommend.personal_schedule(snapshot, store.get(user_id))
 
-    return {"error": "unknown profile tool {}".format(name)}
+    raise ValueError("unknown profile tool {}".format(name))
 
 
 def run_tool(
@@ -261,7 +261,7 @@ def run_tool(
 ) -> Any:
     if name in PROFILE_TOOLS:
         if not ctx:
-            return {"error": "profile tools unavailable in this context"}
+            raise ValueError("profile tools unavailable in this context")
         return _run_profile_tool(snapshot, name, args, ctx)
     if name == "search_papers":
         items = retrieval.hybrid_search(
@@ -279,7 +279,7 @@ def run_tool(
                 full = _compact(item, item_type)
                 full["abstract"] = item.get("abstract", "")  # untruncated
                 return full
-        return {"error": "no item with id {}".format(args["item_id"])}
+        raise ValueError("no item with id {}".format(args["item_id"]))
 
     if name == "get_schedule":
         sessions = snapshot.data.get("sessions", [])
@@ -303,7 +303,9 @@ def run_tool(
             if (day is None or s["day"] == day)
             and (not session_type or session_type in s["type"].lower())
         ]
-        return out or {"error": "no sessions matched"}
+        if not out:
+            raise LookupError("no sessions matched")
+        return out
 
     if name == "get_author":
         needle = args["name"].strip().lower()
@@ -312,12 +314,14 @@ def run_tool(
             for item in snapshot.data.get(item_type, []):
                 if any(needle in a.lower() for a in item.get("authors", [])):
                     matches.append(_compact(item, item_type))
-        return matches or {"error": "no items by author {!r}".format(args["name"])}
+        if not matches:
+            raise LookupError("no items by author {!r}".format(args["name"]))
+        return matches
 
     if name == "get_logistics":
         logistics = snapshot.data.get("logistics", [])
         if not logistics:
-            return {"error": "no logistics information available yet"}
+            raise ValueError("no logistics information available yet")
         needle = args["topic"].strip().lower()
         hits = [
             entry
@@ -326,4 +330,4 @@ def run_tool(
         ]
         return hits or logistics  # small list: return all as fallback
 
-    return {"error": "unknown tool {}".format(name)}
+    raise ValueError("unknown tool {}".format(name))

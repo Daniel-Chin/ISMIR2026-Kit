@@ -97,7 +97,7 @@ const start = () => {
         uniqueSessions = uniqueSessions.sort((a,b) => a - b);
         render();
 
-    }).catch(e => console.error(e))
+    })
 }
 
 const updateFilterSelectionBtn = value => {

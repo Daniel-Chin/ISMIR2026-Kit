@@ -11,14 +11,4 @@ fetch('https://youtube.com', {mode: 'no-cors'}).then(r=>{
   console.log($('#yt-id').data()['name']);
   // $('.yt-container iframe').attr('src', "https://www.youtube.com/embed/" + $('#yt-id').data()['name']);
 
-  })
-  .catch(e=>{
-    // BB EMBED
-    console.log('youtube is not there');
-    var embed = $('#bb-id').data()['name'];
-    $('#video .video-container').append(`
-      <div class="aspect-ratio bb-container">
-        <iframe class="video-stream" src="//player.bilibili.com/player.html?bvid=${embed}&page=1" frameborder="no" framespacing="0" allowfullscreen width="550" height="281"> </iframe>
-      </div>
-      `)
-    });
+  });

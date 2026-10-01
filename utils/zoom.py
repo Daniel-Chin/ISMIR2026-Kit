@@ -2,6 +2,7 @@ import json
 import os
 import re
 import time
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -249,6 +250,7 @@ def deleteMeeting(meetingId):
         "content-type": "application/json",
     }
     resp = requests.delete(apiEndpointUrl, headers=headers)
+    resp.raise_for_status()
     return resp.status_code
 
 
@@ -279,14 +281,13 @@ def updateMeetingBreakoutRooms(meetingId, roomNames):
 
 
 def _durationMinutes(row):
-    """Meeting length in minutes from HH:MM start_time/end_time columns, if present."""
-    try:
-        startH, startM = str(row["start_time"]).split(":")
-        endH, endM = str(row["end_time"]).split(":")
-        minutes = (int(endH) * 60 + int(endM)) - (int(startH) * 60 + int(startM))
-        return minutes if minutes > 0 else None
-    except (KeyError, ValueError):
-        return None
+    """Meeting length in minutes from HH:MM start_time/end_time columns; invalid or missing times raise."""
+    start = datetime.strptime(str(row["start_time"]), "%H:%M")
+    end = datetime.strptime(str(row["end_time"]), "%H:%M")
+    minutes = int((end - start).total_seconds() / 60)
+    if minutes <= 0:
+        raise ValueError("Meeting end time must be after its start time")
+    return minutes
 
 
 def _clock_hhmm_to_minutes(clock):
@@ -840,6 +841,7 @@ def deleteWebinar(webinarId):
         "content-type": "application/json",
     }
     resp = requests.delete(apiEndpointUrl, headers=headers)
+    resp.raise_for_status()
     return resp.status_code
 
 
@@ -853,6 +855,7 @@ def deletePanelistFromWebinar(webinarId, panelistId):
         "content-type": "application/json",
     }
     resp = requests.delete(apiEndpointUrl, headers=headers)
+    resp.raise_for_status()
     return resp.status_code
 
 

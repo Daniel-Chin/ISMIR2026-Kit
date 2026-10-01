@@ -27,7 +27,7 @@ def handle(payload: Dict[str, Any], snapshot: Snapshot, store) -> str:
     user_id = payload["user_id"]
     item = snapshot.get_item(item_type, item_id)
     if item is None:
-        return "That item is no longer in the program catalogue."
+        raise LookupError("That item is no longer in the program catalogue.")
 
     if action_id in ("guide_save", "guide_add_schedule"):
         added = profiles.save_paper(store, user_id, item_type, item_id)
@@ -59,4 +59,4 @@ def handle(payload: Dict[str, Any], snapshot: Snapshot, store) -> str:
             return "I couldn't find anything similar in the program."
         return "Similar to {}:\n{}".format(_link(item), format_items(similar))
 
-    return "Unknown action."
+    raise ValueError("Unknown action: {}".format(action_id))

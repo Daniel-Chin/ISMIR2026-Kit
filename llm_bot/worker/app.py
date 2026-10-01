@@ -14,7 +14,7 @@ platform layer, so the app trusts /task bodies.
 
 import logging
 
-from flask import Flask, jsonify, request
+from flask import Flask, abort, jsonify, request
 
 import os
 
@@ -85,16 +85,14 @@ def process(payload):
 def _maybe_alert_admins():
     if guardrails.should_alert_admins():
         for admin in ADMIN_USER_IDS:
-            try:
-                slack_out.client().chat_postMessage(
-                    channel=admin,
-                    text=":rotating_light: ISMIR Guide hit MAX_DAILY_SPEND_USD "
-                    "(${:.0f}) — answering is paused until midnight UTC.".format(
-                        settings.max_daily_spend_usd
-                    ),
-                )
-            except Exception:
-                log.exception("admin alert to %s failed", admin)
+            slack_out.client().chat_postMessage(
+                channel=admin,
+                text=":rotating_light: ISMIR Guide hit MAX_DAILY_SPEND_USD "
+                "(${:.0f}) — answering is paused until midnight UTC.".format(
+                    settings.max_daily_spend_usd
+                ),
+            )
+
 
 BASE_FIELDS = ("job_id", "user_id", "channel_id", "placeholder_ts")
 
@@ -112,12 +110,12 @@ def healthz():
 
 @flask_app.post("/task")
 def task():
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json()
+    if not isinstance(payload, dict):
+        abort(400, description="Task body must be a JSON object")
     missing = [f for f in _required_fields(payload) if f not in payload]
     if missing:
-        # Malformed task: 2xx so Cloud Tasks does NOT retry it forever
-        log.error("dropping malformed task, missing %s", missing)
-        return jsonify({"dropped": True, "missing": missing}), 200
+        abort(400, description="Missing task fields: {}".format(", ".join(missing)))
 
     job_id = payload["job_id"]
     if not job_store.try_claim(job_id):
@@ -140,7 +138,7 @@ def task():
         # Release the claim and 500 -> Cloud Tasks retries with backoff
         job_store.release(job_id)
         log.exception("job %s failed", job_id)
-        return jsonify({"error": "internal"}), 500
+        raise
     finally:
         guardrails.release_user(payload["user_id"])
 

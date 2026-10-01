@@ -1,5 +1,7 @@
 """Agent loop tests with a scripted fake Anthropic client."""
 
+import pytest
+
 from types import SimpleNamespace
 
 from worker import agent
@@ -62,7 +64,7 @@ def test_ungrounded_answer_retried_then_accepted(snapshot):
     assert "failed validation" in corrective
 
 
-def test_grounding_failure_twice_falls_back(snapshot):
+def test_grounding_failure_twice_raises(snapshot):
     client = FakeClient(
         [
             [tool_use_block("search_papers", {"query": "dtw", "k": 3, "item_type": None})],
@@ -70,7 +72,8 @@ def test_grounding_failure_twice_falls_back(snapshot):
             [text_block("no links 2")],
         ]
     )
-    assert agent.answer(PAYLOAD, snapshot, client=client) == agent.NOT_FOUND
+    with pytest.raises(agent.grounding.GroundingError):
+        agent.answer(PAYLOAD, snapshot, client=client)
 
 
 def test_tool_rounds_capped(snapshot):

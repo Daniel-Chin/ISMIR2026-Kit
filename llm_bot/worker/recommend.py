@@ -49,7 +49,7 @@ def from_saved(
     centroid = snapshot.embeddings[rows].mean(axis=0)
     norm = np.linalg.norm(centroid)
     if norm == 0:
-        return []
+        raise ValueError("Saved-paper embeddings have a zero centroid")
     exclude = {
         (key["item_type"], key["id"])
         for key in profile["saved_papers"] + profile["rejected_papers"]
@@ -62,7 +62,7 @@ def more_like_this(
 ) -> List[Dict[str, Any]]:
     row = snapshot.row_of.get((item_type, item_id))
     if row is None:
-        return []
+        raise LookupError("No embedding for {}/{}".format(item_type, item_id))
     return _neighbours(
         snapshot, snapshot.embeddings[row], {(item_type, item_id)}, k
     )

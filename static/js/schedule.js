@@ -102,7 +102,6 @@ function updateTable() {
           }
       })
 
-
 }
 
 
@@ -128,7 +127,6 @@ const start = () => {
 
         updateTable();
     })
-      .catch(e => console.error(e))
 
     const tzOptons = d3.select('#tzOptions')
     tzOptons.selectAll('option').data(tzNames)
@@ -142,7 +140,6 @@ const start = () => {
             currentTimeZone = tzNames[clickedIndex]
             updateTable();
         })
-
 
 }
 

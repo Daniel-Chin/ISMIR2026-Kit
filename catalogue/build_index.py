@@ -163,11 +163,7 @@ def main():
 
     # Record the embedding model in the catalogue and re-validate
     catalogue["embedding_model"] = model
-    errors = validate_catalogue(catalogue)
-    if errors:
-        for error in errors:
-            print("SCHEMA ERROR:", error, file=sys.stderr)
-        sys.exit(1)
+    validate_catalogue(catalogue)
     with open(args.catalogue, "w", encoding="utf-8") as f:
         json.dump(catalogue, f, ensure_ascii=False, indent=1)
 

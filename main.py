@@ -18,6 +18,7 @@ import yaml
 from dateutil import tz
 from flask import (
     Flask,
+    abort,
     jsonify,
     redirect,
     render_template,
@@ -205,18 +206,12 @@ def _conference_timezone_name() -> str:
 
 
 def _as_int(value):
-    try:
-        return int(float(str(value)))
-    except (TypeError, ValueError):
-        return None
+    return int(float(str(value)))
 
 
 def _paper_zoom_url(paper_row):
     day = _as_int(paper_row.get("day"))
     session = _as_int(paper_row.get("session"))
-    if day is None or session is None:
-        return ""
-
     expected_title = f"Poster Session - {session}"
     for event in site_data.get("events", []):
         if event.get("category") != "Poster session":
@@ -294,7 +289,7 @@ def register_live_no_nav_route():
             os.path.dirname(__file__), "live_overview", "build", "live-no-nav.html"
         )
         if not os.path.exists(live_path):
-            return ("Not Found", 404)
+            abort(404)
         return send_file(live_path)
 
 
@@ -396,6 +391,8 @@ def convert_drive_link(s):
 
 
 def get_yt_id(yt_link: str) -> str:
+    if not yt_link:
+        return ""
     if "youtube.com" in yt_link:
         # Handle URLs like https://www.youtube.com/watch?v=VIDEO_ID
         match = re.search(r"v=([a-zA-Z0-9_-]{11})", yt_link)
@@ -406,7 +403,7 @@ def get_yt_id(yt_link: str) -> str:
         match = re.search(r"youtu\.be/([a-zA-Z0-9_-]{11})", yt_link)
         if match:
             return match.group(1)
-    return ""
+    raise ValueError(f"Invalid YouTube URL: {yt_link!r}")
 
 
 def format_paper(v):
@@ -710,14 +707,14 @@ def lbds_json():
 @app.route("/static/<path:path>")
 def send_static(path):
     if "wo_num" in path:
-        return "", 404
+        abort(404)
     return send_from_directory("static", path)
 
 
 @app.route("/serve_<path>.json")
 def serve(path):
     if path == "events":
-        return ("Not Found", 404)
+        abort(404)
     return jsonify(site_data[path])
 
 

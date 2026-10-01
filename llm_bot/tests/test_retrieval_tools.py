@@ -1,5 +1,7 @@
 """Retrieval, tools, grounding and scope-gate tests on the fixture snapshot."""
 
+import pytest
+
 from worker import grounding, retrieval, scope_gate, tools
 
 
@@ -39,7 +41,8 @@ def test_get_paper(snapshot):
     item = tools.run_tool(snapshot, "get_paper", {"item_id": "4"})
     assert item["title"].startswith("Reformulating")
     assert item["slack_channel_id"] == "C0AAA"
-    assert tools.run_tool(snapshot, "get_paper", {"item_id": "nope"})["error"]
+    with pytest.raises(ValueError, match="no item"):
+        tools.run_tool(snapshot, "get_paper", {"item_id": "nope"})
 
 
 def test_get_schedule_filters(snapshot):
@@ -47,9 +50,8 @@ def test_get_schedule_filters(snapshot):
         snapshot, "get_schedule", {"day": 1, "session_type": "poster"}
     )
     assert sessions[0]["id"] == "P2" and sessions[0]["paper_ids"] == ["4"]
-    assert "error" in tools.run_tool(
-        snapshot, "get_schedule", {"day": 9, "session_type": None}
-    )
+    with pytest.raises(LookupError, match="no sessions"):
+        tools.run_tool(snapshot, "get_schedule", {"day": 9, "session_type": None})
 
 
 def test_get_author(snapshot):
@@ -75,23 +77,23 @@ def test_search_papers_tool(snapshot):
 def test_grounding_extracts_slack_style_links(snapshot):
     text = "Try <https://example.org/poster_4.html|this paper> in <#C0AAA>."
     assert grounding.extract_citations(text) == [("papers", "4")]
-    assert grounding.validate(snapshot, text, {("papers", "4")}) == []
+    assert grounding.validate(snapshot, text, {("papers", "4")}) is None
 
 
 def test_grounding_rejects_unknown_id(snapshot):
     text = "See <https://example.org/poster_999.html|fake>."
-    problems = grounding.validate(snapshot, text, {("papers", "4")})
-    assert any("999" in p for p in problems)
+    with pytest.raises(grounding.GroundingError, match="999"):
+        grounding.validate(snapshot, text, {("papers", "4")})
 
 
 def test_grounding_requires_citation_when_retrieved(snapshot):
-    problems = grounding.validate(snapshot, "Great paper, trust me.", {("papers", "4")})
-    assert problems
+    with pytest.raises(grounding.GroundingError, match="cites no item"):
+        grounding.validate(snapshot, "Great paper, trust me.", {("papers", "4")})
 
 
 def test_grounding_ok_without_retrieval(snapshot):
     # e.g. "when is lunch" answered from schedule tool returning dicts only
-    assert grounding.validate(snapshot, "Lunch is at 12:00 GST.", set()) == []
+    assert grounding.validate(snapshot, "Lunch is at 12:00 GST.", set()) is None
 
 
 # --- scope gate ---------------------------------------------------------------
@@ -112,3 +114,25 @@ def test_scope_strong_similarity_passes(snapshot, monkeypatch):
     monkeypatch.setattr(scope_gate.retrieval, "max_similarity", lambda s, q: 0.9)
     ok, _ = scope_gate.check(snapshot, "gradient artifacts weak alignment")
     assert ok
+
+
+@pytest.mark.parametrize('stage', ['similarity', 'classifier'])
+def test_scope_dependency_failure_raises(snapshot, monkeypatch, stage):
+    def fail(*args):
+        raise RuntimeError('dependency unavailable')
+
+    monkeypatch.setattr(scope_gate.retrieval, 'max_similarity',
+                        fail if stage == 'similarity' else lambda *args: 0.3)
+    monkeypatch.setattr(scope_gate, '_entity_hit', lambda *args: False)
+    monkeypatch.setattr(scope_gate, '_llm_says_in_scope', fail)
+    with pytest.raises(RuntimeError, match='dependency unavailable'):
+        scope_gate.check(snapshot, 'ambiguous query')
+
+
+@pytest.mark.parametrize('name,args', [
+    ('unknown', {}), ('get_author', {'name': 'missing author'}),
+    ('save_paper', {'item_id': 'missing'}),
+])
+def test_tool_errors_raise(snapshot, name, args):
+    with pytest.raises((ValueError, LookupError)):
+        tools.run_tool(snapshot, name, args)

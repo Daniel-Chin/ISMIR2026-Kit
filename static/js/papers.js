@@ -201,7 +201,7 @@ const start = () => {
         }
 
 
-    }).catch(e => console.error(e))
+    })
 }
 
 

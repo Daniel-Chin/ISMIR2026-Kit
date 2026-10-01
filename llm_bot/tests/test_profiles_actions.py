@@ -1,5 +1,7 @@
 """Profiles, recommendations, personal schedule, button actions, buttons."""
 
+import pytest
+
 from worker import actions, recommend, tools
 from worker.profiles import InMemoryProfileStore
 from worker.slack_out import blocks_for_answer
@@ -29,7 +31,8 @@ def test_save_list_remove(snapshot):
 
 
 def test_profile_tools_need_ctx(snapshot):
-    assert "error" in tools.run_tool(snapshot, "save_paper", {"item_id": "4"}, None)
+    with pytest.raises(ValueError, match="unavailable"):
+        tools.run_tool(snapshot, "save_paper", {"item_id": "4"}, None)
 
 
 def test_recommend_excludes_saved_and_rejected(snapshot):
@@ -45,8 +48,8 @@ def test_recommend_excludes_saved_and_rejected(snapshot):
         {"item_id": "10", "feedback": "not_relevant"},
         ctx(store),
     )
-    items = tools.run_tool(snapshot, "recommend_from_saved", {"k": 5}, ctx(store))
-    assert all(item["id"] != "10" for item in items) if isinstance(items, list) else True
+    with pytest.raises(LookupError, match="no recommendations"):
+        tools.run_tool(snapshot, "recommend_from_saved", {"k": 5}, ctx(store))
 
 
 def test_personal_schedule(snapshot):
@@ -100,10 +103,10 @@ def test_action_more_like_this(snapshot):
 
 
 def test_action_unknown_item(snapshot):
-    reply = actions.handle(
-        action_payload("guide_save", "papers:999"), snapshot, InMemoryProfileStore()
-    )
-    assert "no longer" in reply
+    with pytest.raises(LookupError, match="no longer"):
+        actions.handle(
+            action_payload("guide_save", "papers:999"), snapshot, InMemoryProfileStore()
+        )
 
 
 # --- Block Kit -----------------------------------------------------------------

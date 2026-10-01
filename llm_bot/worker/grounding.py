@@ -5,8 +5,7 @@ URL (.../poster_<id>.html etc.). We extract those ids and require:
   - every cited id exists in the catalogue
   - if retrieval returned items, the answer cites at least one
 
-The caller retries once with corrective feedback, then falls back to
-"couldn't find".
+The caller retries once with corrective feedback, then raises if validation still fails.
 """
 
 import re
@@ -30,11 +29,17 @@ def extract_citations(text: str) -> List[Tuple[str, str]]:
     ]
 
 
+class GroundingError(ValueError):
+    """An answer cannot be verified against the catalogue."""
+
+
 def validate(
     snapshot: Snapshot, answer_text: str, retrieved_keys: Set[Tuple[str, str]]
-) -> List[str]:
-    """Return a list of grounding problems (empty == grounded)."""
+) -> None:
+    """Raise GroundingError if the answer cannot be grounded."""
     problems = []
+    if not answer_text.strip():
+        problems.append("answer is empty")
     citations = extract_citations(answer_text)
     for item_type, item_id in citations:
         if snapshot.get_item(item_type, item_id) is None:
@@ -46,4 +51,5 @@ def validate(
             "discusses programme content but cites no item "
             "(every item mentioned must link its MiniConf page)"
         )
-    return problems
+    if problems:
+        raise GroundingError("; ".join(problems))

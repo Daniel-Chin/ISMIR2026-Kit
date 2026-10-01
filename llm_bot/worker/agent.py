@@ -18,11 +18,6 @@ log = logging.getLogger("agent")
 MAX_TOOL_ROUNDS = 3
 MAX_OUTPUT_TOKENS = 1200
 
-NOT_FOUND = (
-    "I couldn't find that in the conference program. Try rephrasing, or "
-    "browse the program at the MiniConf site."
-)
-
 SYSTEM_PROMPT = """\
 You are ISMIR Guide, the assistant for the ISMIR 2026 conference on Slack.
 You help attendees find papers, authors, sessions, schedule information and
@@ -106,7 +101,7 @@ def _run_loop(
                 retrieved.add((result["item_type"], result["id"]))
             results.append(_tool_result_block(block.id, result))
         messages.append({"role": "user", "content": results})
-    return ""
+    raise RuntimeError("Agent exhausted its tool rounds")
 
 
 def answer(
@@ -132,11 +127,14 @@ def answer(
     messages = [{"role": "user", "content": question}]
 
     text = _run_loop(client, snapshot, messages, retrieved, ctx, usage_acc)
-    problems = grounding.validate(snapshot, text, retrieved)
-    if not problems and text.strip():
+    try:
+        grounding.validate(snapshot, text, retrieved)
+    except grounding.GroundingError as exc:
+        problems = str(exc)
+        log.info("grounding failed (%s) — one corrective retry", problems)
+    else:
         return text
 
-    log.info("grounding failed (%s) — one corrective retry", problems)
     messages.append({"role": "assistant", "content": text or "(empty)"})
     messages.append(
         {
@@ -144,14 +142,10 @@ def answer(
             "content": (
                 "Your answer failed validation: {}. Rewrite it citing only "
                 "items returned by your tools, linking each via its "
-                "miniconf_url with Slack link syntax.".format("; ".join(problems))
+                "miniconf_url with Slack link syntax.".format(problems)
             ),
         }
     )
     text = _run_loop(client, snapshot, messages, retrieved, ctx, usage_acc)
-    problems = grounding.validate(snapshot, text, retrieved)
-    if not problems and text.strip():
-        return text
-
-    log.warning("grounding failed twice (%s) — canned fallback", problems)
-    return NOT_FOUND
+    grounding.validate(snapshot, text, retrieved)
+    return text

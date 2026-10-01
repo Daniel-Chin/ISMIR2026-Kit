@@ -12,11 +12,11 @@ import yaml
 @lru_cache(maxsize=32)
 def load_site_config(site_data_path: str) -> dict:
     config_path = Path(site_data_path) / "config.yml"
-    if not config_path.exists():
-        return {}
-
     with config_path.open(encoding="utf-8") as handle:
-        return yaml.safe_load(handle) or {}
+        config = yaml.safe_load(handle)
+    if not isinstance(config, dict) or not config:
+        raise ValueError(f"Site configuration must be a nonempty mapping: {config_path}")
+    return config
 
 
 @lru_cache(maxsize=32)
@@ -124,7 +124,7 @@ def format_session_window(
     start_date, start_time, end_time, timezone_name = args
 
     if not start_date or not start_time or not end_time:
-        return "Session time unavailable"
+        raise ValueError("Session date, start time and end time must be valid and nonempty")
     if timezone_name is None or not isinstance(timezone_name, str):
         raise TypeError("timezone_name is required with string inputs")
 
@@ -134,8 +134,8 @@ def format_session_window(
         year, month, day = [int(x) for x in str(start_date).split("-")]
         start_hour, start_minute = [int(x) for x in str(start_time).split(":")[:2]]
         end_hour, end_minute = [int(x) for x in str(end_time).split(":")[:2]]
-    except (TypeError, ValueError):
-        return "Session time unavailable"
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Invalid session date or time") from exc
 
     start_local = datetime(year, month, day, start_hour, start_minute, tzinfo=tz)
     end_local = datetime(year, month, day, end_hour, end_minute, tzinfo=tz)

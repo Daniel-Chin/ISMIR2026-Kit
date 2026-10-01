@@ -16,10 +16,10 @@
   const slackHelpElement = document.getElementById("zoom-slack-help");
   const slackHelpTextElement = document.getElementById("zoom-slack-help-text");
   const slackHelpLinkElement = document.getElementById("zoom-slack-help-link");
-  const checkboxContainer = checkboxElement.closest(".form-check");
+  const checkboxContainer = checkboxElement?.closest(".form-check");
 
   if (!targetsElement || !configElement || !titleElement || !metaElement || !statusElement || !countdownRowElement || !countdownElement || !pauseCountdownButton || !checkboxElement || !joinButton || !slackHelpElement || !slackHelpTextElement || !slackHelpLinkElement) {
-    return;
+    throw new Error("Required Zoom redirect elements are missing");
   }
 
   let countdownIntervalId = null;
@@ -73,29 +73,17 @@
   }
 
   function getSavedPreference() {
-    try {
-      return window.localStorage.getItem(PREF_KEY) || "INITIAL";
-    } catch (error) {
-      return "INITIAL";
-    }
+    return window.localStorage.getItem(PREF_KEY) || "INITIAL";
   }
 
   function setSavedPreference(value) {
-    try {
-      window.localStorage.setItem(PREF_KEY, value);
-    } catch (error) {
-      return;
-    }
+    window.localStorage.setItem(PREF_KEY, value);
   }
 
   function stripPasscode(joinUrl) {
-    try {
-      const parsed = new URL(joinUrl, window.location.href);
-      parsed.searchParams.delete("pwd");
-      return parsed.toString();
-    } catch (error) {
-      return joinUrl;
-    }
+    const parsed = new URL(joinUrl, window.location.href);
+    parsed.searchParams.delete("pwd");
+    return parsed.toString();
   }
 
   function resolveRoom() {
@@ -105,7 +93,7 @@
       statusElement.textContent = "The utility link did not contain a valid room reference.";
       checkboxElement.disabled = true;
       joinButton.disabled = true;
-      return null;
+      throw new Error(`Unknown Zoom event UID: ${eventUid || "(missing)"}`);
     }
 
     titleElement.textContent = room.title || "Zoom room";
@@ -188,9 +176,6 @@
   });
 
   const targetRoom = resolveRoom();
-  if (!targetRoom) {
-    return;
-  }
 
   if (!hasValidAccess()) {
     showSlackPrompt(targetRoom);

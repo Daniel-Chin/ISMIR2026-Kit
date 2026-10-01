@@ -147,7 +147,6 @@ function brush_ended() {
             })
       })
 
-
 }
 
 
@@ -279,7 +278,6 @@ const start = () => {
 
         updateVis();
     })
-      .catch(e => console.error(e))
 
 
     brush = d3.brush()

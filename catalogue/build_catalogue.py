@@ -125,11 +125,8 @@ def lbd_author_names(authors_field):
     return names
 
 
-def to_int(value, default=0):
-    try:
-        return int(str(value).strip())
-    except (ValueError, TypeError):
-        return default
+def to_int(value):
+    return int(str(value).strip())
 
 
 def is_true(value):
@@ -137,8 +134,6 @@ def is_true(value):
 
 
 def read_csv(path):
-    if not os.path.exists(path):
-        return []
     with open(path, newline="", encoding="utf-8") as f:
         return [row for row in csv.DictReader(f)]
 
@@ -146,7 +141,7 @@ def read_csv(path):
 def to_utc(date_str, time_str, conf_tz):
     """'2026-07-20', '9:00' (conference-local) -> '2026-07-20T05:00:00+00:00'."""
     if not date_str or not time_str:
-        return ""
+        raise ValueError("Session date and time are required")
     hour, minute = [int(x) for x in time_str.strip().split(":")[:2]]
     day_offset = 0
     if hour >= 24:  # '24:00' style end times
@@ -400,7 +395,8 @@ def main():
     base_url = args.site_base_url.rstrip("/")
     catalogue = build(args.path.rstrip("/"), base_url, args.version)
 
-    errors = validate_catalogue(catalogue)
+    validate_catalogue(catalogue)
+    errors = []
     serialized = json.dumps(catalogue, ensure_ascii=False, indent=1)
     for value in collect_private_values(args.path.rstrip("/")):
         if value in serialized:
@@ -408,9 +404,7 @@ def main():
                 "private value leaked into catalogue: {!r}...".format(value[:40])
             )
     if errors:
-        for error in errors:
-            print("SCHEMA ERROR:", error, file=sys.stderr)
-        sys.exit(1)
+        raise ValueError("Invalid catalogue: " + "; ".join(errors))
 
     # Operational warnings (not fatal pre-provisioning: channel_urls are
     # filled by miniconf_prep.py setup-* actions)

@@ -114,10 +114,7 @@ def write_channel_links_to_csv(
             continue
         channel_id = slack_client.getChannelID(channel_name)
         if channel_id is None:
-            print(
-                f"Channel {channel_name} does not exist in the workspace. Skipping link creation."
-            )
-            continue
+            raise LookupError(f"Channel {channel_name} does not exist in the workspace.")
         csv_data.loc[index, "channel_url"] = (
             f"https://slack.com/app_redirect?channel={channel_id}"
         )
@@ -539,14 +536,10 @@ def inviteUserToChannel(user_email, channelName):
         userID = getUserID(user_email)
         channelID = getChannelID(channelName)
         if userID is None:
-            print(f"User {user_email} does not exist in the workspace.")
-            return
+            raise LookupError(f"User {user_email} does not exist in the workspace.")
 
-        try:
-            addUserIDsToASlackChannelById(channelID, userID)
-            print("Invitation Sent")
-        except SlackApiError as e:
-            print(f"Error inviting user: {e.response['error']}")
+        addUserIDsToASlackChannelById(channelID, userID)
+        print("Invitation Sent")
     else:
         print(
             "Either member already exists in the channel or no such member exists in the workspace"
@@ -563,9 +556,7 @@ def inviteUsersToChannel(user_emails, channelName):
             continue
         userID = getUserID(user_email)
         if userID is None:
-            # Skip unknown users instead of aborting the whole batch
-            print(f"User {user_email} does not exist in the workspace. Skipping.")
-            continue
+            raise LookupError(f"User {user_email} does not exist in the workspace.")
         userIDs.append(userID)
     if not userIDs:
         print("No users to invite.")
@@ -583,8 +574,7 @@ def add_all_workspace_members_to_channel(channel_name: str):
     """
     channel_id = getChannelID(channel_name)
     if channel_id is None:
-        print(f"Channel {channel_name} does not exist in the workspace.")
-        return
+        raise LookupError(f"Channel {channel_name} does not exist in the workspace.")
 
     # Paginate through current channel members so we only invite missing users.
     existing_member_ids = set()
@@ -609,7 +599,7 @@ def add_all_workspace_members_to_channel(channel_name: str):
             print(f"Error inviting users: {msg}")
             if msg.strip() == 'not_in_channel':
                 print('Hint: the inviting bot must be a member of the channel first.')
-            return
+            raise
 
     print(
         f"Invitation Sent to {len(user_ids_to_invite)} user(s) for channel {channel_name}."

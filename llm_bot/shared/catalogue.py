@@ -149,14 +149,9 @@ class CatalogueStore:
         with self._lock:
             if self._snapshot is not None and now - self._last_check < REFRESH_SECONDS:
                 return self._snapshot
-            try:
-                version = self.source.latest_version()
-                if self._snapshot is None or version != self._snapshot.version:
-                    log.info("loading catalogue version %s", version)
-                    self._snapshot = self.source.fetch(version)
-            except Exception:
-                if self._snapshot is None:
-                    raise
-                log.exception("catalogue refresh failed — keeping current version")
+            version = self.source.latest_version()
+            if self._snapshot is None or version != self._snapshot.version:
+                log.info("loading catalogue version %s", version)
+                self._snapshot = self.source.fetch(version)
             self._last_check = now
             return self._snapshot

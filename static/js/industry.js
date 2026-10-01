@@ -99,7 +99,7 @@ const start = () => {
         // console.log(uniqueSessions);
         render();
 
-    }).catch(e => console.error(e))
+    })
 }
 
 const updateFilterSelectionBtn = value => {

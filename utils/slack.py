@@ -679,20 +679,20 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
             channel = channel_info.get('channel', {})
             current_description = channel.get('purpose', {}).get('value', '').replace('&amp;', '&')
             current_topic = channel.get('topic', {}).get('value', '')
-            print('Existing description: """')
-            print(current_description)
-            print('"""')
             new_description = render(category, webinar_link, format_session_window(
                 start_date, start_time, end_time,
                 conference_timezone,
             ))
-            print('\nNew description being proposed: """')
-            print(new_description)
-            print('"""')
             if new_description == current_description:
                 print('No change detected, skipping.')
                 # input('Press Enter to continue...')
                 continue
+            print('Existing description: """')
+            print(current_description)
+            print('"""')
+            print('\nNew description being proposed: """')
+            print(new_description)
+            print('"""')
             # print('Apply this update, or skip?')
             # while True:
             #     input_ = input('a/s? ').strip().lower()

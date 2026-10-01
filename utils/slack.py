@@ -664,13 +664,13 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
             end_time = row['end_time']
             print('\nEvent:', title)
             if category.lower().strip() in EXCLUDE:
-                print(f'Do you want to skip it, because {category = }?')
-                while True:
-                    input_ = input('y/n? ').strip().lower()
-                    if input_ in 'yn':
-                        break
-                if input_ == 'y':
-                    continue
+                # print(f'Do you want to skip it, because {category = }?')
+                # while True:
+                #     input_ = input('y/n? ').strip().lower()
+                #     if input_ in 'yn':
+                #         break
+                # if input_ == 'y':
+                continue
             webinar_link = build_zoom_redirect_url(
                 load_site_config(sitedata_dir)['miniconf_url'], 
                 uid_,
@@ -679,7 +679,7 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
             channel_id = getChannelID(slack_channel)
             if channel_id is None:
                 print(f'Channel {slack_channel} does not exist in the workspace. Skipping...')
-                input('Press Enter...')
+                # input('Press Enter...')
                 continue
             channel_info = client_bot.conversations_info(channel=channel_id)
             channel = channel_info.get('channel', {})
@@ -697,14 +697,14 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
             print('"""')
             if new_description == current_description:
                 print('No change detected, skipping.')
-                input('Press Enter to continue...')
+                # input('Press Enter to continue...')
                 continue
-            print('Apply this update, or skip?')
-            while True:
-                input_ = input('a/s? ').strip().lower()
-                if input_ in 'as':
-                    break
-            if input_ == 'a':
-                updateTopicandPurpose(slack_channel, current_topic or title, new_description)
-            else:
-                print('Skipped.')
+            # print('Apply this update, or skip?')
+            # while True:
+            #     input_ = input('a/s? ').strip().lower()
+            #     if input_ in 'as':
+            #         break
+            # if input_ == 'a':
+            updateTopicandPurpose(slack_channel, current_topic or title, new_description)
+            # else:
+            #     print('Skipped.')

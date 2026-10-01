@@ -150,6 +150,7 @@ Everything the site and Slack automation need lives under **`sitedata/`**. The F
 
 CSV files. See [./SPREADSHEET_FORMAT.md](./SPREADSHEET_FORMAT.md) for documentation.  
 - **`papers.csv`** — one row per accepted paper.
+- **`session_assignment.csv`** — source of paper session assignments, times, and chairs.
 - **`events.csv`** — schedule entries (tutorials, poster sessions, social events, etc.).
 - **`lbds.csv`** — late-breaking demos (similar shape to papers, fewer columns).
 - **`music.csv`** — music program performances.
@@ -157,6 +158,24 @@ CSV files. See [./SPREADSHEET_FORMAT.md](./SPREADSHEET_FORMAT.md) for documentat
 
 Additionally,  
 - **`config.yml`** — site-wide settings: conference name/dates, feature toggles (`paper_videos`, `lbd_embeds`, …), calendar color map, Auth0 client ID, release-day controls (`paper_day_release`).
+
+### Session assignments
+
+Edit the `session_assignment` sheet: one session per column, paper UIDs in
+`Paper-1`, `Paper-2`, … order. Column order determines session numbers (starting
+at 1); session dates determine days (day 1 is the first session’s date). Keep
+conference dates and timezone correct in `sitedata/config.yml`. Slack, Zoom, and the catalogue read
+assignments from this matrix; every paper must be included.
+
+After pulling the sheet, generate a convenient by-paper view:
+
+```bash
+uv run python -m utils.session_assignment
+```
+
+This writes `sitedata/session_assignment-by_paper.csv`; paste it into Google
+Sheets if useful. It is read-only and does not update the website or Slack.
+Zoom and the catalogue use `session_assignment.csv` for paper day, session, and position.
 
 ### Importing fresh data
 

@@ -1,15 +1,14 @@
 # Master Google Sheet Format
 
-The pipeline's single input is one Google Sheet with **five tabs**. `python pull_from_google_sheet.py`
-downloads each tab as CSV into `sitedata/`, and every downstream script (site,
-Slack, Zoom, calendar) keys on the exact column names below — the first row of
-each tab must match the headers verbatim.
+The input Google Sheet has **six tabs**. `python pull_from_google_sheet.py`
+downloads each tab as CSV into `sitedata/`. Use the headers below;
+`session_assignment` uses a matrix instead of a header row.
 
 Who fills what:
 
 1. **Publication chairs** paste the accepted-papers export into the `papers` tab
    (uid, title, authors, abstract, subjects, emails).
-2. **Program chairs** fill `day` / `session` / `position` in `papers` and write
+2. **Program chairs** fill the `session_assignment` matrix and write
    the `events` tab (the schedule).
 3. **Authors** supply Google Drive links for camera-ready PDF, poster, slides,
    video (collected into the media columns).
@@ -51,9 +50,6 @@ review1, review2, review3, review4, meta_review
 | Column | Format / meaning |
 |---|---|
 | `uid` | stable int from the review system; becomes the page URL `poster_<uid>.html` |
-| `day` | conference day **1–5** — program assignment |
-| `session` | poster/oral session number (matches the events tab titles) |
-| `position` | order within the session |
 | `authors_and_affil` | `Name (Affiliation)*; Name2 (Affiliation2)` — `*` marks the presenter |
 | `paper_presentation` | `In-person` or `Virtual` |
 | `primary_subject`, `secondary_subject` | `Theme -> subtopic`, `;`-separated → page keywords |
@@ -64,6 +60,13 @@ review1, review2, review3, review4, meta_review
 | ⚙️ `slack_channel` | generated: `p{session}-{position}-{first-3-title-words}` |
 | ⚙️ `channel_url` | Slack deep link written back after channel creation |
 | `review1`–`review4`, `meta_review` | markdown review text; shown on the page only when `publish_reviews=TRUE`, but should be blank if FALSE anyway. |
+
+## Tab `session_assignment` — paper assignments
+
+One session per column, with rows for `Session Name`, `Session Day & Time`
+(e.g. `Mon, 10:00 - 11:30`), timezone preferences, onsite/remote chairs, then
+`Paper-1`, `Paper-2`, … containing paper UIDs. Keep the existing row order.
+See [workflow.md](workflow.md#session-assignments) for numbering and the by-paper export.
 
 ## Tab `events` — one row per program slot (the schedule)
 

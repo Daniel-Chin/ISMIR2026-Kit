@@ -12,8 +12,8 @@ Inputs, in the order they arrive during a real conference:
 1. **Publication chairs** deliver the accepted-papers table (CSV/JSON export from the
    review system). It carries `uid`, `title`, authors + affiliations, abstract,
    subjects, and author emails.
-2. **Program chairs** assign `day`, `session`, `position` per paper — in practice this
-   is done in the **master Google Sheet**, which becomes the source of truth.
+2. **Program chairs** assign papers in the **`session_assignment` sheet matrix**;
+   see [the assignment workflow](workflow.md#session-assignments).
 3. **Authors** supply camera-ready PDF, poster PDF, slides, video (Google Drive
    links added as columns in the sheet).
 4. Separate sheet tabs hold **events** (the program), **LBDs**, **music**, and
@@ -191,7 +191,7 @@ The `setup-zoom` action is fully wired:
 `ZoomCreator` skips the `Tutorials`/`Lunch`/`Social` categories (the mock buffer
 days are `Social`, so the 3-hour program yields 7 meetings). Events titled
 `Poster Session - N` additionally get one pre-created **breakout room per poster**
-(papers matched on `day` + `session` in `papers.csv`, rooms named after the
+(Zoom matches `day` + `session` from session assignment, rooms named after the
 paper's Slack channel, e.g. `p1-1-whale-song-structure`) — after the poster
 craze the host opens the rooms and each poster gets its own. Rooms are patched
 onto the meeting even when the link is only backfilled, so meetings created

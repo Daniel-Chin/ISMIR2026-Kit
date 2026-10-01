@@ -179,8 +179,8 @@ The real-conference format: all posters get a short "poster craze" pitch in the
 main room, then everyone splits into one breakout room per poster.
 
 Events titled `Poster Session - N` get one pre-created breakout room per paper:
-papers are matched on `day` == event's `day` and `session` == `N` in
-`papers.csv`, ordered by `position`, and each room is named after the paper's
+Papers are matched on `day` == event's `day` and `session` == `N` from
+`session_assignment.csv`, ordered by their position in the matrix, and each room is named after the paper's
 Slack channel (e.g. `p1-1-whale-song-structure`) so the same handle identifies
 the poster on the site, in Slack, and in Zoom.
 

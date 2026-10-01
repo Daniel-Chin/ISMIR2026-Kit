@@ -46,6 +46,6 @@ python catalogue/upload.py --dir build/catalogue_mock/ --version mock --bucket g
   prep writes back (both `app_redirect?channel=` and `/archives/` forms).
   Missing IDs are a warning, not an error, so the catalogue can be built
   before Slack prep runs.
-- Paper `session` numbers join to `events.csv` rows titled
-  `Oral/Poster Session - N`. **Validate this join against 2026 data** —
-  committed data is the 2025 sample.
+- Paper day, session, and position come from the
+  [assignment matrix](../docs/workflow.md#session-assignments). Session numbers
+  join to `events.csv` titles `Oral/Poster Session - N`.

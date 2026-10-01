@@ -42,12 +42,10 @@ Sheets/Drive directly. Reality:
   come from parsing `authors_and_affil` (`Name (Affiliation)*; ...`).
 - **Keywords** come from `primary_subject` / `secondary_subject`
   (e.g. `"MIR tasks -> alignment, synchronization..."`), split on `;`.
-- **Sessions**: papers carry only `day`/`session`/`position` numbers.
-  Actual times live in `events.csv` (start_date, start_time, end_time,
-  category) and `main_calendar.json`. The builder joins paper session
-  numbers to the matching `events.csv` session rows; this mapping must be
-  validated against 2026 data when it exists (committed data is the 2025
-  sample; 2026 dates are TBD in `config.yml`). Timezone: GMT+4.
+- **Sessions**: `session_assignment.csv` supplies assignments, times, and chairs
+  ([usage](docs/workflow.md#session-assignments)). The catalogue builder reads
+  paper day, session, and position from this matrix and joins session numbers
+  to `events.csv`.
 - **No logistics data exists in the repo.** We add a `logistics` tab to the
   master Sheet + a corresponding update in `pull_from_google_sheet.py` →
   `sitedata/logistics.csv` (columns: `id,title,body`). Until then the builder

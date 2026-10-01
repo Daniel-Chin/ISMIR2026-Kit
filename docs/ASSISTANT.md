@@ -97,8 +97,9 @@ days post-conference unless opted in.
    `python pull_from_google_sheet.py`; `setup-papers-create-channels` +
    `setup-lbd` run so `channel_url` is populated; add a `logistics` tab
    (columns `id,title,body`) to the master Sheet and a matching update in
-   `pull_from_google_sheet.py`; **validate the paper-session ↔ `events.csv`
-   join on 2026 data** (builder matches titles `Oral/Poster Session - N`).
+   `pull_from_google_sheet.py`; validate the join between
+   [the assignment matrix](workflow.md#session-assignments) and `events.csv`
+   on 2026 data.
 5. **Tune the scope gate**: with real embeddings,
    `cd bot && CATALOGUE_DIR=../build/catalogue uv run python
    evals/run_scope_eval.py`, adjust `SIM_STRONG`/`SIM_WEAK` in

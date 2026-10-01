@@ -126,7 +126,7 @@ underscores only.
 `p{session}-{position}-{first-3-words-of-title}` via `title2channelID` —
 lowercased, punctuation stripped, `&` → `and`, spaces → `-`. Example:
 `p2-1-reformulating-soft-dynamic`. Skip this step if the sheet already carries
-final channel names.
+final channel names. Session and position come from `session_assignment.csv`.
 
 **`create-channels`**: for every `slack_channel` value not already present in
 the workspace (public + private channels the bot can see), creates a public
@@ -147,10 +147,9 @@ author can be assigned to a paper channel while their workspace invitation is
 still pending. The email in `author_emails` must exactly match the address used
 for the workspace invitation.
 
-**`setup-papers-set-desc`**: updates paper channels. For each paper, it matches
-`Poster Session - <session>` on the same day in `events.csv` and writes a
-paper-purpose string that contains the paper title, page URL, authors, and an
-in-Slack link to the matching poster-session channel (not the raw Zoom URL).
+**`setup-papers-set-desc`**: uses the session number from `session_assignment.csv`
+to find the matching oral and poster channels in `events.csv`. Writes the paper
+title, page URL, authors, and links to both session channels.
 
 **`set-event-channel-desc`**: updates event metadata for every event row. For each
 row it sets the event channel purpose to the session window and Zoom/live URL. If a matching poster

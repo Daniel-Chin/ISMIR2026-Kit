@@ -661,7 +661,7 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
                 # print(f'Do you want to skip it, because {category = }?')
                 # while True:
                 #     input_ = input('y/n? ').strip().lower()
-                #     if input_ in 'yn':
+                #     if input_ in [*'yn']:
                 #         break
                 # if input_ == 'y':
                 continue
@@ -696,7 +696,7 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
             # print('Apply this update, or skip?')
             # while True:
             #     input_ = input('a/s? ').strip().lower()
-            #     if input_ in 'as':
+            #     if input_ in [*'as']:
             #         break
             # if input_ == 'a':
             updateTopicandPurpose(slack_channel, current_topic or title, new_description)

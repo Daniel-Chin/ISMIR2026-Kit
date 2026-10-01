@@ -1,6 +1,9 @@
+import os
 import re
 
 import pandas as pd
+
+from utils.session_assignment import parse_file
 
 
 class ZoomCreator:
@@ -19,7 +22,20 @@ class ZoomCreator:
     def __init__(self, eventsCsvFile, useDummyValues=True, papersCsvFile=None):
         self.eventsCsvFile = eventsCsvFile
         self.useDummyValues = useDummyValues
-        self.papers = pd.read_csv(papersCsvFile) if papersCsvFile else None
+        self.papers = pd.read_csv(papersCsvFile, dtype={"uid": str}) if papersCsvFile else None
+        if self.papers is not None:
+            _, papers = parse_file(os.path.dirname(os.fspath(papersCsvFile)) or ".")
+            assignments = {paper.uid: paper for paper in papers}
+            missing = [uid for uid in self.papers.uid if uid not in assignments]
+            if missing:
+                raise ValueError(
+                    "Papers missing from session_assignment.csv: " + ", ".join(missing)
+                )
+            for column, attribute in (("day", "day"), ("session", "session_index"),
+                                      ("position", "position")):
+                self.papers[column] = self.papers.uid.map(
+                    lambda uid: getattr(assignments[uid], attribute)
+                )
 
     def _wantsZoom(self, row):
         return row["category"] not in self.SKIP_CATEGORIES

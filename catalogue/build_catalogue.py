@@ -25,6 +25,7 @@ import pytz
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from catalogue.schema import validate_catalogue  # noqa: E402
+from utils.session_assignment import parse_file  # noqa: E402
 from utils.shared import load_conference_timezone_name, load_site_config  # noqa: E402
 
 PRIVATE_COLUMNS = (
@@ -156,12 +157,15 @@ def to_utc(date_str, time_str, conf_tz):
 SESSION_TITLE_RE = re.compile(r"^(Oral|Poster) Session\s*-\s*(\d+)", re.IGNORECASE)
 
 
-def build_papers(rows, base_url):
+def build_papers(rows, base_url, assignments):
     papers = []
     for row in rows:
         if not (row.get("uid") or "").strip() or not (row.get("title") or "").strip():
             continue
         uid = row["uid"].strip()
+        if uid not in assignments:
+            raise ValueError("Papers missing from session_assignment.csv: " + uid)
+        assignment = assignments[uid]
         papers.append(
             {
                 "id": uid,
@@ -172,10 +176,10 @@ def build_papers(rows, base_url):
                 "keywords": split_subjects(
                     row.get("primary_subject"), row.get("secondary_subject")
                 ),
-                "day": to_int(row.get("day")),
-                "session": to_int(row.get("session")),
-                "position": to_int(row.get("position")),
-                "session_id": "P{}".format(to_int(row.get("session"))),
+                "day": assignment.day,
+                "session": assignment.session_index,
+                "position": assignment.position,
+                "session_id": "P{}".format(assignment.session_index),
                 "summary_of_updates_post_review": (
                     row.get("summary_of_updates_post_review") or ""
                 ).strip(),
@@ -355,7 +359,9 @@ def build(sitedata, base_url, version):
     config_timezone = load_conference_timezone_name(sitedata)
     conf_tz = pytz.timezone(config_timezone)
 
-    papers = build_papers(read_csv(os.path.join(sitedata, "papers.csv")), base_url)
+    _, assigned_papers = parse_file(sitedata)
+    assignments = {paper.uid: paper for paper in assigned_papers}
+    papers = build_papers(read_csv(os.path.join(sitedata, "papers.csv")), base_url, assignments)
     catalogue = {
         "version": version,
         "conference": {

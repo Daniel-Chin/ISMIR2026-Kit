@@ -69,7 +69,7 @@ review1, review2, review3, review4, meta_review
 
 ```
 uid, title, day, start_date, start_time, end_time, category, description, organiser,
-organiser_emails, organiser_affiliation, organiser_bio, image, web_link,
+organiser_affiliation, organiser_bio, image, web_link,
 slack_channel, channel_url, live_url, thumbnail_link
 ```
 
@@ -81,7 +81,7 @@ slack_channel, channel_url, live_url, thumbnail_link
 | `start_date` | `YYYY-MM-DD` |
 | `start_time`, `end_time` | `H:MM`, 24 h, in the timezone configured in `sitedata/config.yml` |
 | `category` | fixed vocabulary: `Tutorials`, `Opening`, `All Meeting` (keynotes), `Poster session` (also orals), `LBD`, `Industry`, `Music`, `Meetup`, `VMeetup`, `WiMIR Meetup`, `Awards`, `Social`, `Lunch`, `Registration`, `Satellite`, `Performance`. Drives day-page section, calendar color, and calendar click-through link |
-| `organiser_emails` | private — stripped before publish |
+| private — stripped before publish |
 | ⚙️ `channel_url`, `live_url` | Slack link / Zoom-YouTube stream link |
 
 ## Tab `lbds` — late-breaking demos

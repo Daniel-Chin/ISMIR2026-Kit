@@ -91,8 +91,8 @@ class Papers:
             str(name).strip() for name in csv_data[slack_channel_column].tolist() if str(name).strip()
         ]
 
-        print("########### Now creating slack channels ##########")
-        slackUtils.createPublicSlackChannels(channel_names)
+        with tqdm(channel_names, desc="Creating Slack channels", unit="channel") as progress:
+            slackUtils.createPublicSlackChannels(progress, quiet=True)
 
         #  force reloading all channel data.
         slackUtils.loadAllChannelData()

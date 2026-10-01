@@ -137,7 +137,7 @@ def postMessageToASlackChannelAsBot(channelName, messageString):
 
 # Creating Channel as Bot. Requires the app to be first installed to the domain
 # conversations_create requires the channels:manage bot scope and groups:write FOR PRIVATE channels
-def createSlackChannelAsBot(channelName, boolChannelPrivacyON):
+def createSlackChannelAsBot(channelName, boolChannelPrivacyON, *, quiet=False):
     # Call the conversations.create method using the WebClient
     result = client_bot.conversations_create(
         # The name of the conversation
@@ -146,7 +146,8 @@ def createSlackChannelAsBot(channelName, boolChannelPrivacyON):
     )
     # Log the result which includes information like the ID of the conversation
     if result['ok']:
-        print("Channel Created!")
+        if not quiet:
+            print("Channel Created!")
     else:
         print('Failed to create channel.')
         print(result)
@@ -320,10 +321,10 @@ def createPrivateSlackChannels(csvFile, channelColumnName):
             createSlackChannelAsBot(channelName, True)
 
 
-def createPublicSlackChannels(channels):
+def createPublicSlackChannels(channels, *, quiet=False):
     for channelName in channels:
         if not isChannel(channelName):
-            createSlackChannelAsBot(channelName, False)
+            createSlackChannelAsBot(channelName, False, quiet=quiet)
 
 
 def createEmptyLinkColumnInCSVifNotPresent(csvFile, column_name, newCsvFile=None):

@@ -5,7 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from utils import slack as slackUtils
-from utils.shared import format_session_window, load_conference_timezone_name, load_site_config
+from utils.shared import load_conference_timezone_name, load_site_config
 from utils.session_assignment import parse_file
 
 
@@ -147,52 +147,35 @@ class Papers:
         assignments = self._paper_assignments(csv_data)
         site_base_url = load_site_config(self.data_path)["miniconf_url"]
 
-        poster_session_details = {}
-        for _, row in csv_data.iterrows():
-            assignment = assignments[row["uid"]]
-            session = assignment.session_index
-            if session in poster_session_details:
+        poster_session_channels = {}
+        oral_session_channels = {}
+        for _, event in events_data.iterrows():
+            category = event["category"]
+            if category not in ("Poster session", "Oral session"):
                 continue
 
-            # Session indices are global; assignment days are relative to the
-            # first paper session, whereas event days may include tutorials.
-            matching_events = events_data[
-                events_data["title"] == f"Poster Session - {session}"
-            ]
-            if matching_events.empty:
-                raise Exception(
-                    f"No event found for paper {row['uid']} (session {session})."
-                )
-
-            event_row = matching_events.iloc[0]
-            poster_channel_name = (
-                "" if pd.isna(event_row["slack_channel"])
-                else str(event_row["slack_channel"]).strip()
+            session = int(str(event["title"]).rsplit("-", 1)[1].strip())
+            channel_name = (
+                "" if pd.isna(event["slack_channel"])
+                else str(event["slack_channel"]).strip()
             )
-            if not poster_channel_name:
+            if not channel_name:
                 raise Exception(
-                    f"Poster Session - {session} is missing slack_channel. "
+                    f"{event['title']} is missing slack_channel. "
                     "Run setup-event-channels and create-event-channels first."
                 )
 
-            poster_channel_id = slackUtils.getChannelID(poster_channel_name)
-            if poster_channel_id is None:
+            channel_id = slackUtils.getChannelID(channel_name)
+            if channel_id is None:
                 raise Exception(
-                    f"Poster session channel '{poster_channel_name}' does not exist in Slack. "
+                    f"{category} channel '{channel_name}' does not exist in Slack. "
                     "Run create-event-channels first."
                 )
 
-            poster_session_details[session] = {
-                "title": str(event_row["title"]).strip(),
-                "channel_name": poster_channel_name,
-                "channel_id": poster_channel_id,
-                "session_window": format_session_window(
-                    event_row.get("start_date"),
-                    event_row.get("start_time"),
-                    event_row.get("end_time"),
-                    self.conference_timezone,
-                ),
-            }
+            if category == "Poster session":
+                poster_session_channels[session] = channel_id
+            else:
+                oral_session_channels[session] = channel_id
 
         with tqdm(csv_data.iterrows()) as pbar:
             pbar.set_description("Setting Slack channel descriptions")
@@ -211,17 +194,15 @@ class Papers:
                 )
 
                 session = assignments[paper_id].session_index
-                poster_details = poster_session_details[session]
-                poster_channel_link = (
-                    f"<#{poster_details['channel_id']}|"
-                    f"{poster_details['channel_name']}>"
-                )
+                poster_channel_id = poster_session_channels[session]
+                oral_channel_id = oral_session_channels[session]
+                poster_channel_link = f"<#{poster_channel_id}>"
+                oral_channel_link   = f"<#{oral_channel_id}>"
                 topic = f"Paper {paper_id}: {title}"
                 purpose = slackUtils.truncateText(
                     f"_\nPaper, poster, & more: <{site_base_url}/poster_{paper_id}.html>\n"
-                    f"{poster_details['title']}: {poster_details['session_window']}.\n"
-                    f"Go to {poster_channel_link} for the live Zoom room.\n"
-                    f"{title}. {authors}"
+                    f"Find Zoom links in the channel descriptions of {oral_channel_link} and {poster_channel_link}.\n"
+                    f'"{title}". {authors}'
                 , 250)
 
                 slackUtils.updateTopicandPurpose(channel_name, topic, purpose)

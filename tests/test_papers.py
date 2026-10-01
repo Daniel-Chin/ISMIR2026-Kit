@@ -30,18 +30,25 @@ def paper_data(tmp_path):
          "authors_and_affil": "Bob (University)"},
     ]).to_csv(tmp_path / "papers.csv", index=False)
     pd.DataFrame([
-        {"uid": "e1", "title": "Poster Session - 1", "day": 2,
+        {"uid": "e1", "title": "Poster Session - 1", "category": "Poster session", "day": 2,
          "slack_channel": "session-one", "start_date": "2026-11-09",
          "start_time": "10:00", "end_time": "11:30"},
-        {"uid": "e2", "title": "Poster Session - 2", "day": 3,
+        {"uid": "e2", "title": "Poster Session - 2", "category": "Poster session", "day": 3,
          "slack_channel": "session-two", "start_date": "2026-11-10",
          "start_time": "10:00", "end_time": "11:30"},
+        {"uid": "e3", "title": "Oral Session - 1", "category": "Oral session",
+         "slack_channel": "oral-one"},
+        {"uid": "e4", "title": "Oral Session - 2", "category": "Oral session",
+         "slack_channel": "oral-two"},
+        {"uid": "e5", "title": "Registration", "category": "Registration",
+         "slack_channel": ""},
     ]).to_csv(tmp_path / "events.csv", index=False)
     return tmp_path
 
 
 def test_descriptions_use_assignments_through_cli_dispatch(paper_data, monkeypatch):
-    monkeypatch.setattr(slack, "getChannelID", {"session-one": "C1", "session-two": "C2"}.get)
+    monkeypatch.setattr(slack, "getChannelID", {"session-one": "C1", "session-two": "C2",
+                                                    "oral-one": "O1", "oral-two": "O2"}.get)
     update = Mock()
     monkeypatch.setattr(slack, "updateTopicandPurpose", update)
 
@@ -52,9 +59,9 @@ def test_descriptions_use_assignments_through_cli_dispatch(paper_data, monkeypat
     first, second = [call.args for call in update.call_args_list]
     assert first[:2] == ("paper-one", "Paper 001: One")
     assert "poster_001.html" in first[2]
-    assert "Poster Session - 2: Tue, Nov 10" in first[2]
-    assert "<#C2|session-two>" in first[2]
-    assert "<#C1|session-one>" in second[2]
+    assert "<#C2>" in first[2]
+    assert "<#C1>" in second[2]
+    assert "Nov 10" not in first[2]
 
 
 def test_channel_names_use_assignments_without_adding_legacy_columns(paper_data):

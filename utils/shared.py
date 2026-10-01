@@ -35,10 +35,13 @@ def load_conference_timezone(
 
 
 def _timezone_label(dt: datetime, timezone_name: str) -> str:
+    display_name = timezone_name.rsplit("/", 1)[-1].replace("_", " ")
     offset = dt.strftime("%z")
     if len(offset) == 5:
-        return f"(GMT{offset[:3]}:{offset[3:]}, {timezone_name})"
-    return f"({timezone_name})"
+        hours = int(offset[1:3])
+        minutes = f":{offset[3:]}" if offset[3:] != "00" else ""
+        return f"(GMT{offset[0]}{hours}{minutes}, {display_name})"
+    return f"({display_name})"
 
 
 def _normalize_session_datetime(dt: datetime, zone_info: ZoneInfo) -> datetime:
@@ -98,9 +101,9 @@ def format_session_window(
 
     Examples:
         >>> format_session_window("2026-01-01", "09:00", "10:30", "UTC")
-        'Thu, Jan 01, 09:00-10:30 (GMT+00:00, UTC)'
+        'Thu, Jan 01, 09:00-10:30 (GMT+0, UTC)'
         >>> format_session_window("2026-01-01", "23:30", "00:15", "UTC")
-        'Thu, Jan 01, 23:30 - Fri, Jan 02, 00:15 (GMT+00:00, UTC)'
+        'Thu, Jan 01, 23:30 - Fri, Jan 02, 00:15 (GMT+0, UTC)'
     """
     if len(args) == 3 and isinstance(args[0], datetime):
         start_datetime, end_datetime, zone_info = args

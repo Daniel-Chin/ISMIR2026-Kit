@@ -438,27 +438,31 @@ def _delete_generated_channel_log(
     expected_text = " ".join(str(expected_value or "").split()).strip()
     assert expected_text
 
-    history = client_bot.conversations_history(
-        channel=channel_id, limit=20, oldest=str(int(action_time) - 10),
-    )
+    for retry_i in range(3):
+        history = client_bot.conversations_history(
+            channel=channel_id, limit=20, oldest=str(int(action_time) - 10),
+        )
 
-    messages = history.get("messages", [])
-    for message in messages:
-        if message.get("user") != bot_user_id:
-            continue
+        messages = history.get("messages", [])
+        for message in messages:
+            if message.get("user") != bot_user_id:
+                continue
 
-        text = " ".join(str(message.get("text", "") or "").split()).strip()
-        if not text:
-            continue
+            text = " ".join(str(message.get("text", "") or "").split()).strip()
+            if not text:
+                continue
 
-        target_prefix = "set the channel"
-        if text.lower().startswith(target_prefix.lower()):
-            _, message_value = text.split(': ', 1)
-            if _is_channel_update_match(message_value, expected_text):
-                ts = message.get("ts")
-                if ts:
-                    client_user.chat_delete(channel=channel_id, ts=ts)
-                    return
+            target_prefix = "set the channel"
+            if text.lower().startswith(target_prefix.lower()):
+                _, message_value = text.split(': ', 1)
+                if _is_channel_update_match(message_value, expected_text):
+                    ts = message.get("ts")
+                    if ts:
+                        client_user.chat_delete(channel=channel_id, ts=ts)
+                        return
+
+        print('Not found. Maybe too soon? Retrying...')
+        time.sleep([1, 10, 0][retry_i])
     raise RuntimeError("Failed to find matching channel log message.")
 
 

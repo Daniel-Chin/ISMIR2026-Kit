@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from modules.tutorials import (
     AFTERNOON_TUTORIAL_COL,
@@ -12,11 +13,13 @@ class FakeSlack:
     def __init__(self):
         self.channels = {}
         self.created_public = []
+        self.created_private = []
         self.invites = []
         self.reloads = 0
 
-    def createPublicSlackChannels(self, channel_names):
-        self.created_public.extend(channel_names)
+    def createSlackChannels(self, channel_names, *, is_private=False):
+        created = self.created_private if is_private else self.created_public
+        created.extend(channel_names)
         for index, name in enumerate(channel_names, start=1):
             self.channels[name] = f"C{index}"
 
@@ -80,14 +83,15 @@ def write_registration(path):
     ).to_csv(path, index=False)
 
 
-def test_create_tutorial_channels_public_and_write_links(tmp_path):
+def test_create_tutorial_channels_private_and_write_links(tmp_path):
     events_path = tmp_path / "events.csv"
     write_events(events_path)
     slack = FakeSlack()
 
-    Tutorials(events_path, None, useDummyValues=False).createPublicSlackChannels(slack)
+    Tutorials(events_path, None, useDummyValues=False).createSlackChannels(slack)
 
-    assert slack.created_public == [
+    assert slack.created_public == []
+    assert slack.created_private == [
         "tutorial-morning",
         "tutorial-afternoon",
     ]
@@ -168,8 +172,9 @@ def test_creation_filters_category_and_skips_blank_names(tmp_path):
     events.to_csv(path, index=False)
 
     tutorial_slack = FakeSlack()
-    Tutorials(path, None, False).createPublicSlackChannels(tutorial_slack)
-    assert tutorial_slack.created_public == ["tutorial-morning"]
+    Tutorials(path, None, False).createSlackChannels(tutorial_slack)
+    assert tutorial_slack.created_public == []
+    assert tutorial_slack.created_private == ["tutorial-morning"]
     assert tutorial_slack.invites == []
     after_tutorials = pd.read_csv(path).fillna("")
     assert after_tutorials.loc[1, "channel_url"] == "keep-blank"
@@ -178,5 +183,27 @@ def test_creation_filters_category_and_skips_blank_names(tmp_path):
     event_slack = FakeSlack()
     Events(path, False).createSlackChannels(event_slack)
     assert event_slack.created_public == ["opening"]
+    assert event_slack.created_private == []
     after_events = pd.read_csv(path).fillna("")
     assert after_events.loc[:1, "channel_url"].equals(after_tutorials.loc[:1, "channel_url"])
+
+
+def test_channel_creation_passes_privacy_to_slack_api(monkeypatch):
+    from utils import slack
+
+    calls = []
+
+    class FakeClient:
+        def conversations_create(self, **kwargs):
+            calls.append(kwargs)
+            return {"ok": True, "channel": {"name": kwargs["name"], "id": "C1"}}
+
+    monkeypatch.setattr(slack, "client_bot", FakeClient())
+    monkeypatch.setattr(slack, "_channel_maps", None)
+    monkeypatch.setattr(slack, "isChannel", lambda name: name == "existing")
+    slack.createSlackChannels(["tutorial", "existing"], is_private=True)
+    slack.createSlackChannels(["opening"], is_private=False)
+    assert calls == [
+        {"name": "tutorial", "is_private": True},
+        {"name": "opening", "is_private": False},
+    ]

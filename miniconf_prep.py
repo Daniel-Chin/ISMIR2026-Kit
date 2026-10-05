@@ -87,7 +87,7 @@ def setupTutorials(eventsCsvFile, registrationDataCsvFile, followup_action):
     if followup_action == "setup-channels":
         tutObj.setupChannelNames()
     elif followup_action == "create-channels":
-        tutObj.createPublicSlackChannels(slackUtils)
+        tutObj.createSlackChannels(slackUtils)
     elif followup_action == "invite-attendees":
         tutObj.inviteAttendeesToChannels(slackUtils)
     elif followup_action == "all":

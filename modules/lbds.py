@@ -39,7 +39,7 @@ class Lbds:
         csv_data.to_csv(self.lbdsCsvFile)
         
         print("########### Now creating slack channels ##########")
-        slackUtils.createPublicSlackChannels(csv_data[slack_channel_column].tolist())
+        slackUtils.createSlackChannels(csv_data[slack_channel_column].tolist(), is_private=False)
 
         # Force reloading all channel data so the new channels are found.
         slackUtils.loadAllChannelData()

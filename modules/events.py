@@ -74,9 +74,10 @@ class Events:
         ].fillna("").tolist() if str(name).strip().lstrip("#")]
 
         channel_kind = "tutorial" if self.tutorials_only else "event"
-        print(f"Creating public {channel_kind} Slack channels")
+        visibility = "private" if self.tutorials_only else "public"
+        print(f"Creating {visibility} {channel_kind} Slack channels")
         target_client = slack_client or slackUtils
-        target_client.createPublicSlackChannels(channel_names)
+        target_client.createSlackChannels(channel_names, is_private=self.tutorials_only)
         target_client.loadAllChannelData()
 
         slackUtils.write_channel_links_to_csv(

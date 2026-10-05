@@ -45,8 +45,8 @@ class Tutorials:
 
         Events(self.eventsCsvFile, self.useDummyValues, tutorials_only=True).setupSlackChannels()
 
-    def createPublicSlackChannels(self, slackUtils):
-        """Create named public tutorial channels and write their links."""
+    def createSlackChannels(self, slackUtils):
+        """Create named private tutorial channels and write their links."""
         from modules.events import Events
 
         Events(self.eventsCsvFile, self.useDummyValues, tutorials_only=True).createSlackChannels(slackUtils)
@@ -111,7 +111,7 @@ class Tutorials:
                 slackUtils.inviteUserToChannel(email, channel)
 
     def setupSlackChannels(self, slackUtils):
-        """Compatibility action: create public channels, then assign attendees."""
+        """Compatibility action: create private channels, then assign attendees."""
 
-        self.createPublicSlackChannels(slackUtils)
+        self.createSlackChannels(slackUtils)
         self.inviteAttendeesToChannels(slackUtils)

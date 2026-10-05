@@ -92,7 +92,7 @@ class Papers:
         ]
 
         with tqdm(channel_names, desc="Creating Slack channels", unit="channel") as progress:
-            slackUtils.createPublicSlackChannels(progress, quiet=True)
+            slackUtils.createSlackChannels(progress, is_private=False, quiet=True)
 
         #  force reloading all channel data.
         slackUtils.loadAllChannelData()

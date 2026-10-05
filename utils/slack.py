@@ -320,10 +320,10 @@ def createPrivateSlackChannels(csvFile, channelColumnName):
             createSlackChannelAsBot(channelName, True)
 
 
-def createPublicSlackChannels(channels, *, quiet=False):
+def createSlackChannels(channels, *, is_private=False, quiet=False):
     for channelName in channels:
         if not isChannel(channelName):
-            createSlackChannelAsBot(channelName, False, quiet=quiet)
+            createSlackChannelAsBot(channelName, is_private, quiet=quiet)
 
 
 def createEmptyLinkColumnInCSVifNotPresent(csvFile, column_name, newCsvFile=None):

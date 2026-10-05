@@ -45,7 +45,8 @@ def parse_arguments():
 
     #### Possible actions ####
     # setup-zoom
-    # setup-tutorials-create-channels
+    # setup-tutorial-channels
+    # create-tutorial-channels
     # setup-tutorials-invite-attendees
     # setup-tutorials (compatibility: runs both stages)
     # setup-papers-set-desc
@@ -61,7 +62,7 @@ def parse_arguments():
 
     parser.add_argument(
         "--action",
-        help="action to run (for example setup-zoom, setup-tutorials-create-channels, setup-tutorials-invite-attendees, setup-papers-create-channels, setup-papers-set-desc, setup-event-channels, create-event-channels, set-event-channel-desc)",
+        help="action to run (for example setup-zoom, setup-tutorial-channels, create-tutorial-channels, setup-tutorials-invite-attendees, setup-papers-create-channels, setup-papers-set-desc, setup-event-channels, create-event-channels, set-event-channel-desc)",
         required=True,
     )
 
@@ -83,7 +84,9 @@ def setupTutorials(eventsCsvFile, registrationDataCsvFile, followup_action):
     from modules.tutorials import Tutorials
 
     tutObj = Tutorials(eventsCsvFile, registrationDataCsvFile, useDummyValues)
-    if followup_action == "create-channels":
+    if followup_action == "setup-channels":
+        tutObj.setupChannelNames()
+    elif followup_action == "create-channels":
         tutObj.createPublicSlackChannels(slackUtils)
     elif followup_action == "invite-attendees":
         tutObj.inviteAttendeesToChannels(slackUtils)
@@ -171,12 +174,12 @@ if __name__ == "__main__":
     if action is None:
         raise Exception(
             "--action is missing. See --help for available actions, including "
-            "setup-tutorials-create-channels and "
+            "create-tutorial-channels and "
             "setup-tutorials-invite-attendees."
         )
 
     if "setup" in action or "process" in action or action in {
-        "create-event-channels", "set-event-channel-desc"
+        "create-event-channels", "create-tutorial-channels", "set-event-channel-desc"
     }:
         if action == "setup-zoom":
             # zoom creds are only checked on first API call, so this import is
@@ -194,7 +197,10 @@ if __name__ == "__main__":
             passcode=None,
         )
 
-    elif action == "setup-tutorials-create-channels":
+    elif action == "setup-tutorial-channels":
+        setupTutorials(os.path.join(data_path, "events.csv"), None, "setup-channels")
+
+    elif action == "create-tutorial-channels":
         setupTutorials(
             os.path.join(data_path, "events.csv"),
             None,

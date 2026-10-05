@@ -106,10 +106,12 @@ def write_channel_links_to_csv(
     slack_client,
     channel_column_name: str,
     remind_to_paste_to_sheet: bool = False,
+    row_mask=None,
 ) -> None:
     csv_data = ensure_channel_url_column(csv_data)
-    for index, channel_name in csv_data[channel_column_name].fillna("").items():
-        channel_name = str(channel_name).strip()
+    selected = csv_data if row_mask is None else csv_data.loc[row_mask]
+    for index, channel_name in selected[channel_column_name].fillna("").items():
+        channel_name = str(channel_name).strip().lstrip("#")
         if not channel_name:
             continue
         channel_id = slack_client.getChannelID(channel_name)

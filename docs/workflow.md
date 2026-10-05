@@ -94,7 +94,8 @@ python main.py
 | `set-event-channel-desc` | Sets description for event rows, including `Poster Session - N`, with the event Zoom/live URL and schedule context |
 | `setup-lbd` | LBD poster channels (`lp-*` / `lv-*` naming) |
 | `setup-music` | Music performance channels |
-| `setup-tutorials-create-channels` | Create permanent `#announcements`/`#help` defaults plus public tutorial channels for the temporary-default onboarding window |
+| `setup-tutorial-channels` | Generate channel names for Tutorials rows only |
+| `create-tutorial-channels` | Create public channels for Tutorials rows with a nonblank `slack_channel`, and write their URLs |
 | `setup-tutorials-invite-attendees` | Add active/pending invited registrants to their selected tutorial channels |
 | `setup-tutorials` | Compatibility action: run both tutorial stages, leaving channels public |
 | `setup-sponsors` | Industry/sponsor channels + invite registered emails |

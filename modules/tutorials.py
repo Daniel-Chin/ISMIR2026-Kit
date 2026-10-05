@@ -5,7 +5,6 @@ import pandas as pd
 MORNING_TUTORIAL_COL = "Select the morning session tutorial you wish to attend"
 AFTERNOON_TUTORIAL_COL = "Select the afternoon session tutorial you wish to attend"
 ATTENDEE_EMAIL = "Attendee Email"
-PERMANENT_DEFAULT_CHANNELS = ("announcements", "help")
 
 
 def getCleanTitle(incoming):
@@ -41,38 +40,16 @@ class Tutorials:
 
         return events, tutorial_mask, tutorials
 
+    def setupChannelNames(self):
+        from modules.events import Events
+
+        Events(self.eventsCsvFile, self.useDummyValues, tutorials_only=True).setupSlackChannels()
+
     def createPublicSlackChannels(self, slackUtils):
-        """Create onboarding channels and write tutorial links to events.csv."""
+        """Create named public tutorial channels and write their links."""
+        from modules.events import Events
 
-        events, tutorial_mask, tutorials = self._read_events()
-        tutorial_channels = (
-            tutorials["slack_channel"].astype(str).str.lstrip("#").tolist()
-        )
-        channel_names = list(PERMANENT_DEFAULT_CHANNELS) + tutorial_channels
-
-        print("Creating public onboarding channels")
-        slackUtils.createPublicSlackChannels(channel_names)
-        slackUtils.loadAllChannelData()
-
-        if "channel_url" not in events:
-            events["channel_url"] = ""
-        events["channel_url"] = events["channel_url"].fillna("").astype(str)
-
-        for index, channel_name in zip(tutorials.index, tutorial_channels):
-            channel_id = slackUtils.getChannelID(channel_name)
-            if channel_id is None:
-                print(f"Channel {channel_name} was not found; link not written.")
-                continue
-            events.loc[index, "channel_url"] = (
-                f"https://slack.com/app_redirect?channel={channel_id}"
-            )
-
-        events.to_csv(self.eventsCsvFile, index=False)
-        print(
-            "Public onboarding channels ready: "
-            f"{len(PERMANENT_DEFAULT_CHANNELS)} permanent defaults and "
-            f"{tutorial_mask.sum()} tutorial channel(s)"
-        )
+        Events(self.eventsCsvFile, self.useDummyValues, tutorials_only=True).createSlackChannels(slackUtils)
 
     def _attendees_by_channel(self, tutorials):
         if self.townscriptCsvFile is None:

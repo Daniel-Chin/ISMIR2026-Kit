@@ -6,11 +6,14 @@ from utils import slack as slackUtils
 
 
 def event_channel_name(row, index):
+    title = str(row.get("title", "") or "").strip()
+    if row.get("category") == "Tutorials":
+        title = re.sub(r"^(T\d+)\s*\([MA]\)\s*:", r"\1", title, flags=re.IGNORECASE)
+        return slackUtils.build_channel_name("tutorial", title, max_words=5)
     BLACKLIST = [
-        "lunch", 'registration', 'tutorials (t1/t2/t3)', 'tutorials (t4/t5/t6)', 
+        "lunch", 'registration', 
         'welcome reception', 'late-breaking/demo',
     ]
-    title = str(row.get("title", "") or "").strip()
     if title.lower() in BLACKLIST:
         return ""
     award_session = re.fullmatch(
@@ -27,9 +30,14 @@ def event_channel_name(row, index):
 
 
 class Events:
-    def __init__(self, eventsCsvFile, useDummyValues):
+    def __init__(self, eventsCsvFile, useDummyValues, *, tutorials_only=False):
         self.eventsCsvFile = eventsCsvFile
         self.useDummyValues = useDummyValues
+        self.tutorials_only = tutorials_only
+
+    def _channel_rows(self, csv_data):
+        tutorial_mask = csv_data["category"].eq("Tutorials")
+        return tutorial_mask if self.tutorials_only else ~tutorial_mask
 
     def setupSlackChannels(self, *_):
         if self.eventsCsvFile is None:
@@ -37,16 +45,21 @@ class Events:
 
         csv_data = pd.read_csv(self.eventsCsvFile)
         slack_channel_column = "slack_channel"
-        csv_data = slackUtils.populate_channel_names(
-            csv_data,
+        row_mask = self._channel_rows(csv_data)
+        if slack_channel_column not in csv_data:
+            csv_data[slack_channel_column] = ""
+        csv_data[slack_channel_column] = csv_data[slack_channel_column].astype(object)
+        selected = slackUtils.populate_channel_names(
+            csv_data.loc[row_mask].copy().reset_index(drop=True),
             slack_channel_column,
             event_channel_name,
         )
 
+        csv_data.loc[row_mask, slack_channel_column] = selected[slack_channel_column].to_numpy()
         csv_data.to_csv(self.eventsCsvFile, index=False)
         print("Data output at: ", csv_data)
         print(
-            'Event channel names generated. Please paste the updated "{slack_channel_column}" column back into the Google Sheet.'
+            f'Channel names generated. Please paste the updated "{slack_channel_column}" column back into the Google Sheet.'
         )
 
     def createSlackChannels(self, slack_client=None, *_):
@@ -55,11 +68,13 @@ class Events:
 
         csv_data = pd.read_csv(self.eventsCsvFile)
         slack_channel_column = "slack_channel"
-        channel_names = [str(name).strip() for name in csv_data[
-            slack_channel_column
-        ].fillna("").tolist() if str(name).strip()]
+        row_mask = self._channel_rows(csv_data)
+        channel_names = [str(name).strip().lstrip("#") for name in csv_data.loc[
+            row_mask, slack_channel_column
+        ].fillna("").tolist() if str(name).strip().lstrip("#")]
 
-        print("########### Now creating event slack channels ##########")
+        channel_kind = "tutorial" if self.tutorials_only else "event"
+        print(f"Creating public {channel_kind} Slack channels")
         target_client = slack_client or slackUtils
         target_client.createPublicSlackChannels(channel_names)
         target_client.loadAllChannelData()
@@ -70,4 +85,5 @@ class Events:
             target_client,
             slack_channel_column,
             remind_to_paste_to_sheet=True,
+            row_mask=row_mask,
         )

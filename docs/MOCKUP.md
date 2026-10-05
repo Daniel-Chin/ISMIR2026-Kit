@@ -143,8 +143,9 @@ python miniconf_prep.py --mockup --action set-event-channel-desc
 Rehearse the staged tutorial workflow with the included fake registration:
 
 ```bash
+python miniconf_prep.py --mockup --action setup-tutorial-channels
 python miniconf_prep.py --mockup \
-  --action setup-tutorials-create-channels
+  --action create-tutorial-channels
 
 # Manually make #announcements and #help permanent defaults and
 # #tutorial-reproducible-mir a temporary default, then:

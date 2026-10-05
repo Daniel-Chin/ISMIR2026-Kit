@@ -195,10 +195,10 @@ people used to join Slack.
 CLI stages:
 
 ```bash
-# Stage 1: create permanent onboarding + public tutorial channels, and write
-# tutorial channel_url values to events.csv
-uv run python miniconf_prep.py \
-  --action setup-tutorials-create-channels
+# Generate tutorial channel names, then create public tutorial channels
+# and write tutorial channel_url values to events.csv
+uv run python miniconf_prep.py --action setup-tutorial-channels
+uv run python miniconf_prep.py --action create-tutorial-channels
 
 # Manual: make #general and #help etc. permanent defaults, make tutorial
 # channels temporary defaults, then send tutorial workspace invites

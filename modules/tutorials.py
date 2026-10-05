@@ -51,6 +51,23 @@ class Tutorials:
 
         Events(self.eventsCsvFile, self.useDummyValues, tutorials_only=True).createSlackChannels(slackUtils)
 
+    def addAdminsToChannels(self, slackUtils):
+        """Add each entered Slack member to every tutorial channel."""
+        _, _, tutorials = self._read_events()
+        channels = list(dict.fromkeys(
+            str(name).strip().lstrip("#") for name in tutorials["slack_channel"]
+        ))
+        if any(not channel for channel in channels):
+            raise ValueError("every tutorial needs a slack_channel value")
+
+        while True:
+            email = input("Admin email (empty to finish): ").strip()
+            if not email:
+                return
+            for channel in channels:
+                print(f"Adding admin {email} to channel {channel}")
+                slackUtils.inviteUserToChannel(email, channel)
+
     def _attendees_by_channel(self, tutorials):
         if self.townscriptCsvFile is None:
             raise ValueError("registration CSV is required for attendee assignment")

@@ -102,6 +102,12 @@ the workspace (workspace admin, or an app-approval flow).
 # 5. set event channel purpose for all event rows
 #    Run setup-zoom first: this step requires each event's live_url. See ./ZOOM.md
 .venv/bin/python miniconf_prep.py --mockup --action set-event-channel-desc
+
+# 6. Tutorials.
+.venv/bin/python miniconf_prep.py --mockup --action setup-tutorial-channels
+.venv/bin/python miniconf_prep.py --mockup --action create-tutorial-channels
+# It's normal to not be able to see the channels at this stage --- they are private even to admins. So run the next step:  
+.venv/bin/python miniconf_prep.py --mockup --action add-admins-to-tutorials
 ```
 
 Omit `--mockup` for the real conference data and add `--prod true` for

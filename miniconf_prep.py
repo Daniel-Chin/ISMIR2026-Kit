@@ -47,6 +47,7 @@ def parse_arguments():
     # setup-zoom
     # setup-tutorial-channels
     # create-tutorial-channels
+    # add-admins-to-tutorials
     # setup-tutorials-invite-attendees
     # setup-tutorials (compatibility: runs both stages)
     # setup-papers-set-desc
@@ -62,7 +63,7 @@ def parse_arguments():
 
     parser.add_argument(
         "--action",
-        help="action to run (for example setup-zoom, setup-tutorial-channels, create-tutorial-channels, setup-tutorials-invite-attendees, setup-papers-create-channels, setup-papers-set-desc, setup-event-channels, create-event-channels, set-event-channel-desc)",
+        help="action to run (for example setup-zoom, setup-tutorial-channels, create-tutorial-channels, add-admins-to-tutorials, setup-tutorials-invite-attendees, setup-papers-create-channels, setup-papers-set-desc, setup-event-channels, create-event-channels, set-event-channel-desc)",
         required=True,
     )
 
@@ -88,6 +89,8 @@ def setupTutorials(eventsCsvFile, registrationDataCsvFile, followup_action):
         tutObj.setupChannelNames()
     elif followup_action == "create-channels":
         tutObj.createSlackChannels(slackUtils)
+    elif followup_action == "add-admins":
+        tutObj.addAdminsToChannels(slackUtils)
     elif followup_action == "invite-attendees":
         tutObj.inviteAttendeesToChannels(slackUtils)
     elif followup_action == "all":
@@ -179,7 +182,8 @@ if __name__ == "__main__":
         )
 
     if "setup" in action or "process" in action or action in {
-        "create-event-channels", "create-tutorial-channels", "set-event-channel-desc"
+        "create-event-channels", "create-tutorial-channels", "set-event-channel-desc",
+        "add-admins-to-tutorials",
     }:
         if action == "setup-zoom":
             # zoom creds are only checked on first API call, so this import is
@@ -206,6 +210,9 @@ if __name__ == "__main__":
             None,
             "create-channels",
         )
+
+    elif action == "add-admins-to-tutorials":
+        setupTutorials(os.path.join(data_path, "events.csv"), None, "add-admins")
 
     elif action == "setup-tutorials-invite-attendees":
         setupTutorials(

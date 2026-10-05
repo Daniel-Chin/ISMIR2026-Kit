@@ -207,3 +207,75 @@ def test_channel_creation_passes_privacy_to_slack_api(monkeypatch):
         {"name": "tutorial", "is_private": True},
         {"name": "opening", "is_private": False},
     ]
+
+
+@pytest.mark.parametrize("dummy_mode", [False, True])
+def test_add_admins_invites_before_next_prompt(tmp_path, monkeypatch, dummy_mode):
+    path = tmp_path / "events.csv"
+    write_events(path)
+    slack = FakeSlack()
+    responses = iter([
+        ([], " first@example.org "),
+        ([("first@example.org", "tutorial-morning"),
+          ("first@example.org", "tutorial-afternoon")], "second@example.org"),
+        ([("first@example.org", "tutorial-morning"),
+          ("first@example.org", "tutorial-afternoon"),
+          ("second@example.org", "tutorial-morning"),
+          ("second@example.org", "tutorial-afternoon")], "   "),
+    ])
+
+    def prompt(_):
+        expected, response = next(responses)
+        assert slack.invites == expected
+        return response
+
+    monkeypatch.setattr("builtins.input", prompt)
+    Tutorials(path, None, dummy_mode).addAdminsToChannels(slack)
+    assert len(slack.invites) == 4
+
+
+def test_add_admins_empty_input_does_nothing(tmp_path, monkeypatch):
+    path = tmp_path / "events.csv"
+    write_events(path)
+    slack = FakeSlack()
+    monkeypatch.setattr("builtins.input", lambda _: "")
+    Tutorials(path, None, False).addAdminsToChannels(slack)
+    assert slack.invites == []
+
+
+def test_add_admins_stops_on_invitation_failure(tmp_path, monkeypatch):
+    path = tmp_path / "events.csv"
+    write_events(path)
+    slack = FakeSlack()
+    prompts = []
+
+    def prompt(_):
+        prompts.append(True)
+        return "admin@example.org"
+
+    def fail(*args):
+        raise LookupError("member not found")
+
+    monkeypatch.setattr("builtins.input", prompt)
+    monkeypatch.setattr(slack, "inviteUserToChannel", fail)
+    with pytest.raises(LookupError, match="member not found"):
+        Tutorials(path, None, False).addAdminsToChannels(slack)
+    assert len(prompts) == 1
+
+
+def test_add_admins_cli_selects_mock_workspace(monkeypatch):
+    import runpy
+    from pathlib import Path
+    from utils import slack
+
+    calls = []
+    monkeypatch.setattr("sys.argv", [
+        "miniconf_prep.py", "--mockup", "--action", "add-admins-to-tutorials",
+    ])
+    monkeypatch.setattr(slack, "configure_clients", lambda **kwargs: calls.append(kwargs))
+    monkeypatch.setattr(
+        Tutorials, "addAdminsToChannels",
+        lambda self, client: calls.append((self.eventsCsvFile, self.townscriptCsvFile, client)),
+    )
+    runpy.run_path(str(Path(__file__).resolve().parents[1] / "miniconf_prep.py"), run_name="__main__")
+    assert calls == [{"is_mockup": True}, ("sitedata_mock/events.csv", None, slack)]

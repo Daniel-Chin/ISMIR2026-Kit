@@ -64,24 +64,9 @@ planning around:
    → put a reminder in the invite email to join with the registration
    email; no code fix available.
 
-**Recommended process NOTE.md landed on for tutorials** (documented
-operationally in `docs/SLACK.md` and split into staged CLI actions;
-default-channel and visibility changes remain workspace-admin console steps
-on non-Enterprise plans):
-
-1. Create tutorial channels as public, add them to Slack's **default
-   channels** list (auto-joins new members), and keep restricted links out
-   during this public phase.
-2. Send tutorial-attendee invite email.
-3. Once enough tutorial attendees have joined, remove tutorial channels from
-   the default list, audit membership, and convert them to private.
-4. Verify privacy, publish restricted tutorial links, then send the general
-   conference-attendee invite email.
-
-This avoids the manual "hunt down which attendee is which Slack user" work
-NOTE.md describes as peaking on tutorial days. Slack permits only public
-channels as defaults; converting public channels to private is available in
-the UI on all plans, while the conversion API is Enterprise-only.
+The current implementation creates tutorial channels as private. The tutorial
+invitation workflow in [SLACK.md](SLACK.md#tutorial-channels) is awaiting
+completion.
 
 ## Live streaming
 

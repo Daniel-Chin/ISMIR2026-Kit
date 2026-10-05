@@ -95,15 +95,17 @@ python main.py
 | `setup-lbd` | LBD poster channels (`lp-*` / `lv-*` naming) |
 | `setup-music` | Music performance channels |
 | `setup-tutorial-channels` | Generate channel names for Tutorials rows only |
-| `create-tutorial-channels` | Create public channels for Tutorials rows with a nonblank `slack_channel`, and write their URLs |
+| `create-tutorial-channels` | Create private channels for Tutorials rows with a nonblank `slack_channel`, and write their URLs |
 | `setup-tutorials-invite-attendees` | Add active/pending invited registrants to their selected tutorial channels |
-| `setup-tutorials` | Compatibility action: run both tutorial stages, leaving channels public |
+| `setup-tutorials` | Compatibility action: create private tutorial channels, then assign attendees |
 | `setup-sponsors` | Industry/sponsor channels + invite registered emails |
 | `prepare-calendar` | Converts schedule CSV → downloadable ICS |
 | `remove-author-email` | Strips private contact info before publishing |
 | `process-new-users` | Re-runs tutorial + sponsor invites for new registrations |
 
 Requires `SLACK_BOT_TOKEN` in the environment (loaded from `.env` via `utils/slack.py`).
+
+### Tutorial Slack workflow
 
 ### Paper Slack workflow
 

@@ -67,7 +67,7 @@ Produces:
   Days 2–5 get one filler event each because `main.py:group_by_days` hard-requires
   days 1–5.
 - `mock_inputs/tutorial_registration.csv` — one fake attendee selection for
-  rehearsing the staged tutorial Slack workflow. It deliberately lives outside
+  testing tutorial attendee assignment. It deliberately lives outside
   `sitedata_mock/` so Flask does not publish attendee data as JSON.
 - `sitedata_mock/lbds.csv` (2), `music.csv` (1, includes the `bb_id` column that
   `format_music` needs), `industry.csv` (2 sponsors).
@@ -140,24 +140,12 @@ python miniconf_prep.py --mockup --action setup-papers-set-desc
 python miniconf_prep.py --mockup --action set-event-channel-desc
 ```
 
-Rehearse the staged tutorial workflow with the included fake registration:
+Tutorial channels created by `create-tutorial-channels` are private in the
+mock workspace as well.
 
-```bash
-python miniconf_prep.py --mockup --action setup-tutorial-channels
-python miniconf_prep.py --mockup \
-  --action create-tutorial-channels
+### Tutorial invitation workflow
 
-# Manually make #announcements and #help permanent defaults and
-# #tutorial-reproducible-mir a temporary default, then:
-python miniconf_prep.py --mockup \
-  --registration-csv mock_inputs/tutorial_registration.csv \
-  --action setup-tutorials-invite-attendees
-```
-
-In non-production mode the second command assigns `DUMMY_EMAIL`, not the fake
-registration address. Then remove only the tutorial channel from Slack
-defaults, audit its membership, and convert it to private. Keep
-`#announcements` and `#help` public and default.
+### Channel writeback
 
 `create-channels` writes `channel_url` back into the CSV → restart `main.py` and the
 poster pages grow a working "Slack" button. `set-event-channel-desc` sets each 

@@ -1,10 +1,9 @@
 # Slack integration
 
-Creates one public Slack channel per paper, LBD, music performance, sponsor,
-and tutorial; writes a deep link back into the CSV's `channel_url` column
-(which the site's "Slack" button links to); invites participants into their
-channels; and sets paper channel metadata. Tutorial channels can be converted
-to private manually after the temporary default-channel onboarding window.
+Creates public Slack channels for papers, LBDs, music performances, and sponsors,
+and private channels for tutorials; writes a deep link back into the CSV's
+`channel_url` column (which the site's "Slack" button links to); invites
+participants into their channels; and sets paper channel metadata.
 
 ## Architecture
 
@@ -42,8 +41,8 @@ the workspace (workspace admin, or an app-approval flow).
 4. **OAuth & Permissions → Scopes → Bot Token Scopes**, add:
    - `channels:manage` — create public channels, invite, set topic/purpose
    - `channels:read` — list channels
-   - `groups:write` + `groups:read` — manage tutorial channels after they are
-     converted to private (the bot must already be a member)
+   - `groups:write` + `groups:read` — create and manage private tutorial channels
+     (the bot must be a member to access them)
    - `users:read` + `users:read.email` — resolve author emails to user IDs
    - `chat:write` — post messages (only `postMessageToASlackChannelAsBot`)
    - `channels:join`
@@ -158,86 +157,30 @@ absent, the action stops with an error and prints the required prerequisite
 (`setup-zoom` and/or event channel creation). The program base URL is
 `miniconf_url` from config.yml.
 
-## Attendee invitation order and temporary tutorial defaults
+## Workspace setup and tutorial channels
 
-The [ISMIR 2025 virtual-chairs retrospective](https://github.com/keunwoochoi/how-to-organize-ismir/blob/main/chairs-virtual/NOTE.md#inviting-tutorial-attendees)
-recommends inviting tutorial attendees before the general conference audience
-and temporarily making tutorial channels default channels. This reduced
-last-minute manual support when registration emails did not match the email
-people used to join Slack.
+Tutorial channels are created private by `create-tutorial-channels`.
 
 ### Operational sequence:
+
 1. Rename the general channel to "#general". 
 2. Set `#general` so only managers can post. 
-3. Create `#social`, `#random`, `#help`, and the tutorial channels as **public**
-   channels before sending workspace invitations. Ensure the provisioning bot
-   is a member so it retains access after tutorial channels become private.
+3. Create `#social`, `#random`, and `#help` as **public** channels, and tutorial
+   channels as **private** channels before sending workspace invitations.
+   Ensure the provisioning bot is a member of the tutorial channels.
 4. Go to Workspace Settings.
 5. Require admin approval when member invite new people to your workspace.  
 6. Remove "Members" from permission to "Use @everyone in channels".  
-7. Add `#general`, `#social`, `#random`, `#help`, opening session, and the tutorial channels to Slack's
-   **Default Channels** list. The first two are permanent defaults; tutorial
-   channels are temporary defaults.
-8. Send targeted workspace invitations to tutorial attendees. Tell them to use
-   the same email address they used for registration.
-9. Monitor pending and accepted invitations and handle email mismatches.
-10. Once most tutorial attendees have joined, remove only the tutorial channels
-   from the default list. Keep `#general`... as defaults.
-11. Audit channel membership, then convert each tutorial channel from public to
-   private: **channel name → Settings → Change to a private channel**.
-12. Verify that the channels are private, then add restricted materials such as
-   Zoom links.
-13. Send workspace invitations to the general conference audience.
-14. Manually handle late tutorial registrants or assign them with
-   `setup-tutorials-invite-attendees` after Slack knows their account.
-15. Invite volunteers to Slack.
+7. Add `#general`, `#social`, `#random`, `#help`, and the opening session channel
+   to Slack's **Default Channels** list as permanent defaults. Keep private
+   tutorial channels out of this list; their members will be assigned by script.
 
-CLI stages:
+### Tutorial invitation workflow
 
-```bash
-# Generate tutorial channel names, then create public tutorial channels
-# and write tutorial channel_url values to events.csv
-uv run python miniconf_prep.py --action setup-tutorial-channels
-uv run python miniconf_prep.py --action create-tutorial-channels
+### CLI stages
 
-# Manual: make #general and #help etc. permanent defaults, make tutorial
-# channels temporary defaults, then send tutorial workspace invites
+### Workspace constraints
 
-# Stage 2: assign active or pending invited attendees to their tutorials
-uv run python miniconf_prep.py \
-  --registration-csv /secure/path/registration.csv \
-  --action setup-tutorials-invite-attendees \
-  --prod true
-
-# Manual: remove only tutorial defaults, audit membership, convert tutorials
-# to private, then send general conference workspace invitations
-```
-
-The legacy `setup-tutorials` action runs both CLI stages together and leaves
-the channels public. Keep it for mock/backward-compatible runs; use the staged
-actions for the real invitation sequence.
-
-Important constraints:
-
-- Slack allows only **public** channels to be defaults. Owners, admins, and
-  Channel Managers can convert a public channel to private through the Slack
-  UI on all plans, subject to workspace permissions. Remove it from the
-  default list before conversion.
-- Conversion retains the people already in the channel. It also posts a
-  channel message announcing the conversion. Audit membership first because
-  anyone who joined during the public phase will keep access.
-- Treat the public phase as non-confidential. Do not post private Zoom links or
-  restricted tutorial materials until conversion. Files exposed while a
-  channel is public may remain publicly accessible even after its visibility
-  changes.
-- The API for converting channels to private
-  (`admin.conversations.convertToPrivate`) is Enterprise-only. On Free, Pro,
-  and Business+ workspaces, conversion is a manual owner/admin/Channel Manager
-  step.
-- The CLI automates public-channel creation, link writeback, and attendee
-  assignment. Default-channel settings and public-to-private conversion remain
-  manual Slack admin steps. The conversion API is not available to this bot on
-  non-Enterprise plans.
 - Adding a channel to the default list does not retroactively add existing
   workspace members. Removing it later does not remove people who already
   joined.
@@ -254,8 +197,7 @@ Important constraints:
 Slack UI path for owners/admins:
 **Workspace name → Tools & settings → Workspace settings → Default Channels**.
 See Slack's current documentation for
-[default channels](https://slack.com/help/articles/201898998-Set-default-channels-for-new-members),
-[channel conversion](https://slack.com/help/articles/213185467-Convert-a-channel-to-private-or-public),
+[default channels](https://slack.com/help/articles/201898998-Set-default-channels-for-new-members)
 and [workspace invitations](https://slack.com/help/articles/201330256-Invite-new-members-to-your-workspace).
 
 # Announcement Bot
@@ -308,8 +250,9 @@ on `ratelimited` (2 s sleep, up to 100 tries) via the `retry` helper.
 
 | Function | Notes |
 |---|---|
-| `createPublicSlackChannels(channels)` | Creates each name in the iterable that doesn't exist yet |
-| `createPrivateSlackChannels(csvFile, channelColumnName)` | Private variant, reads names from a CSV column (tutorials). Slack caps channel creation at ~90 per run |
+| `createSlackChannels(channels, is_private=False)` | Creates each name that does not exist yet; tutorials pass `is_private=True` |
+| `createPublicSlackChannels(channels)` | Deprecated compatibility wrapper for public-channel creation |
+| `createPrivateSlackChannels(csvFile, channelColumnName)` | Legacy private-channel helper that reads names from a CSV column |
 | `loadAllChannelData()` | Invalidates the cached channel maps so the next lookup refetches — call after creating channels, before writing links |
 | `addChannelLinksToCSV(csvFile, channelColumnName, newCsvFile=None)` | Writes `app_redirect` links into a `channel_url` column; in place unless `newCsvFile` given |
 | `inviteUserToChannel(user_email, channelName)` / `inviteUsersToChannel(user_emails, channelName)` | Skips users already in the channel; prints and skips emails not in the workspace |
@@ -344,9 +287,9 @@ restarts.
 
 `modules/lbds.py`, `modules/music.py`, `modules/industry.py`, and
 `modules/tutorials.py` follow the same create → link-writeback → invite flow
-for their CSVs. Tutorials split public-channel creation from registered
-attendee assignment so chairs can use the temporary-default workflow before
-manually converting channels to private. They were ported to the current
+for their CSVs. Tutorials delegate private-channel creation and link writeback
+to `modules/events.py`, with registered attendee assignment handled separately.
+They were ported to the current
 `utils/slack.py` signatures in July 2026 — before that they passed
 `slackUtils.client` as a first argument and crashed with `TypeError`. They
 now also reload channel data between creation and link-writeback, like

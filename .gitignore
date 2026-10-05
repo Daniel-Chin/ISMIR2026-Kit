@@ -11,6 +11,8 @@ sitedata*/main_calendar.json
 static/calendar/*.ics
 sheet_export/
 
+.vscode/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -32,6 +32,7 @@ from markupsafe import Markup
 from utils.zoom_redirect import build_zoom_redirect_url
 from utils.shared import load_site_config
 from utils.calendar import build_calendar
+from utils.session_assignment import parse_file as parse_session_assignment
 
 
 def chain_functions(*functions: Callable) -> Callable:
@@ -144,6 +145,19 @@ def main(site_data_path: str):
                 lambda x: x.read(),
                 partial(yaml.load, Loader=yaml.SafeLoader),
             )(f)
+    # Enrich before indexing/rendering so live routes and frozen JSON/HTML share
+    # the matrix assignments, even when papers.csv contains stale legacy fields.
+    _, assignments = parse_session_assignment(site_data_path)
+    assignments_by_uid = {paper.uid: paper for paper in assignments}
+    missing = [p["uid"] for p in site_data["papers"] if p["uid"] not in assignments_by_uid]
+    if missing:
+        raise ValueError("Papers missing from session_assignment.csv: " + ", ".join(missing))
+    for paper in site_data["papers"]:
+        assignment = assignments_by_uid[paper["uid"]]
+        # Preserve the CSV string types expected by templates and session filters.
+        paper.update(day=str(assignment.day), session=str(assignment.session_index),
+                     position=str(assignment.position))
+
     for typ in ["papers", "industry", "music", "lbds", "events"]:
         by_uid[typ] = {}
         for p in site_data[typ]:

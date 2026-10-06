@@ -19,6 +19,7 @@ channel_url / live_url columns are left empty: they get filled by
 """
 
 import csv
+from datetime import date
 import os
 import re
 import sys
@@ -173,6 +174,15 @@ def make_papers():
             }
         )
     write_csv("papers.csv", header, rows)
+    with open(os.path.join(MOCK_DIR, "session_assignment.csv"), "w", newline="") as f:
+        csv.writer(f).writerows([
+            ["Session Name", "Mock posters"],
+            ["Session Day & Time", f"{date.fromisoformat(CONF_DATE):%a}, 19:00 - 19:45"],
+            ["Preferred Timezone/s", ""],
+            ["Session Chair - Onsite", "Mock Chair"],
+            ["Session Chair - Remote", ""],
+            *[[f"Paper-{i}", row["uid"]] for i, row in enumerate(rows, start=1)],
+        ])
 
 
 def make_events():
@@ -406,6 +416,8 @@ def make_config():
         .replace("prefix: 'ISMIR 2026'", "prefix: 'ISMIR 2026 Mock'")
     )
     path = os.path.join(MOCK_DIR, "config.yml")
+    conference_date = date.fromisoformat(CONF_DATE)
+    cfg = re.sub(r"^date:.*$", f"date: {conference_date:%Y %b} {conference_date.day}-{conference_date.day}", cfg, flags=re.MULTILINE)
     with open(path, "w") as f:
         f.write(cfg)
     print("wrote", path)

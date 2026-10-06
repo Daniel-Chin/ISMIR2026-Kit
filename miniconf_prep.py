@@ -75,7 +75,7 @@ def parse_arguments():
 def setupZoom(eventsCsvFile, papersCsvFile=None, passcode=None):
     from modules.zoom_creator import ZoomCreator
 
-    if passcode is None:
+    if passcode is None and not useDummyValues:
         passcode = prompt_for_zoom_passcode()
     zoomCreator = ZoomCreator(eventsCsvFile, useDummyValues, papersCsvFile)
     zoomCreator.setupZoomCalls(zoomUtils, passcode=passcode)

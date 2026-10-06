@@ -48,8 +48,9 @@ class ZoomCreator:
         if not match:
             return None
         sessionPapers = self.papers[
-            (self.papers.day == row["day"])
-            & (self.papers.session == int(match.group(1)))
+            # Session indices are conference-wide. Assignment days start at
+            # the first paper session; event days can include tutorials before it.
+            self.papers.session == int(match.group(1))
         ].sort_values("position")
         rooms = [str(ch) for ch in sessionPapers.slack_channel.dropna()]
         return rooms or None
@@ -59,6 +60,10 @@ class ZoomCreator:
             raise Exception("eventsCsvFile passed in constructor is null")
 
         csv_data = pd.read_csv(self.eventsCsvFile)
+        if self.useDummyValues:
+            self._printZoomPlan(csv_data, zoomUtils)
+            return
+
         wanted = csv_data[csv_data.apply(self._wantsZoom, axis=1)]
 
         print("## Number of items to create zoom link for: ", len(wanted.index))
@@ -67,10 +72,6 @@ class ZoomCreator:
             rooms = self._breakoutRooms(row)
             if rooms:
                 print(f"### Breakout rooms for '{row['title']}': {rooms}")
-
-        if self.useDummyValues:
-            print("## Dummy mode (no --prod true): no Zoom API calls made.")
-            return
 
         zoomUtils.createZoomLinksIfNeeded(
             self.eventsCsvFile,
@@ -81,3 +82,41 @@ class ZoomCreator:
             breakoutRoomsForRow=self._breakoutRooms,
             passcode=passcode,
         )
+
+    def _printZoomPlan(self, csv_data, zoomUtils):
+        entities = {}
+        assignments = []
+        for _, row in csv_data.iterrows():
+            codename = None
+            if self._wantsZoom(row):
+                rooms = self._breakoutRooms(row)
+                if zoomUtils._isPosterSessionRow(row, rooms):
+                    # Production reuses poster meetings by their exact title.
+                    key = ("Meeting", row["title"])
+                    codename = entities.get(key, {}).get("codename")
+                    if codename is None:
+                        poster_number = 1 + sum(kind == "Meeting" for kind, _ in entities)
+                        codename = f"poster-{poster_number}"
+                        entities[key] = {"codename": codename, "rooms": rooms or []}
+                else:
+                    key = ("Webinar", zoomUtils._sharedWebinarTopic(self.eventsCsvFile))
+                    codename = "shared-webinar"
+                    entities[key] = {"codename": codename, "rooms": []}
+            assignments.append((row, codename))
+
+        print("## Dummy mode (no --prod true): no Zoom API calls made.")
+        print(f"## Zoom entities to create or reuse: {len(entities)} "
+              f"({sum(kind == 'Webinar' for kind, _ in entities)} webinar(s), "
+              f"{sum(kind == 'Meeting' for kind, _ in entities)} meeting(s))")
+        print("Existing Zoom entities are not checked; actual creation count may be lower.")
+        print("Codenames are local plan labels, not Zoom IDs.")
+        print("### Entities: codename | type | topic | breakout rooms")
+        for (kind, topic), entity in entities.items():
+            print(f"{entity['codename']} | {kind} | {topic} | {len(entity['rooms'])}")
+            for room in entity["rooms"]:
+                print(f"  Breakout room: {room}")
+        print()
+        print("### Event assignments: uid | codename | title | category")
+        for row, codename in assignments:
+            title = " ".join(str(row["title"]).split())
+            print(f"{row['uid']} | {codename} | {title} | {row['category']}")

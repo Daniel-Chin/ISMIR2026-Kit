@@ -49,7 +49,9 @@ def test_zoom_uses_matrix_day_session_and_order(assignment_data):
     callback = api.createZoomLinksIfNeeded.call_args.kwargs['breakoutRoomsForRow']
     assert callback({'title': 'Poster Session - 1', 'day': 1}) == ['paper-002', 'paper-001']
     assert callback({'title': 'Poster Session - 2', 'day': 2}) == ['paper-003', 'paper-004']
-    assert callback({'title': 'Poster Session - 1', 'day': 2}) is None
+    # Event days include the tutorial day; matrix days start with paper sessions.
+    assert callback({'title': 'Poster Session - 1', 'day': 2}) == ['paper-002', 'paper-001']
+    assert callback({'title': 'Poster Session - 2', 'day': 3}) == ['paper-003', 'paper-004']
     assert (path / 'papers.csv').read_bytes() == original
 
 

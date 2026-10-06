@@ -15,6 +15,18 @@ on:
     secrets:
       ZOOM_REDIRECT_ACCESS_TOKEN:
         required: true
+      PAPERS_SHEET_URL:
+        required: false
+      SESSION_ASSIGNMENT_SHEET_URL:
+        required: false
+      EVENTS_SHEET_URL:
+        required: false
+      INDUSTRY_SHEET_URL:
+        required: false
+      MUSIC_SHEET_URL:
+        required: false
+      LBDS_SHEET_URL:
+        required: false
 
 permissions:
   contents: read
@@ -29,6 +41,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ZOOM_REDIRECT_ACCESS_TOKEN: ${{ secrets.ZOOM_REDIRECT_ACCESS_TOKEN }}
+      PAPERS_SHEET_URL: ${{ secrets.PAPERS_SHEET_URL}}
+      SESSION_ASSIGNMENT_SHEET_URL: ${{ secrets.SESSION_ASSIGNMENT_SHEET_URL}}
+      EVENTS_SHEET_URL: ${{ secrets.EVENTS_SHEET_URL}}
+      INDUSTRY_SHEET_URL: ${{ secrets.INDUSTRY_SHEET_URL}}
+      MUSIC_SHEET_URL: ${{ secrets.MUSIC_SHEET_URL}}
+      LBDS_SHEET_URL: ${{ secrets.LBDS_SHEET_URL}}
 
     steps:
       - name: Check out repository

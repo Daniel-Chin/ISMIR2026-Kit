@@ -8,6 +8,7 @@ import os
 import re
 from functools import partial, reduce
 from collections.abc import Callable
+from urllib.parse import parse_qs, urlparse
 
 from dotenv import load_dotenv
 
@@ -407,16 +408,17 @@ def convert_drive_link(s):
 def get_yt_id(yt_link: str) -> str:
     if not yt_link:
         return ""
-    if "youtube.com" in yt_link:
-        # Handle URLs like https://www.youtube.com/watch?v=VIDEO_ID
-        match = re.search(r"v=([a-zA-Z0-9_-]{11})", yt_link)
-        if match:
-            return match.group(1)
-    elif "youtu.be" in yt_link:
-        # Handle URLs like https://youtu.be/VIDEO_ID
-        match = re.search(r"youtu\.be/([a-zA-Z0-9_-]{11})", yt_link)
-        if match:
-            return match.group(1)
+    url = urlparse(yt_link.strip())
+    video_id = ""
+    if url.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com"}:
+        if url.path == "/watch":
+            video_id = parse_qs(url.query).get("v", [""])[0]
+        elif url.path.startswith("/embed/"):
+            video_id = url.path.removeprefix("/embed/")
+    elif url.hostname == "youtu.be":
+        video_id = url.path.removeprefix("/")
+    if re.fullmatch(r"[a-zA-Z0-9_-]{11}", video_id):
+        return video_id
     raise ValueError(f"Invalid YouTube URL: {yt_link!r}")
 
 
@@ -476,7 +478,7 @@ def format_paper(v):
             "pdf_path": convert_drive_link(v.get("raw_pdf_path", "")),
             "poster_pdf": convert_drive_link(v.get("raw_poster_pdf", "")),
             "slides": convert_drive_link(v.get("raw_slides_pdf", "")),
-            "video": v["video"].replace("/open?id=", "/uc?export=preview&id="),
+            "video": (v.get("video") or "").strip().replace("/open?id=", "/uc?export=preview&id="),
             "channel_url": v["channel_url"],
             "slack_channel": v["slack_channel"],
             "day": v["day"],
@@ -666,6 +668,7 @@ def industry(industry):
     uid = industry
     v = by_uid["industry"][uid]
 
+    v = v.copy()
     v["video"] = get_yt_id(v.get("video", ""))
     v["video2"] = get_yt_id(v.get("video2", ""))
 

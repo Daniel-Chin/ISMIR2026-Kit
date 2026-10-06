@@ -60,7 +60,6 @@ def rewrite_papers(path, stale=False, missing=False):
 
 
 @pytest.mark.parametrize("stale", [False, True], ids=["absent-columns", "stale-columns"])
-@pytest.mark.filterwarnings("ignore:Nothing frozen for endpoints:flask_frozen.MissingURLGeneratorWarning")
 def test_frozen_papers_use_matrix(site_data, tmp_path, monkeypatch, stale):
     rewrite_papers(site_data / "papers.csv", stale=stale)
     original = (site_data / "papers.csv").read_bytes()
@@ -69,16 +68,7 @@ def test_frozen_papers_use_matrix(site_data, tmp_path, monkeypatch, stale):
     expected = {p.uid: p for p in assignments}
     output = tmp_path / "frozen"
     monkeypatch.setitem(site.app.config, "FREEZER_DESTINATION", str(output))
-    # Freeze affected routes through the production freezer. Other content types
-    # have independent media requirements outside the assignment contract.
-    def paper_routes():
-        yield "paper_json", {}
-        yield "serve", {"path": "papers"}
-        for paper in site.site_data["papers"]:
-            yield "poster", {"poster": paper["uid"]}
-
-    monkeypatch.setattr(site.freezer, "url_generators", [paper_routes])
-    monkeypatch.setattr(site.freezer, "log_url_for", False)
+    # Exercise the complete production freeze, including sponsor media pages.
     site.freezer.freeze()
     papers = json.loads((output / "papers.json").read_text())
     raw = json.loads((output / "serve_papers.json").read_text())

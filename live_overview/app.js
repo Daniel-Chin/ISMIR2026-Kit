@@ -1,7 +1,7 @@
 'use strict';
 const publicStatic = window.ISMIR_PUBLIC_CONFIG?.staticHosting === true;
 
-const ISMIR_BUILD_VERSION = '1.0.0-ui.6';
+const ISMIR_BUILD_VERSION = '1.0.0-ui.7';
 window.ISMIR_BUILD_VERSION = ISMIR_BUILD_VERSION;
 
 const els = {
@@ -339,8 +339,9 @@ function countActiveConversations(event) {
 
 function detailUrlFromPaper(p) {
   if (p?.detailUrl) return p.detailUrl;
-  const slug = String(p?.id || '').trim().replace(/[^a-zA-Z0-9]+/g, '_');
-  return slug ? `https://ismir2026program.ismir.net/poster_${slug}.html` : '';
+  // MiniConf pages are keyed by the papers.csv uid, not by our paper/oral display ids.
+  const uid = String(p?.sourcePaperId || '').trim() || (String(p?.id || '').match(/(?:^|-)paper-(\d+)$/) || [])[1] || '';
+  return uid ? `https://ismir2026program.ismir.net/poster_${encodeURIComponent(uid)}.html` : '';
 }
 
 function eventInfoUrl(e) {
@@ -1617,7 +1618,8 @@ function handleZoomTabClick(event) {
   if (!anchor || anchor.target !== '_blank') return;
   let url;
   try { url = new URL(anchor.href, window.location.href); } catch (_) { return; }
-  if (url.protocol !== 'https:' || !/(^|\.)(zoom\.us|zoom\.com|zoomgov\.com)$/.test(url.hostname)) return;
+  const zoomRedirect = url.hostname === 'ismir2026program.ismir.net' && url.pathname === '/zoom.html';
+  if (url.protocol !== 'https:' || !(zoomRedirect || /(^|\.)(zoom\.us|zoom\.com|zoomgov\.com)$/.test(url.hostname))) return;
   let tab;
   try {
     // No window features: request a normal browsing tab, not a sized popup.

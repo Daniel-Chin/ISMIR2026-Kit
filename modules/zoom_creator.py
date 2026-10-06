@@ -19,8 +19,9 @@ class ZoomCreator:
 
     POSTER_SESSION_RE = re.compile(r"Poster Session - (\d+)")
 
-    def __init__(self, eventsCsvFile, useDummyValues=True, papersCsvFile=None):
+    def __init__(self, eventsCsvFile, useDummyValues=True, papersCsvFile=None, topicPrefix=""):
         self.eventsCsvFile = eventsCsvFile
+        self.topicPrefix = topicPrefix
         self.useDummyValues = useDummyValues
         self.papers = pd.read_csv(papersCsvFile, dtype={"uid": str}) if papersCsvFile else None
         if self.papers is not None:
@@ -81,6 +82,7 @@ class ZoomCreator:
             rowFilter=self._wantsZoom,
             breakoutRoomsForRow=self._breakoutRooms,
             passcode=passcode,
+            topicPrefix=self.topicPrefix,
         )
 
     def _printZoomPlan(self, csv_data, zoomUtils):
@@ -92,14 +94,14 @@ class ZoomCreator:
                 rooms = self._breakoutRooms(row)
                 if zoomUtils._isPosterSessionRow(row, rooms):
                     # Production reuses poster meetings by their exact title.
-                    key = ("Meeting", row["title"])
+                    key = ("Meeting", self.topicPrefix + row["title"])
                     codename = entities.get(key, {}).get("codename")
                     if codename is None:
                         poster_number = 1 + sum(kind == "Meeting" for kind, _ in entities)
                         codename = f"poster-{poster_number}"
                         entities[key] = {"codename": codename, "rooms": rooms or []}
                 else:
-                    key = ("Webinar", zoomUtils._sharedWebinarTopic(self.eventsCsvFile))
+                    key = ("Webinar", self.topicPrefix + zoomUtils._sharedWebinarTopic(self.eventsCsvFile))
                     codename = "shared-webinar"
                     entities[key] = {"codename": codename, "rooms": []}
             assignments.append((row, codename))

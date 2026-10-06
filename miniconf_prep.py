@@ -72,12 +72,13 @@ def parse_arguments():
 
 
 # Step1: Create Slack channels and Zoom links 
-def setupZoom(eventsCsvFile, papersCsvFile=None, passcode=None):
+def setupZoom(eventsCsvFile, papersCsvFile=None, passcode=None, is_mockup=False):
     from modules.zoom_creator import ZoomCreator
 
     if passcode is None and not useDummyValues:
         passcode = prompt_for_zoom_passcode()
-    zoomCreator = ZoomCreator(eventsCsvFile, useDummyValues, papersCsvFile)
+    zoomCreator = ZoomCreator(eventsCsvFile, useDummyValues, papersCsvFile,
+                              topicPrefix="mock-" if is_mockup else "")
     zoomCreator.setupZoomCalls(zoomUtils, passcode=passcode)
 
 
@@ -199,6 +200,7 @@ if __name__ == "__main__":
             os.path.join(data_path, "events.csv"),
             os.path.join(data_path, "papers.csv"),
             passcode=None,
+            is_mockup=args.mockup,
         )
 
     elif action == "setup-tutorial-channels":

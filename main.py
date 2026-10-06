@@ -269,6 +269,12 @@ def paper_vis():
 def schedule():
     data = _data()
     data["days"] = group_by_days(site_data)
+    data["construction_notice"] = (
+        "Site under construction. \nIf you are an organizer, you are welcome to test "
+        "the website! \nIf you are a visitor who got here by guessing the domain name, "
+        "well, congrats on finding the ISMIR2026 miniconf! But know that conference materials are still being linked up. "
+        "Watch out for pre-conference announcements!"
+    )
     return render_template("schedule.html", **data)
 
 

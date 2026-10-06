@@ -1,7 +1,7 @@
 'use strict';
 const publicStatic = window.ISMIR_PUBLIC_CONFIG?.staticHosting === true;
 
-const ISMIR_BUILD_VERSION = '1.0.0-ui.6';
+const ISMIR_BUILD_VERSION = '1.0.0-ui.7';
 window.ISMIR_BUILD_VERSION = ISMIR_BUILD_VERSION;
 
 const root = document.getElementById('history-events-root');
@@ -108,8 +108,9 @@ function detailUrlFromPaper(p) {
   if (p?.detailUrl) return p.detailUrl;
   const info = p?.links?.info || '';
   if (info) return info;
-  const slug = String(p?.id || '').trim().replace(/[^a-zA-Z0-9]+/g, '_');
-  return slug ? `https://ismir2026program.ismir.net/poster_${slug}.html` : '';
+  // MiniConf pages are keyed by the papers.csv uid, not by our paper/oral display ids.
+  const uid = String(p?.sourcePaperId || '').trim() || (String(p?.id || '').match(/(?:^|-)paper-(\d+)$/) || [])[1] || '';
+  return uid ? `https://ismir2026program.ismir.net/poster_${encodeURIComponent(uid)}.html` : '';
 }
 function eventInfoUrl(e) {
   const links = e?.links || {};

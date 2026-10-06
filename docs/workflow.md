@@ -143,6 +143,9 @@ A bot that automatically posts an announcement when an event starts. See [../lon
 
 The Slack bot listens for `/push-sheet-to-website` and triggers the GitHub workflow. See [setup and token requirements](../long_running_bots/self_service_pusher.py) and [bot operations](../long_running_bots/README.md).
 
+### YouTube
+See [./YOUTUBE.md](./YOUTUBE.md)  
+
 ---
 
 ## Part 3: Data (`sitedata/`)

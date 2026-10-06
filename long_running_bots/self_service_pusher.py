@@ -110,7 +110,7 @@ def monitor_run(run_id: int, response_url: str, github_token: str) -> None:
                     message = "Website refresh was cancelled (a newer refresh may have replaced it)."
                 else:
                     message = f"Website refresh did not succeed ({conclusion})."
-                send_status(response_url, f"{message} Details: {run_url}")
+                send_status(response_url, f"{message} Run logs: {run_url}")
                 return
         except (requests.RequestException, ValueError):
             failures += 1

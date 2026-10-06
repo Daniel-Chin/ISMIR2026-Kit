@@ -22,7 +22,8 @@ import os
 import ssl
 from functools import partial
 from pathlib import Path
-from threading import Event
+from threading import Event, Thread
+from time import monotonic
 
 import certifi
 import requests
@@ -39,6 +40,8 @@ GITHUB_TOKEN_FILE = Path("~/secrets/ismir2026-self-service-bot.env").expanduser(
 GITHUB_DISPATCH_URL = "https://api.github.com/repos/daniel-chin/ismir2026-kit/actions/workflows/refresh-website.yml/dispatches"
 GITHUB_REF = "main"
 GITHUB_RUNS_URL = "https://github.com/daniel-chin/ismir2026-kit/actions/workflows/refresh-website.yml"
+POLL_INTERVAL_SECONDS = 15
+MONITOR_TIMEOUT_SECONDS = 25 * 60
 COMMAND = "/push-sheet-to-website"
 logger = logging.getLogger(__name__)
 
@@ -61,6 +64,63 @@ def load_github_token() -> str:
     return token
 
 
+def github_headers(token: str) -> dict[str, str]:
+    return {
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {token}",
+        "X-GitHub-Api-Version": "2026-03-10",
+    }
+
+
+def send_status(response_url: str, message: str) -> None:
+    try:
+        response = requests.post(
+            response_url,
+            json={"response_type": "in_channel", "text": message},
+            timeout=30,
+        )
+        response.raise_for_status()
+    except requests.RequestException:
+        # Exceptions can contain Slack's secret response URL; don't log them.
+        logger.error("Could not send website refresh status to Slack")
+
+
+def monitor_run(run_id: int, response_url: str, github_token: str) -> None:
+    """Follow only the dispatched run, within Slack's 30-minute reply window."""
+    api_url = GITHUB_DISPATCH_URL.split("/workflows/", 1)[0] + f"/runs/{run_id}"
+    run_url = GITHUB_RUNS_URL.split("/actions/", 1)[0] + f"/actions/runs/{run_id}"
+    deadline = monotonic() + MONITOR_TIMEOUT_SECONDS
+    failures = 0
+    while monotonic() < deadline:
+        try:
+            response = requests.get(
+                api_url, headers=github_headers(github_token), timeout=30,
+                allow_redirects=False,
+            )
+            response.raise_for_status()
+            run = response.json()
+            if not isinstance(run, dict) or "status" not in run:
+                raise ValueError("Missing run status")
+            failures = 0
+            if run["status"] == "completed":
+                conclusion = run.get("conclusion") or "unknown"
+                if conclusion == "success":
+                    message = "Website refresh succeeded. Please visit miniconf to verify your edits."
+                elif conclusion == "cancelled":
+                    message = "Website refresh was cancelled (a newer refresh may have replaced it)."
+                else:
+                    message = f"Website refresh did not succeed ({conclusion})."
+                send_status(response_url, f"{message} Details: {run_url}")
+                return
+        except (requests.RequestException, ValueError):
+            failures += 1
+            if failures >= 3:
+                send_status(response_url, f"Unable to monitor website refresh after three failed checks. The workflow may still be running. Check: {run_url}")
+                return
+        Event().wait(min(POLL_INTERVAL_SECONDS, max(0, deadline - monotonic())))
+    send_status(response_url, f"Website refresh monitoring timed out after 25 minutes; its outcome is not yet confirmed. Check: {run_url}")
+
+
 def handle_request(
     client: BaseSocketModeClient, request: SocketModeRequest, *, github_token: str
 ) -> None:
@@ -74,20 +134,29 @@ def handle_request(
     if payload is None:
         return
 
+    run_id = None
     try:
         response = requests.post(
             GITHUB_DISPATCH_URL,
-            headers={
-                "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {github_token}",
-                "X-GitHub-Api-Version": "2026-03-10",
-            },
+            headers=github_headers(github_token),
             json={"ref": GITHUB_REF},
             timeout=30,
             allow_redirects=False,
         )
         if response.status_code in (200, 204):
-            message = f"Website refresh queued. Follow progress: {GITHUB_RUNS_URL}"
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    candidate = data.get("workflow_run_id") if isinstance(data, dict) else None
+                    if type(candidate) is int and candidate > 0:
+                        run_id = candidate
+                except ValueError:
+                    pass
+            if run_id is not None:
+                run_url = GITHUB_RUNS_URL.split("/actions/", 1)[0] + f"/actions/runs/{run_id}"
+                message = f"Impatient? Check {run_url}; otherwise, please wait for me to relay the results..."
+            else:
+                message = f"Website refresh queued, but GitHub returned no run ID so I cannot monitor it. Follow progress: {GITHUB_RUNS_URL}"
         else:
             logger.error("GitHub dispatch failed (HTTP %s)", response.status_code)
             message = f"GitHub rejected the website refresh (HTTP {response.status_code}). Ask the bot maintainer to check its token and workflow configuration."
@@ -95,15 +164,15 @@ def handle_request(
         logger.error("Could not confirm GitHub workflow dispatch")
         message = f"Could not confirm the website refresh. Check {GITHUB_RUNS_URL} before retrying."
 
-    try:
-        response = requests.post(
-            request.payload["response_url"],
-            json={"response_type": "in_channel", "text": message},
-            timeout=30,
-        )
-        response.raise_for_status()
-    except requests.RequestException:
-        logger.error("Could not send website refresh status to Slack")
+    response_url = request.payload["response_url"]
+    send_status(response_url, message)
+    if run_id is not None:
+        Thread(
+            target=monitor_run,
+            args=(run_id, response_url, github_token),
+            name=f"website-refresh-{run_id}",
+            daemon=True,
+        ).start()
 
 
 def main() -> None:

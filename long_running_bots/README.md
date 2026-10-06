@@ -25,3 +25,9 @@ The announcement bot uses `SLACK_TOKEN_ANNOUNCEMENT_BOT` by default and
 `MOCKUP_SLACK_TOKEN_ANNOUNCEMENT_BOT` with `--mockup`. Set both in `.env`.
 The self-service bot uses its separate `SLACK_BOT_TOKEN_SELF_SERVICE` and
 `SLACK_APP_TOKEN_SELF_SERVICE` credentials; it has no mockup or path flags.
+
+The self-service bot monitors each dispatched website refresh in a background
+thread, checking every 15 seconds and posting the final outcome in the command's
+channel. It reports cancellation separately (new refreshes can cancel older runs).
+After 25 minutes, or three consecutive failed status checks, it posts a link for
+manual follow-up. Monitoring is in memory and stops if the bot is restarted.

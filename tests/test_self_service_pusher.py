@@ -62,3 +62,76 @@ def test_unrelated_request_only_acknowledged(monkeypatch):
     bot.handle_request(client, SocketModeRequest(type="events_api", envelope_id="env", payload={}), github_token="test-token")
     client.send_socket_mode_response.assert_called_once()
     post.assert_not_called()
+
+
+def test_dispatch_starts_monitor_for_exact_run(monkeypatch):
+    dispatch = Mock(status_code=200)
+    dispatch.json.return_value = {"workflow_run_id": 123}
+    post = Mock(side_effect=[dispatch, Mock()])
+    thread = Mock()
+    monkeypatch.setattr(bot.requests, "post", post)
+    monkeypatch.setattr(bot, "Thread", thread)
+    request = SocketModeRequest(type="slash_commands", envelope_id="env", payload={
+        "command": bot.COMMAND, "response_url": "https://example.test/reply",
+    })
+    bot.handle_request(Mock(), request, github_token="test-token")
+    thread.assert_called_once_with(
+        target=bot.monitor_run, args=(123, "https://example.test/reply", "test-token"),
+        name="website-refresh-123", daemon=True,
+    )
+    thread.return_value.start.assert_called_once()
+    assert "/actions/runs/123" in post.call_args_list[1].kwargs["json"]["text"]
+
+
+@pytest.mark.parametrize("conclusion,expected", [
+    ("success", "succeeded"), ("failure", "did not succeed (failure)"),
+    ("cancelled", "cancelled"), ("timed_out", "did not succeed (timed_out)"),
+])
+def test_monitor_reports_terminal_result(monkeypatch, conclusion, expected):
+    queued = Mock()
+    queued.json.return_value = {"status": "in_progress"}
+    completed = Mock()
+    completed.json.return_value = {"status": "completed", "conclusion": conclusion}
+    get = Mock(side_effect=[queued, completed])
+    send = Mock()
+    monkeypatch.setattr(bot.requests, "get", get)
+    monkeypatch.setattr(bot, "send_status", send)
+    monkeypatch.setattr(bot, "Event", Mock())
+    bot.monitor_run(123, "reply-url", "token")
+    assert get.call_count == 2
+    assert get.call_args.args[0].endswith("/actions/runs/123")
+    send.assert_called_once()
+    assert expected in send.call_args.args[1]
+    assert "/actions/runs/123" in send.call_args.args[1]
+
+
+def test_monitor_retries_transient_errors(monkeypatch):
+    completed = Mock()
+    completed.json.return_value = {"status": "completed", "conclusion": "success"}
+    get = Mock(side_effect=[requests.Timeout(), completed])
+    send = Mock()
+    monkeypatch.setattr(bot.requests, "get", get)
+    monkeypatch.setattr(bot, "send_status", send)
+    monkeypatch.setattr(bot, "Event", Mock())
+    bot.monitor_run(123, "reply-url", "token")
+    assert get.call_count == 2
+    assert "succeeded" in send.call_args.args[1]
+
+
+def test_monitor_reports_repeated_poll_errors(monkeypatch):
+    get = Mock(side_effect=requests.Timeout())
+    send = Mock()
+    monkeypatch.setattr(bot.requests, "get", get)
+    monkeypatch.setattr(bot, "send_status", send)
+    monkeypatch.setattr(bot, "Event", Mock())
+    bot.monitor_run(123, "reply-url", "token")
+    assert get.call_count == 3
+    assert "may still be running" in send.call_args.args[1]
+
+
+def test_monitor_timeout_is_not_workflow_failure(monkeypatch):
+    send = Mock()
+    monkeypatch.setattr(bot, "send_status", send)
+    monkeypatch.setattr(bot, "monotonic", Mock(side_effect=[0, 1501]))
+    bot.monitor_run(123, "reply-url", "token")
+    assert "outcome is not yet confirmed" in send.call_args.args[1]

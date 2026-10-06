@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>What’s going on now</title>
+  <script>
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem("ismirColorTheme") || "light";
+    } catch (error) {
+      document.documentElement.dataset.theme = "light";
+    }
+
+  </script>
+  <link rel="stylesheet" href="./styles.css?v=1.0.0-ui.6" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand" aria-label="ISMIR 2026 live overview logo">
+      <span class="brand-mark">ISMIR 2026</span>
+      <span class="brand-sub">Abu Dhabi</span>
+    </div>
+    <nav class="top-nav" aria-label="Conference navigation">
+      <a href="#home">Home</a>
+      <a href="#live-events">Live Events</a>
+      <a href="#upcoming-events">Upcoming</a>
+      <a href="./history.html">History</a>
+      <a href="https://ismir2026program.ismir.net/" target="_blank" rel="noopener noreferrer">Mini Conf</a>
+      <a href="https://ismir2026.ismir.net/" target="_blank" rel="noopener noreferrer">Official Website</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme">🌙 Lights Off</button>
+  </header>
+
+
+
+  <main>
+    <section class="hero home-hero" id="home">
+      <div class="hero-copy">
+        <p class="eyebrow hero-conference-kicker">The 27th International Society for Music Information Retrieval Conference</p>
+        <h1>What’s going on now</h1>
+        <div class="hero-conference-meta" aria-label="Conference dates and location">
+          <span>NOVEMBER 8-12, 2026</span>
+          <span>Abu Dhabi, UAE</span>
+        </div>
+        <div class="hero-timezone-control" id="user-timezone-control">
+          <span class="hero-timezone-kicker">Choose your time zone</span>
+          <button class="timezone-inline-value hero-timezone-value" type="button" data-timezone-trigger aria-label="Choose your time zone">
+            <span data-timezone-summary>Detecting...</span>
+          </button>
+        </div>
+      </div>
+      <aside class="hero-card llm-prompt-card" aria-label="LLM attendance prompt">
+        <div class="robot-logo" aria-hidden="true">▣</div>
+        <span class="mini-label">LLM companion</span>
+        <strong>Copy attendance prompt</strong>
+        <p>Click the button below to copy a prompt, then paste it into your chat AI for a quick conference overview and a handy attendee guide.</p>
+        <div class="prompt-action-row">
+          <span class="copy-status" id="llm-copy-status" aria-live="polite"></span>
+          <button class="llm-copy-button" id="copy-llm-prompt" type="button">Copy prompt</button>
+        </div>
+        <div class="binary-puzzle binary-puzzle-card" aria-hidden="true">
+          <span class="bit-group"><i class="b0"></i><i class="b0"></i><i class="b1"></i></span>
+          <span class="bit-group"><i class="b1"></i><i class="b0"></i><i class="b1"></i></span>
+          <span class="bit-group"><i class="b1"></i><i class="b1"></i><i class="b0"></i></span>
+          <span class="bit-group"><i class="b0"></i><i class="b1"></i><i class="b1"></i></span>
+          <span class="bit-group"><i class="b1"></i><i class="b0"></i><i class="b0"></i></span>
+          <span class="bit-group"><i class="b0"></i><i class="b0"></i><i class="b1"></i></span>
+          <span class="bit-group"><i class="b1"></i><i class="b0"></i><i class="b0"></i></span>
+          <span class="bit-group"><i class="b1"></i><i class="b0"></i><i class="b1"></i></span>
+        </div>
+      </aside>
+    </section>
+
+    <section id="dashboard" class="section">
+      <div class="section-heading">
+        <div>
+          <h2 class="section-with-icon"><span class="section-icon section-icon-glance" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M4 18V10M10 18V6M16 18v-5M22 18V3"></path><path d="M2.5 20.5h19"></path><circle cx="4" cy="8" r="1.4"></circle><circle cx="10" cy="4" r="1.4"></circle><circle cx="16" cy="11" r="1.4"></circle><circle cx="22" cy="1.8" r="1.4"></circle></svg></span>At a glance</h2>
+        </div>
+        <span class="connection" id="connection-status">Connecting…</span>
+      </div>
+      <div class="dashboard-grid" id="dashboard-grid"></div>
+    </section>
+
+    <section id="live-events" class="section">
+      <div class="section-heading">
+        <div>
+          <h2><span class="live-heading-lamp" aria-hidden="true"></span>Live events</h2>
+        </div>
+      </div>
+      <div id="spotlight-root"></div>
+      <div class="event-grid" id="live-events-root"></div>
+    </section>
+
+    <section id="upcoming-events" class="section upcoming-section">
+      <div class="section-heading">
+        <div>
+          <h2 class="section-with-icon"><span class="section-icon section-icon-upcoming" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M7 2v6M17 2v6M3 10h18"></path><path d="M8 15h5M13 12l3 3-3 3"></path></svg></span>Upcoming events</h2>
+        </div>
+      </div>
+      <div class="upcoming-list" id="upcoming-events-root"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>ISMIR 2026 Live Overview</span>
+  <span class="build-version" data-build-version>UI 1.0.0-ui.6</span>
+  </footer>
+
+  <script src="./public-site-config.js?v=1.0.0-ui.6"></script>
+  <script src="./public-connection.js?v=1.0.0-ui.6"></script>
+  <script src="./timezone-preference.js?v=1.0.0-ui.6"></script>
+  <script src="./prompt-config.js?v=1.0.0-ui.6"></script>
+  <script src="./app.js?v=1.0.0-ui.6"></script>
+  <script src="./cursor-avatars.js?v=1.0.0-ui.6"></script>
+  <script src="./theme-toggle.js?v=1.0.0-ui.6"></script>
+</body>
+</html>

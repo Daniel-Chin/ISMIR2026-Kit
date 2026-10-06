@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "overview": {
+    "paragraphs": [
+      "You are helping me attend ISMIR 2026 using the live conference overview at:",
+      "{{pageUrl}}",
+      "This website is the live source of truth for the conference. It shows what is happening now, upcoming sessions, completed sessions, Zoom attendance, active poster conversations, paper information, session links, times, and other live conference status.",
+      "First, visit the website and briefly:\n1. Summarize what is happening at the conference right now.\n2. Tell me what is coming up next and what may be worth attending.\n3. Give me a short, friendly guide to using the overview page effectively as a conference attendee.",
+      "After that, help me with any questions I ask about the conference, such as what is live, what to attend next, papers, sessions, timing, or navigating the program.",
+      "Important: conference status changes over time. Before answering any later question about the conference, visit the website again and check the latest information. Do not rely only on information from an earlier visit or earlier messages in our conversation.",
+      "Keep your answers concise, practical, and comfortable to use during a busy conference.",
+      "If you cannot access the live website, say so clearly and use this current overview snapshot only as fallback context; do not present it as live after it becomes stale.",
+      "Current overview snapshot (fallback/context):\n{{snapshot}}"
+    ]
+  },
+  "history": {
+    "paragraphs": [
+      "You are helping me explore what has already happened at ISMIR 2026 using the conference history page:",
+      "{{pageUrl}}",
+      "This page is the source of truth for completed conference activity. It contains finished sessions, their times, papers, session details, peak Zoom attendance where available, and other archived conference information.",
+      "First, visit the history page and briefly:\n1. Summarize what has happened at the conference so far.\n2. Highlight interesting sessions, papers, themes, or patterns worth looking back at.\n3. Give me a short, friendly guide to using the history page to explore completed sessions and papers.",
+      "After that, help me explore the conference history in whatever way I ask — for example, finding a past session or paper, comparing sessions, identifying recurring topics, or understanding what I may have missed.",
+      "The conference may still be ongoing, so the history page can continue to grow. Before answering later questions about completed conference activity, visit the page again and check the latest archive rather than relying only on an earlier visit or our previous conversation.",
+      "Keep your answers concise, useful, and easy to browse during the conference.",
+      "If you cannot access the history page, say so clearly and use this current history snapshot only as fallback context; do not present it as newly checked information.",
+      "Current history snapshot (fallback/context):\n{{snapshot}}"
+    ]
+  }
+}

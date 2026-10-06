@@ -81,6 +81,14 @@ jobs:
         if: ${{ inputs.mockup }}
         run: uv run python main.py --mockup --build
 
+      - name: Copy Live Overview
+        run: |
+          mkdir -p build/overviewpage
+          cp live_overview/*.html build/overviewpage/
+          cp live_overview/*.js build/overviewpage/
+          cp live_overview/*.css build/overviewpage/
+          cp live_overview/*.json build/overviewpage/
+      
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6.0.0
 

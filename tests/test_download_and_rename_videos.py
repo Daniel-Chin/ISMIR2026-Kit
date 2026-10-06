@@ -90,3 +90,43 @@ def test_failed_invalidation_preserves_video(tmp_path, monkeypatch):
     assert downloader.download_videos(source, output) == 1
     assert (output / '003.mp4').read_bytes() == b'x' * 2048
     assert json.loads((state / 'video_urls.json').read_text()) == {'003': 'old-url'}
+
+
+@pytest.mark.parametrize('outcomes,attempts', [
+    ([False, False, False, True], 3),
+    ([False, False, True, False, False, True], 6),
+])
+def test_consecutive_failure_limit(tmp_path, monkeypatch, capsys, outcomes, attempts):
+    source, output, state = setup_run(tmp_path, {}, existing=False)
+    uids = [str(index) for index in range(len(outcomes))]
+    recorded = {uid: 'old-url' for uid in uids}
+    (state / 'video_urls.json').write_text(json.dumps(recorded))
+    for uid in uids:
+        (output / f'{uid}.mp4').write_bytes(b'x' * 2048)
+    with source.open('w', newline='') as stream:
+        writer = csv.writer(stream)
+        writer.writerow(['uid', 'raw_video'])
+        writer.writerows((uid, f'new-url-{uid}') for uid in uids)
+    calls = []
+
+    def download(**kwargs):
+        index = len(calls)
+        calls.append(kwargs['url'])
+        if not outcomes[index]:
+            return None
+        path = Path(kwargs['output']) / 'video.mp4'
+        path.write_bytes(b'y' * 2048)
+        return str(path)
+
+    monkeypatch.setattr(downloader.gdown, 'download', download)
+    assert downloader.download_videos(source, output) == outcomes[:attempts].count(False)
+    assert len(calls) == attempts
+    successful = [uid for uid in uids[:attempts] if outcomes[int(uid)]]
+    assert (state / 'new_videos.log').read_text().splitlines() == successful
+    saved = json.loads((state / 'video_urls.json').read_text())
+    for uid in uids[attempts:]:
+        assert saved[uid] == 'old-url'
+        assert (output / f'{uid}.mp4').read_bytes() == b'x' * 2048
+    summary = capsys.readouterr().out
+    assert f'Downloaded {len(successful)} videos' in summary
+    assert f'not attempted {len(outcomes) - attempts}' in summary

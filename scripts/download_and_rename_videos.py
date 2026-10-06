@@ -85,8 +85,11 @@ def download_videos(in_csv: Path, out_dir: Path) -> int:
             failures += 1
             tqdm.write(f'Failed uid={paper_id}: {exc}')
 
+    consecutive_failures = 0
+    attempted = 0
     with tqdm(pending, desc='Videos', unit='video') as progress:
         for paper_id, url, local_files in progress:
+            attempted += 1
             progress.set_postfix_str(f'uid={paper_id}')
             try:
                 # Persist invalidation before touching any existing video.
@@ -116,14 +119,19 @@ def download_videos(in_csv: Path, out_dir: Path) -> int:
                 atomic_write(urls_path, json.dumps(updated_urls, indent=2, sort_keys=True) + '\n')
                 local_urls = updated_urls
                 new_videos.append(paper_id)
+                consecutive_failures = 0
             except Exception as exc:
                 failures += 1
+                consecutive_failures += 1
                 tqdm.write(f'Failed uid={paper_id}: {exc}')
+                if consecutive_failures >= 3:
+                    tqdm.write('Stopping after 3 consecutive failures.')
+                    break
 
     atomic_write(state_dir / 'new_videos.log', ''.join(f'{uid}\n' for uid in new_videos))
     tqdm.write(
-        f'Downloaded {len(videos) - failures - skipped} videos to {out_dir}; '
-        f'skipped {skipped}, failed {failures}'
+        f'Downloaded {len(new_videos)} videos to {out_dir}; '
+        f'skipped {skipped}, failed {failures}, not attempted {len(pending) - attempted}'
     )
     return failures
 

@@ -200,6 +200,13 @@ python scripts/calendar_csv2ics.py
 
 Typical loop: **update Google Sheet → `python pull_from_google_sheet.py` → run Slack prep → sanitize → commit `sitedata/` → deploy**.
 
+For author-uploaded materials, set `INPUT_PATH` in
+[`scripts/parse_google_form_author_uploaded_materials.py`](../scripts/parse_google_form_author_uploaded_materials.py)
+to the Google Forms CSV export, then run `python scripts/parse_google_form_author_uploaded_materials.py`.
+It merges repeat submissions and updates `raw_poster_pdf`, `raw_thumbnail`, and `raw_video`
+in `sitedata/papers.csv`, preserving unrelated cells. Paste these columns back into the
+Google Sheet before the next pull.
+
 ### Data not in the repo
 
 | Item | Notes |

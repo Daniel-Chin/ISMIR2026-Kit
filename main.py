@@ -8,6 +8,7 @@ import os
 import re
 from functools import partial, reduce
 from collections.abc import Callable
+from urllib.parse import parse_qs, urlparse
 
 from dotenv import load_dotenv
 
@@ -32,6 +33,7 @@ from markupsafe import Markup
 from utils.zoom_redirect import build_zoom_redirect_url
 from utils.shared import load_site_config
 from utils.calendar import build_calendar
+from utils.session_assignment import parse_file as parse_session_assignment
 
 
 def chain_functions(*functions: Callable) -> Callable:
@@ -144,6 +146,19 @@ def main(site_data_path: str):
                 lambda x: x.read(),
                 partial(yaml.load, Loader=yaml.SafeLoader),
             )(f)
+    # Enrich before indexing/rendering so live routes and frozen JSON/HTML share
+    # the matrix assignments, even when papers.csv contains stale legacy fields.
+    _, assignments = parse_session_assignment(site_data_path)
+    assignments_by_uid = {paper.uid: paper for paper in assignments}
+    missing = [p["uid"] for p in site_data["papers"] if p["uid"] not in assignments_by_uid]
+    if missing:
+        raise ValueError("Papers missing from session_assignment.csv: " + ", ".join(missing))
+    for paper in site_data["papers"]:
+        assignment = assignments_by_uid[paper["uid"]]
+        # Preserve the CSV string types expected by templates and session filters.
+        paper.update(day=str(assignment.day), session=str(assignment.session_index),
+                     position=str(assignment.position))
+
     for typ in ["papers", "industry", "music", "lbds", "events"]:
         by_uid[typ] = {}
         for p in site_data[typ]:
@@ -254,6 +269,12 @@ def paper_vis():
 def schedule():
     data = _data()
     data["days"] = group_by_days(site_data)
+    data["construction_notice"] = (
+        "Site under construction. \nIf you are an organizer, you are welcome to test "
+        "the website! \nIf you are a visitor who got here by guessing the domain name, "
+        "well, congrats on finding the ISMIR2026 miniconf! But know that conference materials are still being linked up. "
+        "Watch out for pre-conference announcements!"
+    )
     return render_template("schedule.html", **data)
 
 
@@ -393,16 +414,17 @@ def convert_drive_link(s):
 def get_yt_id(yt_link: str) -> str:
     if not yt_link:
         return ""
-    if "youtube.com" in yt_link:
-        # Handle URLs like https://www.youtube.com/watch?v=VIDEO_ID
-        match = re.search(r"v=([a-zA-Z0-9_-]{11})", yt_link)
-        if match:
-            return match.group(1)
-    elif "youtu.be" in yt_link:
-        # Handle URLs like https://youtu.be/VIDEO_ID
-        match = re.search(r"youtu\.be/([a-zA-Z0-9_-]{11})", yt_link)
-        if match:
-            return match.group(1)
+    url = urlparse(yt_link.strip())
+    video_id = ""
+    if url.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com"}:
+        if url.path == "/watch":
+            video_id = parse_qs(url.query).get("v", [""])[0]
+        elif url.path.startswith("/embed/"):
+            video_id = url.path.removeprefix("/embed/")
+    elif url.hostname == "youtu.be":
+        video_id = url.path.removeprefix("/")
+    if re.fullmatch(r"[a-zA-Z0-9_-]{11}", video_id):
+        return video_id
     raise ValueError(f"Invalid YouTube URL: {yt_link!r}")
 
 
@@ -462,7 +484,7 @@ def format_paper(v):
             "pdf_path": convert_drive_link(v.get("raw_pdf_path", "")),
             "poster_pdf": convert_drive_link(v.get("raw_poster_pdf", "")),
             "slides": convert_drive_link(v.get("raw_slides_pdf", "")),
-            "video": v["video"].replace("/open?id=", "/uc?export=preview&id="),
+            "video": (v.get("video") or "").strip().replace("/open?id=", "/uc?export=preview&id="),
             "channel_url": v["channel_url"],
             "slack_channel": v["slack_channel"],
             "day": v["day"],
@@ -652,6 +674,7 @@ def industry(industry):
     uid = industry
     v = by_uid["industry"][uid]
 
+    v = v.copy()
     v["video"] = get_yt_id(v.get("video", ""))
     v["video2"] = get_yt_id(v.get("video2", ""))
 

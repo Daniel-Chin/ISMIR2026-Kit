@@ -449,6 +449,7 @@ def createZoomLinksIfNeeded(
     rowFilter=None,
     breakoutRoomsForRow=None,
     passcode=None,
+    topicPrefix="",
 ):
     """
     Conference mode orchestrator:
@@ -494,7 +495,7 @@ def createZoomLinksIfNeeded(
     # should never go stale on disk)
     try:
         for index, row, breakoutRooms in posterRows:
-            topic = row[topicColumnId]
+            topic = topicPrefix + row[topicColumnId]
             if topic in existingByTopic:
                 posterBackfilled += 1
                 if breakoutRooms:
@@ -549,7 +550,7 @@ def createZoomLinksIfNeeded(
             )
 
             existingWebinar = None
-            webinarTopic = _sharedWebinarTopic(csvFilename)
+            webinarTopic = topicPrefix + _sharedWebinarTopic(csvFilename)
             for webinarId, existingTopic, webinarJoinUrl in getListOfWebinars():
                 if existingTopic == webinarTopic:
                     existingWebinar = (webinarId, webinarJoinUrl)

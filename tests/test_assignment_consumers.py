@@ -49,7 +49,9 @@ def test_zoom_uses_matrix_day_session_and_order(assignment_data):
     callback = api.createZoomLinksIfNeeded.call_args.kwargs['breakoutRoomsForRow']
     assert callback({'title': 'Poster Session - 1', 'day': 1}) == ['paper-002', 'paper-001']
     assert callback({'title': 'Poster Session - 2', 'day': 2}) == ['paper-003', 'paper-004']
-    assert callback({'title': 'Poster Session - 1', 'day': 2}) is None
+    # Event days include the tutorial day; matrix days start with paper sessions.
+    assert callback({'title': 'Poster Session - 1', 'day': 2}) == ['paper-002', 'paper-001']
+    assert callback({'title': 'Poster Session - 2', 'day': 3}) == ['paper-003', 'paper-004']
     assert (path / 'papers.csv').read_bytes() == original
 
 
@@ -74,3 +76,22 @@ def test_missing_assignment_fails_before_zoom_api_or_catalogue_output(assignment
         ZoomCreator(path / 'events.csv', False, path / 'papers.csv')
     with pytest.raises(ValueError, match='missing from session_assignment.csv: 999'):
         build(str(path), 'https://example.org', 'test')
+
+
+def test_zoom_mock_prefix_in_plan_and_api(assignment_data, capsys, monkeypatch):
+    from utils import zoom as zoom_utils
+
+    path = assignment_data
+    events = pd.read_csv(path / 'events.csv')
+    events.loc[len(events)] = [3, 'Opening', 1, 'Opening', '2026-11-09', '09:00', '10:00']
+    events.to_csv(path / 'events.csv', index=False)
+    monkeypatch.setenv('ZOOM_SHARED_WEBINAR_TOPIC', 'Conference Livestream')
+    zoom = ZoomCreator(path / 'events.csv', True, path / 'papers.csv', topicPrefix='mock-')
+    zoom.setupZoomCalls(zoom_utils)
+    output = capsys.readouterr().out
+    assert 'poster-1 | Meeting | mock-Poster Session - 1' in output
+    assert 'shared-webinar | Webinar | mock-Conference Livestream' in output
+    zoom.useDummyValues = False
+    api = Mock()
+    zoom.setupZoomCalls(api)
+    assert api.createZoomLinksIfNeeded.call_args.kwargs['topicPrefix'] == 'mock-'

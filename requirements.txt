@@ -9,3 +9,4 @@ pytz
 python-dateutil
 gunicorn
 requests
+gdown>=5.2,<6

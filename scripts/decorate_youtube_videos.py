@@ -1,5 +1,5 @@
 """
-Sets the title. description, and other metadata for YouTube videos.  
+Sets the title. description, captions, and other metadata for YouTube videos.  
 uv run python -m scripts.decorate_youtube_videos --dry-run
 """
 
@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import copy
 import csv
+import hashlib
 import io
 import json
 import os
@@ -30,6 +31,8 @@ from urllib.parse import parse_qs, urlparse
 
 EXPECTED_CHANNEL_ID = 'UC_L9sCoMJqF3I42IAbO7Bfg'    # change this to your channel ID. https://www.youtube.com/account_advanced
 ROOT = Path(__file__).resolve().parent.parent
+# Tracks named otherwise are never touched.
+CAPTION_NAME_PATTERN = r'official \([0-9A-Za-z]{5}\)'
 SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
 SNIPPET_FIELDS = {'title', 'description', 'categoryId', 'defaultLanguage', 'tags',
                   'defaultAudioLanguage'}
@@ -49,12 +52,20 @@ class PaperRow(TypedDict):
     authors_and_affil: str
     abstract: str
     raw_video: str
+    raw_captions: str
     video: NotRequired[str]
 
 
 class Metadata(TypedDict):
     paper_id: str
     google_drive_id: str
+    caption_drive_id: NotRequired[str]
+
+
+class CaptionPlan(TypedDict):
+    # None removes our tracks; path is set whenever drive_id is.
+    drive_id: str | None
+    path: str | None
 
 
 class UpdatePlan(TypedDict):
@@ -63,6 +74,7 @@ class UpdatePlan(TypedDict):
     before: dict[str, APIObject]
     url: str | None
     classification: Literal['current', 'outdated']
+    caption: CaptionPlan | None
 
 
 def generate_title(paper: PaperRow) -> str:
@@ -130,8 +142,8 @@ def unique_object(pairs: list[tuple[str, Any]]) -> APIObject:
 
 
 def validate_local(
-    csv_path: Path, video_dir: Path,
-) -> tuple[list[str], list[PaperRow], dict[str, PaperRow], bytes]:
+    csv_path: Path, video_dir: Path, caption_dir: Path,
+) -> tuple[list[str], list[PaperRow], dict[str, PaperRow], bytes, dict[str, Path]]:
     original = csv_path.read_bytes()
     reader = csv.DictReader(io.StringIO(original.decode('utf-8-sig'), newline=''))
     fields = list(reader.fieldnames or [])
@@ -151,41 +163,48 @@ def validate_local(
         # Papers without videos may have an empty Drive cell.
         if row['raw_video']:
             drive_id(row['raw_video'], allow_url=True)
+        if row.get('raw_captions'):
+            drive_id(row['raw_captions'], allow_url=True)
         papers[uid] = row
     recorded = json.loads((video_dir / 'download-state/video_urls.json').read_text(),
                           object_pairs_hook=unique_object)
     if not isinstance(recorded, dict):
         raise SafetyError('Download state must be a JSON object')
-    mappings = dict[str, str]()
-    for key, entry in recorded.items():
-        # Entries are {"video": url, "captions": url}; either key is optional.
-        if not isinstance(entry, dict):
-            raise SafetyError(f'Invalid download-state entry: {key}')
-        if 'video' not in entry:
-            continue
-        value = entry['video']
-        path = Path(key)
-        if path.name != key:
-            raise SafetyError(f'Invalid download-state filename: {key}')
-        uid = identifier(path.stem if path.suffix else key, 'download UID')
-        if uid in mappings:
-            raise SafetyError(f'Duplicate download UID: {uid}')
-        mappings[uid] = drive_id(value, allow_url=True)
-    seen = set[str]()
-    for path in sorted(video_dir.iterdir()):
-        if path.name == 'download-state' and path.is_dir():
-            continue
-        if not path.is_file() or path.is_symlink() or not path.suffix:
-            raise SafetyError(f'Unexpected local video entry: {path}')
-        uid = identifier(path.stem, 'local video UID')
-        if uid in seen:
-            raise SafetyError(f'Duplicate local UID: {uid}')
-        seen.add(uid)
-        if uid not in papers or uid not in mappings:
-            raise SafetyError(f'Missing provenance mapping for local UID: {uid}')
-        if mappings[uid] != drive_id(papers[uid]['raw_video'], allow_url=True):
-            raise SafetyError(f'Drive provenance mismatch for local UID: {uid}')
-    return fields, rows, papers, original
+    def check_dir(directory: Path, kind: str, column: Literal['raw_video', 'raw_captions']) -> dict[str, Path]:
+        mappings = dict[str, str]()
+        for key, entry in recorded.items():
+            # Entries are {"video": url, "captions": url}; either key is optional.
+            if not isinstance(entry, dict):
+                raise SafetyError(f'Invalid download-state entry: {key}')
+            if kind not in entry:
+                continue
+            value = entry[kind]
+            path = Path(key)
+            if path.name != key:
+                raise SafetyError(f'Invalid download-state filename: {key}')
+            uid = identifier(path.stem if path.suffix else key, 'download UID')
+            if uid in mappings:
+                raise SafetyError(f'Duplicate download UID: {uid}')
+            mappings[uid] = drive_id(value, allow_url=True)
+        found = dict[str, Path]()
+        for path in sorted(directory.iterdir()) if directory.exists() else []:
+            if path.name == 'download-state' and path.is_dir():
+                continue
+            if not path.is_file() or path.is_symlink() or not path.suffix:
+                raise SafetyError(f'Unexpected local {kind} entry: {path}')
+            uid = identifier(path.stem, f'local {kind} UID')
+            if uid in found:
+                raise SafetyError(f'Duplicate local {kind} UID: {uid}')
+            found[uid] = path
+            if uid not in papers or uid not in mappings or not papers[uid].get(column):
+                raise SafetyError(f'Missing {kind} provenance mapping for local UID: {uid}')
+            if mappings[uid] != drive_id(papers[uid][column], allow_url=True):
+                raise SafetyError(f'Drive {kind} provenance mismatch for local UID: {uid}')
+        return found
+
+    check_dir(video_dir, 'video', 'raw_video')
+    captions = check_dir(caption_dir, 'captions', 'raw_captions')
+    return fields, rows, papers, original, captions
 
 
 def metadata(description: object) -> Metadata | None:
@@ -198,13 +217,16 @@ def metadata(description: object) -> Metadata | None:
         raise SafetyError('Malformed or ambiguous ISMIR_METADATA block')
     values = dict[str, str]()
     for line in blocks[0].splitlines():
-        match = re.fullmatch(r'(paper_id|google_drive_id): ([A-Za-z0-9_-]+)', line)
+        match = re.fullmatch(r'(paper_id|google_drive_id|caption_drive_id): ([A-Za-z0-9_-]+)', line)
         if not match or match[1] in values:
             raise SafetyError('Malformed or duplicate metadata field')
         values[match[1]] = match[2]
-    if set(values) != {'paper_id', 'google_drive_id'}:
+    if not {'paper_id', 'google_drive_id'} <= set(values):
         raise SafetyError('Metadata requires paper_id and google_drive_id')
-    return Metadata(paper_id=values['paper_id'], google_drive_id=values['google_drive_id'])
+    result = Metadata(paper_id=values['paper_id'], google_drive_id=values['google_drive_id'])
+    if 'caption_drive_id' in values:
+        result['caption_drive_id'] = values['caption_drive_id']
+    return result
 
 
 def execute(request: HttpRequest) -> APIObject:
@@ -289,13 +311,14 @@ def legalize_title(title: str) -> str:
     return legalize(title, multiline=False)[:100].rstrip()
 
 
-def render(row: PaperRow) -> tuple[str, str]:
+def render(row: PaperRow, caption_drive_id: str | None) -> tuple[str, str]:
     title = legalize_title(generate_title(row))
     human = legalize(generate_description(row), multiline=True)
     if 'ISMIR_METADATA' in human:
         raise SafetyError('Human description template must not contain machine metadata')
     footer = ('\n\n---\nISMIR_METADATA\n'
-              f"paper_id: {row['uid']}\ngoogle_drive_id: {drive_id(row['raw_video'], allow_url=True)}")
+              f"paper_id: {row['uid']}\ngoogle_drive_id: {drive_id(row['raw_video'], allow_url=True)}"
+              + (f'\ncaption_drive_id: {caption_drive_id}' if caption_drive_id else ''))
     budget = 4999 - len(footer.encode('utf-8'))
     if len(human.encode('utf-8')) > budget:
         ellipsis = '…'
@@ -318,10 +341,10 @@ def fresh_paper_id(video: APIObject, papers: Mapping[str, PaperRow]) -> str | No
 
 
 def plan_updates(
-    videos: Sequence[APIObject], papers: Mapping[str, PaperRow],
+    videos: Sequence[APIObject], papers: Mapping[str, PaperRow], captions: Mapping[str, Path],
 ) -> list[UpdatePlan]:
-    # (video, is_current) per paper; fresh uploads are current by definition.
-    by_paper = dict[str, list[tuple[APIObject, bool]]]()
+    # (video, is_current, claimed caption) per paper; fresh uploads are current by definition.
+    by_paper = dict[str, list[tuple[APIObject, bool, str | None]]]()
     for video in videos:
         claim = metadata(video['snippet']['description'])
         if claim is None:
@@ -329,29 +352,38 @@ def plan_updates(
             if uid is None:
                 continue
             current = True
+            claimed_caption = None
         else:
             uid = claim['paper_id']
             if uid not in papers:
                 raise SafetyError(f'Managed paper absent from CSV: {uid}')
             current = claim['google_drive_id'] == drive_id(papers[uid]['raw_video'], allow_url=True)
-        by_paper.setdefault(uid, []).append((video, current))
+            claimed_caption = claim.get('caption_drive_id')
+        by_paper.setdefault(uid, []).append((video, current, claimed_caption))
 
     plans = list[UpdatePlan]()
     for uid, paper in papers.items():
         candidates = by_paper.get(uid, [])
-        currents = [video['id'] for video, current in candidates if current]
+        currents = [video['id'] for video, current, _ in candidates if current]
         if len(currents) > 1:
             raise SafetyError(f'!!! Multiple non-outdated YouTube videos for paper {uid}: '
                               f'{", ".join(currents)}. Archive or delete extras by hand. Aborting.')
-        for video, current in candidates:
+        for video, current, claimed_caption in candidates:
             # Archived, private outdated uploads need no further changes.
             if not current and (video['status']['privacyStatus'] == 'private'
                                 and video['snippet']['title'].startswith('[outdated]')):
                 continue
             before = mutable(video)
             after = copy.deepcopy(before)
+            caption: CaptionPlan | None = None
             if current:
-                title, description = render(paper)
+                # The footer records the synced caption, so a match costs no caption API quota.
+                wanted = drive_id(paper['raw_captions'], allow_url=True) if paper.get('raw_captions') else None
+                if wanted != claimed_caption:
+                    if wanted is not None and uid not in captions:
+                        raise SafetyError(f'Captions for {uid} not downloaded; run the downloader first')
+                    caption = {'drive_id': wanted, 'path': str(captions[uid]) if wanted else None}
+                title, description = render(paper, wanted)
                 after['snippet'].update(title=title, description=description,
                                         categoryId='28', defaultLanguage='en')
                 after['status'].update(privacyStatus='unlisted', license='creativeCommon',
@@ -370,7 +402,7 @@ def plan_updates(
             body = {'id': video['id'], **{p: after[p] for p in after if before[p] != after[p]}}
             url = f"https://www.youtube.com/watch?v={video['id']}" if current else None
             plans.append({'uid': uid, 'body': body, 'before': before, 'url': url,
-                          'classification': 'current' if current else 'outdated'})
+                          'classification': 'current' if current else 'outdated', 'caption': caption})
     return plans
 
 
@@ -398,6 +430,44 @@ def atomic_write(path: Path, data: bytes, mode: int | None = None) -> None:
             os.unlink(name)
 
 
+def caption_name(caption_drive_id: str) -> str:
+    # 5 base62 chars (~29.8 bits): 95% chance that each of 300 years sees no collision among its 300 IDs.
+    alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    number = int.from_bytes(hashlib.sha256(caption_drive_id.encode()).digest(), 'big')
+    digits = list[str]()
+    for _ in range(5):
+        number, digit = divmod(number, 62)
+        digits.append(alphabet[digit])
+    return f'official ({"".join(digits)})'
+
+
+def sync_captions(youtube: Resource, video_id: str, caption: CaptionPlan) -> None:
+    """Insert before deleting so a crash leaves duplicates of ours at worst, which the rerun cleans."""
+    from googleapiclient.http import MediaFileUpload
+
+    wanted = caption['drive_id']
+    tracks = list(pages(youtube.captions(), part='snippet', videoId=video_id))
+    ours = [t for t in tracks if re.fullmatch(CAPTION_NAME_PATTERN, str(t['snippet'].get('name', '')))]
+    name = caption_name(wanted) if wanted is not None else None
+    keep = [t for t in ours if name is not None and t['snippet'].get('name') == name]
+    if len(keep) > 1:
+        raise SafetyError(f'Multiple caption tracks named {name} on {video_id}; delete extras by hand')
+    if wanted is not None and not keep:
+        assert caption['path'] is not None
+        snippet = {'videoId': video_id, 'language': 'en', 'name': name, 'isDraft': False}
+        response = execute(youtube.captions().insert(
+            part='snippet', body={'snippet': snippet},
+            media_body=MediaFileUpload(caption['path'], mimetype='application/octet-stream')))
+        if response.get('snippet', {}).get('name') != name or not response.get('id'):
+            raise SafetyError('Caption insert response differs from request')
+        keep = [response]
+        tqdm.write(f'COMPLETED caption insert: {video_id} {name}')
+    for track in ours:
+        if track['id'] not in {t['id'] for t in keep}:
+            execute(youtube.captions().delete(id=track['id']))
+            tqdm.write(f"COMPLETED caption delete: {video_id} {track['snippet'].get('name')}")
+
+
 def apply_updates(
     youtube: Resource, plans: Sequence[UpdatePlan], csv_path: Path,
     fields: list[str], rows: list[PaperRow], original: bytes, dry_run: bool = False,
@@ -408,7 +478,8 @@ def apply_updates(
         parts = [part for part in ('snippet', 'status') if part in body]
         url = plan['url']
         csv_change = url is not None and papers[plan['uid']].get('video', '') != url
-        if not parts and not csv_change:
+        caption = plan['caption']
+        if not parts and not csv_change and caption is None:
             continue
         if csv_path.read_bytes() != original:
             raise SafetyError('CSV changed during execution; aborting')
@@ -417,6 +488,9 @@ def apply_updates(
         tqdm.write(('DRY RUN ' if dry_run else 'PLANNED ') + json.dumps(log, ensure_ascii=False, sort_keys=True))
         if dry_run:
             continue
+        if caption is not None:
+            # Before the description update, which records the caption in the footer.
+            sync_captions(youtube, body['id'], caption)
         if parts:
             response = execute(youtube.videos().update(part=','.join(parts), body=body))
             if response.get('id') != body['id'] or any(
@@ -463,6 +537,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser = argparse.ArgumentParser(description=__doc__)
         parser.add_argument('--input', type=Path, default=ROOT / 'sitedata/papers.csv')
         parser.add_argument('--videos', type=Path, default=ROOT / 'tmp/videos')
+        parser.add_argument('--captions', type=Path, default=ROOT / 'tmp/captions')
         parser.add_argument('--dry-run', action='store_true', help='Read and plan only; no CSV or YouTube writes')
         parser.add_argument('--drier-run', action='store_true',
                             help='No auth or API calls; pretend YouTube is empty and print the plan')
@@ -470,7 +545,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                             help='Apply only the first planned update, for testing')
         args = parser.parse_args(argv)
         dry_run = args.dry_run or args.drier_run
-        fields, rows, papers, original = validate_local(args.input, args.videos)
+        fields, rows, papers, original, captions = validate_local(args.input, args.videos, args.captions)
         if args.drier_run:
             print('DRIER RUN: no auth or API calls; pretending YouTube has no uploads.')
             youtube = cast('Resource', None)
@@ -485,7 +560,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     and fresh_paper_id(v, papers) is not None for v in videos)
         print(f'Found {len(videos)} uploads: {managed} with ISMIR_METADATA, {fresh} fresh, '
               f'{len(videos) - managed - fresh} unrelated and ignored.')
-        plans = plan_updates(videos, papers)
+        plans = plan_updates(videos, papers, captions)
         print(f'Planned {len(plans)} videos; ones needing no change are skipped silently.')
         if args.first_video:
             plans = plans[:1]

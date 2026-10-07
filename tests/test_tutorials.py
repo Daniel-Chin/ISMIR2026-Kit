@@ -29,6 +29,9 @@ class FakeSlack:
     def getChannelID(self, channel_name):
         return self.channels.get(channel_name)
 
+    def getChannelURL(self, channel_id):
+        return f"https://ws.slack.com/archives/{channel_id}"
+
     def inviteUserToChannel(self, email, channel_name):
         self.invites.append((email, channel_name))
 
@@ -97,8 +100,8 @@ def test_create_tutorial_channels_private_and_write_links(tmp_path):
     ]
     assert slack.reloads == 1
     events = pd.read_csv(events_path).fillna("")
-    assert events.loc[0, "channel_url"] == ("https://slack.com/app_redirect?channel=C1")
-    assert events.loc[1, "channel_url"] == ("https://slack.com/app_redirect?channel=C2")
+    assert events.loc[0, "channel_url"] == "https://ws.slack.com/archives/C1"
+    assert events.loc[1, "channel_url"] == "https://ws.slack.com/archives/C2"
     assert events.loc[2, "channel_url"] == "keep-me"
 
 

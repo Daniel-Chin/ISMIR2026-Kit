@@ -37,7 +37,7 @@ def configure_clients(is_mockup: bool = False) -> None:
     Missing tokens stay empty, allowing local-only actions without credentials.
     Mockup mode never falls back to live tokens.
     """
-    global client_bot, client_user, _user_maps, _channel_maps
+    global client_bot, client_user, _user_maps, _channel_maps, _workspace_url
     prefix = "MOCKUP_" if is_mockup else ""
     client_bot = slack_sdk.WebClient(
         token=os.environ.get(f"{prefix}SLACK_BOT_TOKEN", ""), ssl=ssl_context
@@ -49,9 +49,24 @@ def configure_clients(is_mockup: bool = False) -> None:
         client.retry_handlers.append(RateLimitErrorRetryHandler(max_retry_count=5))
     _user_maps = None
     _channel_maps = None
+    _workspace_url = None
 
 
 configure_clients()
+
+
+def getWorkspaceURL() -> str:
+    """Workspace base URL (e.g. https://ismir2026-organizers.slack.com/), from auth.test."""
+    global _workspace_url
+    if _workspace_url is None:
+        url = client_bot.auth_test().data["url"]  # type: ignore
+        assert url
+        _workspace_url = url if url.endswith("/") else url + "/"
+    return _workspace_url
+
+
+def getChannelURL(channel_id: str) -> str:
+    return f"{getWorkspaceURL()}archives/{channel_id}"
 
 # Slack recommends requesting at most 200 items per page on cursor-paginated
 # methods (users.list, conversations.list, conversations.members).
@@ -117,9 +132,7 @@ def write_channel_links_to_csv(
         channel_id = slack_client.getChannelID(channel_name)
         if channel_id is None:
             raise LookupError(f"Channel {channel_name} does not exist in the workspace.")
-        csv_data.loc[index, "channel_url"] = (
-            f"https://slack.com/app_redirect?channel={channel_id}"
-        )
+        csv_data.loc[index, "channel_url"] = slack_client.getChannelURL(channel_id)
     csv_data.to_csv(csv_path, index=False)
     if remind_to_paste_to_sheet:
         print(
@@ -370,7 +383,7 @@ def addChannelLinksToCSV(csvFile, channelColumnName, newCsvFile=None):
         if isChannel(channelName):
             paper_data.loc[
                 i, "channel_url"
-            ] = f"https://slack.com/app_redirect?channel={getChannelID(channelName)}"
+            ] = getChannelURL(getChannelID(channelName))
         else:
             print(
                 f"Channel {channelName} does not exist in the workspace. Skipping link creation."

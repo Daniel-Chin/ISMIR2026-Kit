@@ -135,11 +135,11 @@ final channel names. Session and position come from `session_assignment.csv`.
 
 **`create-channels`**: for every `slack_channel` value not already present in
 the workspace (public + private channels the bot can see), creates a public
-channel; then writes `https://slack.com/app_redirect?channel=<id>` into the
-`channel_url` column for every row whose channel exists. The CSV is rewritten
-in place. The `app_redirect` form opens the channel in whatever workspace the
-clicking user is signed into, so links keep working if the workspace is
-renamed.
+channel; then writes `https://<workspace>.slack.com/archives/<id>` into the
+`channel_url` column for every row whose channel exists (the workspace URL comes
+from `auth.test`). The CSV is rewritten in place. To fix CSVs written with the
+old workspace-less `app_redirect` form, run
+`python -m scripts.bump_slack_channel_urls [--mockup]`.
 
 **`invite-authors`**: splits each row's `author_emails` on `;`, resolves each
 email to a workspace user ID, and invites them to the row's channel (skipping
@@ -260,7 +260,7 @@ on `ratelimited` (2 s sleep, up to 100 tries) via the `retry` helper.
 | `createPublicSlackChannels(channels)` | Deprecated compatibility wrapper for public-channel creation |
 | `createPrivateSlackChannels(csvFile, channelColumnName)` | Legacy private-channel helper that reads names from a CSV column |
 | `loadAllChannelData()` | Invalidates the cached channel maps so the next lookup refetches — call after creating channels, before writing links |
-| `addChannelLinksToCSV(csvFile, channelColumnName, newCsvFile=None)` | Writes `app_redirect` links into a `channel_url` column; in place unless `newCsvFile` given |
+| `addChannelLinksToCSV(csvFile, channelColumnName, newCsvFile=None)` | Writes `https://<workspace>.slack.com/archives/<id>` links into a `channel_url` column; in place unless `newCsvFile` given |
 | `inviteUserToChannel(user_email, channelName)` / `inviteUsersToChannel(user_emails, channelName)` | Skips users already in the channel; prints and skips emails not in the workspace |
 | `updateTopicandPurpose(channelName, topic, purpose)` | Used by `set-desc` |
 | `isChannel(name)` / `getChannelID(name)` / `getUserID(email)` / `getUserEmail(id)` | Cache lookups, no API call |

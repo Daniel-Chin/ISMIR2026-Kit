@@ -128,7 +128,7 @@ Example: `p2-1-reformulating-soft-dynamic`
 
 - Creating public/private channels (with rate-limit retries)
 - Looking up users by email and inviting them
-- Writing `https://slack.com/app_redirect?channel=<id>` back into CSV as `channel_url`
+- Writing `https://<workspace>.slack.com/archives/<id>` back into CSV as `channel_url`
 - Setting channel topic and purpose
 
 Without `--prod`, dummy emails are used so you can test without spamming real authors.

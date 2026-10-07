@@ -1,8 +1,9 @@
 # YouTube
 For hosting 3-min presentation videos.
 
-## Rename local videos
-- Use [../scripts/download_and_rename_videos.py](../scripts/download_and_rename_videos.py)  
+## Rename and verify local videos
+- Use [../scripts/download_and_rename_videos_and_captions.py](../scripts/download_and_rename_videos_and_captions.py)  
+- Use [../scripts/police_videos.py](../scripts/police_videos.py) to monitor durations. 
 
 ## Manually upload videos
 - YouTube studio account verification

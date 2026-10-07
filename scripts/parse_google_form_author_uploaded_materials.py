@@ -31,7 +31,7 @@ class AuthorUploadedMaterials:
     poster_url: str | None = field(metadata={'header': 'poster', 'output': 'raw_poster_pdf'})
     thumbnail_url: str | None = field(metadata={'header': 'thumbnail', 'output': 'raw_thumbnail'})
     video_url: str | None = field(metadata={'header': 'video presentation', 'output': 'raw_video'})
-    captions_url: str | None = field(metadata={'header': 'captions'})
+    captions_url: str | None = field(metadata={'header': 'captions', 'output': 'raw_captions'})
     fun_facts: str | None = field(metadata={'header': 'fun facts'})
 
 

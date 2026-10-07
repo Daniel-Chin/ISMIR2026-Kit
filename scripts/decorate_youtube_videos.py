@@ -157,7 +157,13 @@ def validate_local(
     if not isinstance(recorded, dict):
         raise SafetyError('Download state must be a JSON object')
     mappings = dict[str, str]()
-    for key, value in recorded.items():
+    for key, entry in recorded.items():
+        # Entries are {"video": url, "captions": url}; either key is optional.
+        if not isinstance(entry, dict):
+            raise SafetyError(f'Invalid download-state entry: {key}')
+        if 'video' not in entry:
+            continue
+        value = entry['video']
         path = Path(key)
         if path.name != key:
             raise SafetyError(f'Invalid download-state filename: {key}')

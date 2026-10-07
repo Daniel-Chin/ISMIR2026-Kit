@@ -1,5 +1,5 @@
 """
-Check videos downloaded by download_and_rename_videos.py: warn on long
+Check videos downloaded by download_and_rename_videos_and_captions.py: warn on long
 videos and plot histograms of duration and filesize.
 """
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
-from download_and_rename_videos import OUT_DIR
+from download_and_rename_videos_and_captions import OUT_DIR
 
 
 MAX_DURATION = 3 * 60 + 2  # seconds

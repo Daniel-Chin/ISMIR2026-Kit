@@ -59,13 +59,12 @@ def parse_file(sitedata_path: str) -> tuple[list[Session], list[Paper]]:
             paper_matrix.append([*row[1:]])
 
     sessions = list[Session]()
-    first_date = None
+    # Day 1 is the conference start date, matching events.csv.
+    first_date = parse_conference_start(conf_config, zone_info).date()
     for i, name in enumerate(names):
         start_time, end_time = parse_time_block(
-            conf_config, zone_info, time_blocks[i], 
+            conf_config, zone_info, time_blocks[i],
         )
-        if first_date is None:
-            first_date = start_time.astimezone(zone_info).date()
         day = ((
             start_time.astimezone(zone_info).date() - first_date
         ).days + 1)
@@ -99,14 +98,7 @@ def parse_file(sitedata_path: str) -> tuple[list[Session], list[Paper]]:
     return sessions, papers
 
 
-def parse_time_block(
-    conf_config: dict,
-    zone_info: ZoneInfo,
-    time_block: str,
-) -> tuple[datetime, datetime]:
-    '''
-    Example input: "Mon, 10:00 - 11:30"
-    '''
+def parse_conference_start(conf_config: dict, zone_info: ZoneInfo) -> datetime:
     conf_block: str = conf_config['date']   # e.g. '2026 Nov 8-12'
     year_str, month_str, day_range = conf_block.split(' ')
     day_start_str, _ = day_range.split('-')
@@ -115,7 +107,18 @@ def parse_time_block(
     month = datetime.strptime(month_str, '%b').month  # noqa: DTZ007
     start_day = int(day_start_str)
 
-    conference_start = datetime(year, month, start_day, tzinfo=zone_info)
+    return datetime(year, month, start_day, tzinfo=zone_info)
+
+
+def parse_time_block(
+    conf_config: dict,
+    zone_info: ZoneInfo,
+    time_block: str,
+) -> tuple[datetime, datetime]:
+    '''
+    Example input: "Mon, 10:00 - 11:30"
+    '''
+    conference_start = parse_conference_start(conf_config, zone_info)
 
     weekday_name, time_window = time_block.split(', ')
     weekday_map = {

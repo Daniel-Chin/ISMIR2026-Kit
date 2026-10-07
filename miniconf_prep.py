@@ -50,6 +50,7 @@ def parse_arguments():
     # add-admins-to-tutorials
     # setup-tutorials-invite-attendees
     # setup-tutorials (compatibility: runs both stages)
+    # setup-papers-create-channels
     # setup-papers-set-desc
     # setup-event-channels
     # create-event-channels

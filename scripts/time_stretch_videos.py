@@ -12,8 +12,8 @@ import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from download_and_rename_videos_and_captions import OUT_DIR
-from police_videos import probe_duration
+from scripts.download_and_rename_videos_and_captions import OUT_DIR
+from scripts.police_videos import probe_duration
 
 
 TOO_LONG = 3 * 60 + 10  # seconds

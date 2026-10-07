@@ -8,7 +8,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from download_and_rename_videos_and_captions import OUT_DIR
+from scripts.download_and_rename_videos_and_captions import OUT_DIR
 
 
 MAX_DURATION = 3 * 60 + 2  # seconds

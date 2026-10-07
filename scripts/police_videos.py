@@ -8,8 +8,6 @@ import json
 import subprocess
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-
 from download_and_rename_videos_and_captions import OUT_DIR
 
 
@@ -25,6 +23,8 @@ def probe_duration(path: Path) -> float:
 
 
 def main() -> int:
+    import matplotlib.pyplot as plt  # Lazy so importers of probe_duration skip matplotlib.
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--videos', type=Path, default=OUT_DIR, help='Video directory')
     args = parser.parse_args()

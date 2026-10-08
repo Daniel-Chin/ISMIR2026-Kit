@@ -188,15 +188,16 @@ def validate_local(
             mappings[uid] = drive_id(value, allow_url=True)
         found = dict[str, Path]()
         for path in sorted(directory.iterdir()) if directory.exists() else []:
-            if path.name == 'download-state' and path.is_dir():
+            # Stray files are fine; only files named after a papers.csv UID matter.
+            uid = path.stem
+            if not path.suffix or uid not in papers:
                 continue
-            if not path.is_file() or path.is_symlink() or not path.suffix:
+            if not path.is_file() or path.is_symlink():
                 raise SafetyError(f'Unexpected local {kind} entry: {path}')
-            uid = identifier(path.stem, f'local {kind} UID')
             if uid in found:
                 raise SafetyError(f'Duplicate local {kind} UID: {uid}')
             found[uid] = path
-            if uid not in papers or uid not in mappings or not papers[uid].get(column):
+            if uid not in mappings or not papers[uid].get(column):
                 raise SafetyError(f'Missing {kind} provenance mapping for local UID: {uid}')
             if mappings[uid] != drive_id(papers[uid][column], allow_url=True):
                 raise SafetyError(f'Drive {kind} provenance mismatch for local UID: {uid}')

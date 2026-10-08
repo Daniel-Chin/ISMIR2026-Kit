@@ -147,6 +147,8 @@ def download_videos(in_csv: Path, out_dir: Path, captions_out_dir: Path) -> int:
                     if downloaded is None:
                         raise RuntimeError('Google Drive download failed')
                     file = Path(downloaded)
+                    if not file.suffix and kind == 'captions':
+                        file = file.rename(file.with_name(file.name + '.srt'))
                     if not file.suffix:
                         raise ValueError('Google Drive filename has no extension')
                     min_size = KINDS[kind][1]

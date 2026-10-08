@@ -169,7 +169,7 @@ const start = () => {
 
 
     d3.json('lbds.json').then(lbds => {
-        console.log(lbds, "--- lbds");
+        // console.log(lbds, "--- lbds");
 
 //        shuffleArray(lbds);
 
@@ -177,7 +177,7 @@ const start = () => {
         calcAllKeys(allLBDs, allKeys);
         uniqueSessions = [...new Set(allKeys['session'])];
         uniqueSessions = uniqueSessions.sort((a,b) => a - b);
-        console.log(uniqueSessions);
+        // console.log(uniqueSessions);
         populateSessionSelect(uniqueSessions);
         setTypeAhead(urlFilter,
           allKeys, filters, render);

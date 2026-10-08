@@ -169,7 +169,7 @@ const start = () => {
 
 
     d3.json('papers.json').then(papers => {
-        console.log(papers, "--- papers");
+        // console.log(papers, "--- papers");
 
 //        shuffleArray(papers);
 
@@ -177,7 +177,7 @@ const start = () => {
         calcAllKeys(allPapers, allKeys);
         uniqueSessions = [...new Set(allKeys['session'])];
         uniqueSessions = uniqueSessions.sort((a,b) => a - b);
-        console.log(uniqueSessions);
+        // console.log(uniqueSessions);
         populateSessionSelect(uniqueSessions);
         setTypeAhead(urlFilter,
           allKeys, filters, render);

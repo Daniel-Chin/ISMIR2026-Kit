@@ -56,7 +56,7 @@ const render = () => {
     Object.keys(filters)
       .forEach(k => {filters[k] ? f_test.push([k, filters[k]]) : null})
 
-    console.log(f_test, filters, "--- f_test, filters");
+    // console.log(f_test, filters, "--- f_test, filters");
     if (f_test.length === 0) updateCards(allJobs)
     else {
         const fList = allJobs.filter(
@@ -88,7 +88,7 @@ const start = () => {
     updateFilterSelectionBtn(urlFilter)
 
     d3.json('jobs.json').then(jobs => {
-        console.log(jobs, "--- jobs");
+        // console.log(jobs, "--- jobs");
 
 //        shuffleArray(jobs);
         allJobs = jobs;
@@ -151,7 +151,7 @@ $('.fullscreen-button').on('click', function() {
 // when you are in fullscreen, ESC and F11 may not be trigger by keydown listener.
 // so don't use it to detect exit fullscreen
 document.addEventListener('keydown', function (e) {
-  console.log('key press' + e.keyCode);
+  // console.log('key press' + e.keyCode);
 });
 // detect enter or exit fullscreen mode
 document.addEventListener('webkitfullscreenchange', fullscreenChange);
@@ -189,10 +189,10 @@ function fullscreenChange() {
        document.webkitIsFullScreen ||
        document.mozFullScreen ||
        document.msFullscreenElement) {
-    console.log('enter fullscreen');
+    // console.log('enter fullscreen');
   }
   else {
-    console.log('exit fullscreen');
+    // console.log('exit fullscreen');
   }
   // force to reload iframe once to prevent the iframe source didn't care about trying to resize the window
   // comment this line and you will see

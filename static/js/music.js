@@ -57,7 +57,7 @@ const render = () => {
     Object.keys(filters)
       .forEach(k => {filters[k] ? f_test.push([k, filters[k]]) : null})
 
-    console.log(f_test, filters, "--- f_test, filters");
+    // console.log(f_test, filters, "--- f_test, filters");
     if (f_test.length === 0) updateCards(allMusic)
     else {
         const fList = allMusic.filter(
@@ -91,7 +91,7 @@ const start = () => {
 
 
     d3.json('music.json').then(music => {
-        console.log(music, "--- music");
+        // console.log(music, "--- music");
 
 //        shuffleArray(music);
         //
@@ -148,7 +148,7 @@ const card_html = openreview => {
 
 fetch('https://youtube.com', {mode: 'no-cors'}).then(r=>{
   // YOUTUBE EMBED
-  console.log('youtube is reachable');
+  // console.log('youtube is reachable');
   let yt_links = [
     'https://www.youtube.com/playlist?list=PL3uOsOHTT-9cvCd_tnLLlQEHl4NGrckV0',
     'https://www.youtube.com/playlist?list=PL3uOsOHTT-9evUhcquatvlMM72YNv_OKY',

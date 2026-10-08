@@ -1,6 +1,6 @@
 fetch('https://youtube.com', {mode: 'no-cors'}).then(r=>{
   // YOUTUBE EMBED
-  console.log('youtube is reachable');
+  // console.log('youtube is reachable');
   var embed = $('#yt-id').data()['name'];
   $('#video .video-container').append(`
     <div class="aspect-ratio yt-container">
@@ -8,7 +8,7 @@ fetch('https://youtube.com', {mode: 'no-cors'}).then(r=>{
     </div>
 
     `)
-  console.log($('#yt-id').data()['name']);
+  // console.log($('#yt-id').data()['name']);
   // $('.yt-container iframe').attr('src', "https://www.youtube.com/embed/" + $('#yt-id').data()['name']);
 
   });

@@ -4,7 +4,7 @@ function make_cal(name) {
 
     const current_tz = getUrlParameter('tz') || moment.tz.guess();
     const tzNames = [...moment.tz.names()];
-    console.log(current_tz);
+    // console.log(current_tz);
     let localStart = 7 // 07:00 local time
     let startOffsets = [0,0]
 

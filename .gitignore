@@ -239,3 +239,8 @@ __marimo__/
 
 # vendored at bot image build time from catalogue/schema.py
 bot/shared/catalogue_schema.py
+
+# Paper thumbnails downloaded at build time (scripts/download_paper_thumbnails.py)
+.cache/
+static/paper_images/*
+!static/paper_images/.gitkeep

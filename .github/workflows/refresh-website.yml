@@ -73,6 +73,26 @@ jobs:
         if: ${{ inputs.mockup }}
         run: uv run python pull_from_google_sheet.py --mockup
 
+      # Caches are immutable, so each run saves under a new key and restores
+      # the newest one via the prefix.
+      - name: Restore thumbnail cache
+        uses: actions/cache/restore@v6.1.0
+        with:
+          path: .cache/drive_thumbnails
+          key: drive-thumbnails-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: drive-thumbnails-
+
+      - name: Download paper thumbnails
+        run: uv run python scripts/download_paper_thumbnails.py ${{ inputs.mockup && '--mockup' || '' }}
+
+      # always(): keep partial progress even if the download or a later step fails.
+      - name: Save thumbnail cache
+        if: ${{ always() }}
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: .cache/drive_thumbnails
+          key: drive-thumbnails-${{ github.run_id }}-${{ github.run_attempt }}
+
       - name: Build website
         if: ${{ !inputs.mockup }}
         run: uv run python main.py --build

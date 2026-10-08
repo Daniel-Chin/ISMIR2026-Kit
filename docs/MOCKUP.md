@@ -26,7 +26,7 @@ Google Sheet ──python pull_from_google_sheet.py──▶ sitedata/*.csv
 sitedata/events.csv ──prepare-calendar──▶ ICS download
 sitedata/*.csv ──miniconf_prep.py setup-*──▶ Slack channels ──▶ channel_url written back to CSV
 sitedata/events.csv ──setup-zoom (utils/zoom.py)──▶ Zoom meetings ──▶ live/zoom links in CSV
-sitedata/ ──main.py (Flask)──▶ site preview ──make freeze──▶ static build ──▶ GitHub Pages
+sitedata/ ──main.py (Flask)──▶ site preview ──main.py --build──▶ static build ──▶ GitHub Pages
 ```
 
 Outputs: the program website (one page per paper/LBD/performance/sponsor with
@@ -201,7 +201,7 @@ room-less meetings. Caveat: free Zoom accounts cap meetings at 40 min.
 
 ### 4. Run the 3 hours
 
-- T-0:15 — start site (or `make freeze` + deploy), post welcome in Slack `#general`.
+- T-0:15 — start site (or run the `Refresh website` workflow with `mockup`), post welcome in Slack `#general`.
 - 18:10 — run the mock tutorial and verify its page and private Slack channel.
 - 18:30 — open the Oral Session Zoom from the calendar's `live_url`.
 - 19:00 — poster session: Q&A happens in the per-paper channels (`p1-1-…` … `p1-6-…`).

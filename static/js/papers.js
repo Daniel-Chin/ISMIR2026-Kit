@@ -261,7 +261,7 @@ const keyword = kw => `<a href="papers.html?filter=keywords&search=${kw}"
                        class="text-secondary text-decoration-none">${kw.toLowerCase()}</a>`
 
 const card_image = (openreview, show) => {
-    if (show) return ` <center style="flex-grow: 1;"><img class="lazy-load-img cards_img" data-src="static/paper_images/${openreview.id}" width="80%"/></center>`
+    if (show && openreview.content.thumbnail) return ` <center style="flex-grow: 1;"><img class="lazy-load-img cards_img" data-src="${openreview.content.thumbnail}" width="80%"/></center>`
     else return ''
 }
 

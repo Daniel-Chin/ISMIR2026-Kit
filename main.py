@@ -411,6 +411,17 @@ def convert_drive_link(s):
     return s
 
 
+def paper_thumbnail_path(v) -> str:
+    # URL -> filename map written by scripts/download_paper_thumbnails.py
+    try:
+        with open("static/paper_images/url_map.json", encoding="utf-8") as f:
+            url_map = json.load(f)
+    except FileNotFoundError:
+        return ""
+    url = (v.get("raw_thumbnail") or v.get("thumbnail") or "").strip()
+    return f"static/paper_images/{url_map[url]}" if url in url_map else ""
+
+
 def get_yt_id(yt_link: str) -> str:
     if not yt_link:
         return ""
@@ -484,6 +495,7 @@ def format_paper(v):
             "pdf_path": convert_drive_link(v.get("raw_pdf_path", "")),
             "poster_pdf": convert_drive_link(v.get("raw_poster_pdf", "")),
             "slides": convert_drive_link(v.get("raw_slides_pdf", "")),
+            "thumbnail": paper_thumbnail_path(v),
             "video": (v.get("video") or "").strip().replace("/open?id=", "/uc?export=preview&id="),
             "channel_url": v["channel_url"],
             "slack_channel": v["slack_channel"],

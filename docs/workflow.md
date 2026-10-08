@@ -76,9 +76,24 @@ export FLASK_DEBUG=True FLASK_DEVELOPMENT=True
 python main.py
 ```
 
-### Deploy
+### Build and deploy
 
-`make freeze` generates a static `build/` folder; `make deploy` pushes it to GitHub Pages.
+GitHub Actions builds and deploys the site: [`.github/workflows/refresh-website.yml`](../.github/workflows/refresh-website.yml),
+triggered manually or by the Slack `/push-sheet-to-website` command. Paper thumbnails
+are cached between runs (see below).
+
+To build the static site locally into `build/` (add `--mockup` to each command for `sitedata_mock/`):
+
+```bash
+uv run python pull_from_google_sheet.py
+uv run python scripts/download_paper_thumbnails.py
+uv run python main.py --build
+```
+
+`download_paper_thumbnails.py` downloads each paper's `raw_thumbnail` from Google Drive into
+`.cache/drive_thumbnails/`, with `url_map.json` mapping each URL to its file, so a URL is
+never requested twice. It copies the needed files into `static/paper_images/`. It pauses
+5 minutes when Google rate-limits it, and aborts if any thumbnail is over 1 MB.
 
 ---
 
@@ -307,7 +322,7 @@ This runs `scripts/remove_private_details.py`, which drops email columns from al
 4. **Sanitize** with `remove-author-email` before publishing if emails shouldn't be on the live site.
 5. **Build calendar** with `prepare-calendar`.
 6. **Preview** locally with `main.py`.
-7. **Deploy** with `make deploy` (static site to GitHub Pages).
+7. **Deploy** by running the `Refresh website` GitHub workflow (or `/push-sheet-to-website` in Slack).
 
 Each paper/poster page gets a Slack link; each Slack channel gets a link back to the MiniConf page — that's the core virtual-conference loop.
 

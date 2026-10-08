@@ -12,10 +12,6 @@ For hosting 3-min presentation videos.
 - Wanna upload more than 10 videos per day?
   - YouTube Studio → Settings → Channel → Feature eligibility → Advanced feature
 
-## Set title, description, and other metadata
+## Set title, description, captions, and other metadata
 - Set up project and app in Google Cloud Console.  
 - Use [../scripts/decorate_youtube_videos.py](../scripts/decorate_youtube_videos.py)  
-
-
-## Upload captions
-...

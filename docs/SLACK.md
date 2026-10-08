@@ -45,6 +45,7 @@ the workspace (workspace admin, or an app-approval flow).
      (the bot must be a member to access them)
    - `users:read` + `users:read.email` — resolve author emails to user IDs
    - `chat:write` — post messages (only `postMessageToASlackChannelAsBot`)
+   - `pins:write`
    - `channels:join`
    - `channels:history`
    - `groups:history`

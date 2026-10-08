@@ -250,15 +250,26 @@ function make_cal(name) {
             // console.log(week_dates.map(d => d.format()), "--- week_dates ");
 
 
-            const resize = async function (cal) {
-                await cal.render(true);
-                // d3.selectAll('.tui-full-calendar-vlayout-area').attr('style',null);
-            }
-
+            // Re-rendering rebuilds the time grids, so keep the user's scroll position.
+            let isResizing = false;
             $(window).on('resize', _.debounce(function () {
-                all_cals.forEach(c => resize(c));
+                isResizing = true;
+                const pageScroll = window.scrollY;
+                const gridScrolls = $('.tui-full-calendar-timegrid-container')
+                  .map((_i, el) => el.scrollTop).get();
+                all_cals.forEach(c => c.render(true));
+                setTimeout(function () {
+                    $('.tui-full-calendar-timegrid-container').each(function (i, el) {
+                        if (i < gridScrolls.length) el.scrollTop = gridScrolls[i];
+                    });
+                    window.scrollTo(window.scrollX, pageScroll);
+                    isResizing = false;
+                }, 0);
             }, 100));
             calendar.on('afterRenderSchedule', function() {
+              if (isResizing) {
+                return;
+              }
               // console.log(startOffsets);
               const contain = $('.tui-full-calendar-timegrid-container');
               if (!contain.length) {

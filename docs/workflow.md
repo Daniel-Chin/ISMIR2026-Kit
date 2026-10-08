@@ -210,6 +210,12 @@ It merges repeat submissions and updates `raw_poster_pdf`, `raw_thumbnail`, and 
 in `sitedata/papers.csv`, preserving unrelated cells. Paste these columns back into the
 Google Sheet before the next pull.
 
+For camera-ready paper PDFs, unzip the CMT download and run
+`python scripts/camera_ready_pdf_from_cmt_to_google_drive.py <unzipped_dir>`.
+It copies each paper's PDF to `tmp/paper_camera_ready/{uid}.pdf` and checks file sizes.
+It then asks for the URL of the public Drive folder you upload them to, and fills
+`raw_pdf_path` in `sitedata/papers.csv`. Paste that column back into the Google Sheet.
+
 ### Data not in the repo
 
 | Item | Notes |

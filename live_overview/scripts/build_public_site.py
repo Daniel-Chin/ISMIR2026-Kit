@@ -13,11 +13,12 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_RELEASE = '1.0.0-ui.7'
 ASSETS = ('index.html', 'history.html', 'app.js', 'history.js', 'styles.css',
-          'timezone-preference.js', 'cursor-avatars.js', 'theme-toggle.js', 'public-connection.js', 'prompt-config.js', 'llm-prompts.json')
+          'timezone-preference.js', 'cursor-avatars.js', 'theme-toggle.js', 'public-connection.js', 'prompt-config.js', 'llm-prompts.json',
+          'site-integration.js')
 EVENT_FIELDS = ('id', 'type', 'title', 'topic', 'summary', 'organiser', 'startsAt', 'endsAt', 'day',
                 'dayNumber', 'track', 'category', 'spotlight', 'sessionNumber', 'posterSessionNumber', 'paperRange', 'endTimeTBD')
 PAPER_FIELDS = ('id', 'displayId', 'sourcePaperId', 'detailUrl', 'title', 'authors', 'primaryAuthor', 'abstract', 'subjects', 'isTismir', 'longPresentation',
-                'presenterMode', 'sessionId', 'sessionNumber', 'posterSessionNumber', 'sessionPaperNumber')
+                'presenterMode', 'funFact', 'sessionId', 'sessionNumber', 'posterSessionNumber', 'sessionPaperNumber')
 CONF_FIELDS = ('name', 'location', 'theme', 'timeZone', 'startsOn', 'endsOn', 'pageTitle', 'subtitle')
 
 
@@ -90,7 +91,7 @@ def build(output, api_origin, schedule=None, domain=''):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--api-origin', default='https://ismir2026.liweilin.org')
+    parser.add_argument('--api-origin', default='https://ismir-backend-test.linliwei3916.workers.dev')
     parser.add_argument('--schedule', help='Deployed schedule JSON for an optional metadata-only fallback')
     parser.add_argument('--output', default=str(ROOT / 'dist' / 'public'))
     parser.add_argument('--domain', default='', help='Optional custom domain; configure Pages settings and DNS separately')

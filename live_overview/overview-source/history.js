@@ -10,7 +10,7 @@ const connection = document.getElementById('connection-status');
 const copyHistoryPromptButton = document.getElementById('copy-history-prompt');
 const historyCopyStatus = document.getElementById('history-copy-status');
 let latestState = null;
-let conferenceTimeZone = 'Asia/Dubai';
+let conferenceTimeZone = window.ISMIRSite?.timeZone || 'Asia/Dubai';
 let reconnectTimer = null;
 let lastClockAuthoritySignature = '';
 let clockAuthorityPollBusy = false;
@@ -362,7 +362,7 @@ async function refreshClockAuthorityFallback() {
 async function fetchInitial() {
   if (publicStatic) {
     window.ISMIRPublic.start({ ...window.ISMIR_PUBLIC_CONFIG, onStatus: setConnection,
-      onState: state => { latestClockRevisionSeen = -1; render(state); } });
+      onState: state => { latestClockRevisionSeen = -1; render(window.ISMIRSite?.localizeState(state) || state); } });
     return;
   }
   const res = await fetch('/api/state', { cache: 'no-store' });

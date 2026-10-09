@@ -1,7 +1,8 @@
 'use strict';
 
 (function () {
-  const STORAGE_ZONE = 'ismirDisplayTimeZone';
+  // Not persisted: like miniconf, every visit starts from the system time zone.
+  const FALLBACK_ZONE = window.ISMIRSite?.timeZone || 'Asia/Dubai';
 
 
   // Search metadata is generated from the IANA tzdb country/zone tables.
@@ -56,22 +57,14 @@
   };
 
   function browserZone() {
-    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Dubai'; }
-    catch (_) { return 'Asia/Dubai'; }
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || FALLBACK_ZONE; }
+    catch (_) { return FALLBACK_ZONE; }
   }
 
   function validZone(candidate) {
     if (!candidate) return false;
     try { new Intl.DateTimeFormat('en', { timeZone: candidate }).format(new Date()); return true; }
     catch (_) { return false; }
-  }
-
-  function readStored(key) {
-    try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
-  }
-
-  function writeStored(key, value) {
-    try { localStorage.setItem(key, value); } catch (_) {}
   }
 
   function supportedZones() {
@@ -85,8 +78,8 @@
   }
 
   const ALL_ZONES = supportedZones();
-  let zone = validZone(readStored(STORAGE_ZONE)) ? readStored(STORAGE_ZONE) : browserZone();
-  if (!validZone(zone)) zone = 'Asia/Dubai';
+  let zone = browserZone();
+  if (!validZone(zone)) zone = FALLBACK_ZONE;
   let referenceDate = new Date();
 
   function dateValue(value, fallback = new Date()) {
@@ -355,7 +348,6 @@
   }
 
   function notify() {
-    writeStored(STORAGE_ZONE, zone);
     updateControls();
     if (dropdown && !dropdown.hidden) renderOptions(dropdown.querySelector('.timezone-dropdown-search')?.value || '');
     window.dispatchEvent(new CustomEvent('ismir-timezone-change', {

@@ -31,7 +31,7 @@ const expandedLivePaperEventIds = new Set();
 let lastTopologyKey = '';
 let realtimeUpdateQueued = false;
 let pendingRealtimeState = null;
-let conferenceTimeZone = 'Asia/Dubai';
+let conferenceTimeZone = window.ISMIRSite?.timeZone || 'Asia/Dubai';
 let debugClockPollTimer = null;
 let latestDebugClockRevision = -1;
 let lastClockAuthoritySignature = '';
@@ -428,9 +428,9 @@ function eventMeta(e) {
 function presenterLabel(mode) {
   if (!mode) return 'Presentation mode TBA';
   const clean = String(mode).toLowerCase();
-  if (clean === 'online') return 'Presented online';
-  if (clean === 'mixed') return 'Presented onsite + online';
-  return 'Presented onsite';
+  if (clean === 'online') return 'Virtual';
+  if (clean === 'mixed') return 'In-person + Virtual';
+  return 'In-person';
 }
 
 function statCard(key, label, value, help) {
@@ -1278,6 +1278,7 @@ async function fetchInitial() {
     window.ISMIRPublic.start({ ...window.ISMIR_PUBLIC_CONFIG,
       onStatus: setConnection,
       onState: state => {
+        state = window.ISMIRSite?.localizeState(state) || state;
         latestClockRevisionSeen = -1; pendingRealtimeState = null;
         if (!currentState || state.scheduleRevision !== currentState.scheduleRevision || Boolean(state.offline) !== Boolean(currentState.offline)) render(state);
         else patchRealtimeState(state);
@@ -1551,12 +1552,12 @@ function canonEggPaperPool() {
   const pool = [];
   for (const event of currentState?.events || []) {
     for (const paper of event?.papers || []) {
-      const id = String(paper?.id || paper?.sourcePaperId || paper?.title || '').trim();
+      // Oral and poster sessions list the same paper under different ids; dedupe by source paper.
+      const id = String(paper?.sourcePaperId || paper?.id || paper?.title || '').trim();
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      let fact = String(paper?.funFact || '').trim();
-      if (!fact && Array.isArray(paper?.subjects) && paper.subjects[0]) fact = `Its primary programme subject is “${paper.subjects[0]}”.`;
-      if (!fact && paper?.presenterMode) fact = `This paper is scheduled as a ${String(paper.presenterMode).toLowerCase()} presentation.`;
+      // Only papers with an author-provided fun fact are eligible.
+      const fact = String(paper?.funFact || '').trim();
       if (fact) pool.push({ id, title: String(paper?.title || id), fact });
     }
   }
@@ -1572,7 +1573,8 @@ function canonEggCloseFunFact() {
 
 function canonEggShowFunFact() {
   const pool = canonEggPaperPool();
-  if (!pool.length) return;
+  // No fun facts yet: reset so the puzzle can be played again instead of staying "completed".
+  if (!pool.length) { canonEggCloseFunFact(); return; }
   const paper = pool[Math.floor(Math.random() * pool.length)];
   const backdrop = document.createElement('div');
   backdrop.className = 'canon-egg-funfact-backdrop';
@@ -1618,7 +1620,7 @@ function handleZoomTabClick(event) {
   if (!anchor || anchor.target !== '_blank') return;
   let url;
   try { url = new URL(anchor.href, window.location.href); } catch (_) { return; }
-  const zoomRedirect = url.hostname === 'ismir2026program.ismir.net' && url.pathname === '/zoom.html';
+  const zoomRedirect = window.ISMIRSite ? Boolean(window.ISMIRSite.zoomRedirectUrl(url.href)) : url.hostname === 'ismir2026program.ismir.net' && url.pathname === '/zoom.html';
   if (url.protocol !== 'https:' || !(zoomRedirect || /(^|\.)(zoom\.us|zoom\.com|zoomgov\.com)$/.test(url.hostname))) return;
   let tab;
   try {

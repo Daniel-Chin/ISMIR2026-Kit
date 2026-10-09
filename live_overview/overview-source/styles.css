@@ -9014,3 +9014,11 @@ html[data-theme="light"].debug-clock-only .debug-clock-fields select {
   #live-events .live-tutorial-list li.live-tutorial-row { grid-template-columns: minmax(0, 1fr); }
   #live-events .live-tutorial-actions { justify-content: flex-start; padding-left: 66px; }
 }
+
+/* v8.92: binary puzzle strip starts at the robot icon's left edge instead of the text column. */
+.llm-prompt-card .binary-puzzle-card {
+  grid-column: 1 / -1 !important;
+  justify-self: start !important;
+  justify-content: start !important;
+  margin-left: 0 !important;
+}

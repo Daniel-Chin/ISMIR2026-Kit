@@ -35,14 +35,20 @@ class AuthorUploadedMaterials:
     fun_facts: str | None = field(metadata={'header': 'fun facts'})
 
 
-def parse_materials(path: str | Path = INPUT_PATH) -> dict[int, AuthorUploadedMaterials]:
-    """Fail fast on unexpected exports; blank material cells become None."""
+# paper_id -> field name -> every value ever submitted for it
+History = dict[int, dict[str, set[str]]]
+
+
+def parse_materials(path: str | Path = INPUT_PATH) -> tuple[dict[int, AuthorUploadedMaterials], History]:
+    """Fail fast on unexpected exports; blank material cells become None.
+    Also returns the history of submitted values, so that manual edits in papers.csv can be told apart."""
     material_fields = fields(AuthorUploadedMaterials)
     field_names = {item.name for item in material_fields}
     header_map = {item.metadata['header']: item.name for item in material_fields}
     parsers = {item.name: item.metadata.get('parse', parse_optional_text) for item in material_fields}
 
     papers: dict[int, AuthorUploadedMaterials] = {}
+    history: History = {}
     with Path(path).expanduser().open(newline='', encoding='utf-8-sig') as source:
         reader = csv.reader(source, strict=True)
         headers = next(reader, None)
@@ -79,6 +85,11 @@ def parse_materials(path: str | Path = INPUT_PATH) -> dict[int, AuthorUploadedMa
                 input('Is it a test submission? Press Enter to DISCARD this paper...')
                 continue
 
+            paper_history = history.setdefault(current.paper_id, {})
+            for name in field_names:
+                if isinstance(value := getattr(current, name), str):
+                    paper_history.setdefault(name, set()).add(value)
+
             previous = papers.get(current.paper_id)
             if previous is not None:
                 if current.timestamp == previous.timestamp:
@@ -96,17 +107,19 @@ def parse_materials(path: str | Path = INPUT_PATH) -> dict[int, AuthorUploadedMa
         missing_values = sorted(name for name in field_names
                          if name != 'fun_facts' and getattr(materials, name) is None)
         assert not missing_values, f'Paper {paper_id}: missing required values: {missing_values}'
-    return papers
+    return papers, history
 
 
 def debug():
-    for paper_id, materials in parse_materials().items():
+    for paper_id, materials in parse_materials()[0].items():
         print(paper_id)
         pprint(materials)
         input('Enter...')
 
 
-def write_into_sitedata(papers: dict[int, AuthorUploadedMaterials]) -> None:
+def write_into_sitedata(papers: dict[int, AuthorUploadedMaterials], history: History) -> None:
+    """Priority: manual edits in papers.csv > later submissions > earlier submissions.
+    A nonblank cell that matches no past submission is assumed to be a manual edit and is kept."""
     output_path = (Path(__file__).resolve().parent / OUTPUT_PATH).resolve()
     output_map = {item.name: item.metadata['output'] for item in fields(AuthorUploadedMaterials)
                   if 'output' in item.metadata}
@@ -134,8 +147,14 @@ def write_into_sitedata(papers: dict[int, AuthorUploadedMaterials]) -> None:
                     raise ValueError(f'Paper ID does not match dictionary key: {paper_id}')
                 for name, index in output_columns.items():
                     value = getattr(materials, name)
-                    if value is not None and not row[index].strip():
+                    existing = row[index].strip()
+                    if value is None or existing == value:
+                        continue
+                    if not existing or existing in history[paper_id].get(name, ()):
                         row[index] = value
+                    else:
+                        print(f'Info: paper {paper_id} {output_map[name]}: keeping manual value {existing!r} '
+                              f'over submitted {value!r}')
             rows.append(row)
     if unknown := papers.keys() - seen:
         raise ValueError(f'Submitted paper IDs missing from output CSV: {sorted(unknown)}')
@@ -151,4 +170,4 @@ def write_into_sitedata(papers: dict[int, AuthorUploadedMaterials]) -> None:
           'papers tab before running pull_from_google_sheet.py.')
 
 if __name__ == '__main__':
-    write_into_sitedata(parse_materials())
+    write_into_sitedata(*parse_materials())

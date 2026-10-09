@@ -221,8 +221,10 @@ Typical loop: **update Google Sheet → `python pull_from_google_sheet.py` → r
 For author-uploaded materials, set `INPUT_PATH` in
 [`scripts/parse_google_form_author_uploaded_materials.py`](../scripts/parse_google_form_author_uploaded_materials.py)
 to the Google Forms CSV export, then run `python scripts/parse_google_form_author_uploaded_materials.py`.
-It merges repeat submissions and updates `raw_poster_pdf`, `raw_thumbnail`, and `raw_video`
-in `sitedata/papers.csv`, preserving unrelated cells. Paste these columns back into the
+It updates `raw_poster_pdf`, `raw_thumbnail`, `raw_video`, and `raw_captions` in
+`sitedata/papers.csv` with priority: manual edits in `papers.csv` > later submissions >
+earlier submissions. A cell holding a value no submission ever had counts as a manual edit
+and is kept (so a manual revert to an earlier submitted value violates its assumptions). It also lists papers with no submission. Paste these columns back into the
 Google Sheet before the next pull.
 
 For camera-ready paper PDFs, unzip the CMT download and run

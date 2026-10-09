@@ -165,7 +165,8 @@ def write_into_sitedata(papers: dict[int, AuthorUploadedMaterials], history: His
     if unknown := papers.keys() - seen:
         raise ValueError(f'Submitted paper IDs missing from output CSV: {sorted(unknown)}')
     if not_submitted := seen - papers.keys():
-        print(f'Warning: {len(not_submitted)} paper IDs in output CSV have no submission: {sorted(not_submitted)}')
+        print(f'Warning: {len(not_submitted)} paper IDs in output CSV have no submission: '
+              f'[{",".join(map(str, sorted(not_submitted)))}]')
 
     with output_path.open('w', newline='', encoding='utf-8') as destination:
         writer = csv.writer(destination)

@@ -12,55 +12,110 @@
     - Copy the **Bot User OAuth Token** (`xoxb-...`).
     - Paste in `.env`:
     - "SLACK_TOKEN_ANNOUNCEMENT_BOT=xoxb-..."
-    - Set a profile image.  
+    - Set a profile image.
 
 Example CLI:
     - `uv run python -m long_running_bots.announcement_bot --mockup `
+    - `uv run python -m long_running_bots.announcement_bot --mockup --testing`
     - `uv run python -m long_running_bots.announcement_bot`
 
 Details:
-- Stateless. Can restart anytime during conference without reconfiguring.
-- After starting the script,  
-    - Pull message history. Match the last message containing `KEYWORD`, if any. Extract `channel_id` to seek the right position in the event sequence. Set cursor on the next event.  
-    - Send an announcement 10 minutes before the next event starts. Increment cursor.  
-    - However, if an event started >=1m ago without announcement AND the script started <=10sec ago, suspect the script had been paused and ask on CLI whether to skip this announcement.  
-        - If no response in 1 minute, assume skip.  
-        - `t_minus` may be negative if the event has already started.  
+- Interactive shell. Type `help` for commands. Bot output is printed above the prompt.
+- Event IDs (`{e}`) are the `uid` column of events.csv.
+- Announces each event `ANNOUNCE_IN_ADVANCE` minutes before its *adjusted* start
+  (base schedule + today's offset).
+- Schedule offset:
+    - Set by the operator via `running late|early by {m}`, `calibrate {e} to {hh:mm}`, `goto {e}`.
+    - Tagged with the conference-local date it applies to; only events on that date are shifted.
+      A stale offset (from an earlier day) is cleared on load and on day change.
+    - On change, posts "We are running XX minutes late." plus corrections for events that
+      were already announced but have not started yet.
+    - If running late, also posts an extra announcement at the *base* announcement time,
+      for participants who missed the delay notice.
+    - A due announcement is skipped if the event was already announced (any kind) no more than
+      `2 * ANNOUNCE_IN_ADVANCE` before its adjusted start.
+    - An event is frozen (its start pinned) `STARTED_GRACE` after its adjusted start, or when a
+      later event is calibrated. Offset changes do not move frozen events.
+- The event channel description (purpose) is posted into the event's channel once per event,
+  at T - ANNOUNCE_IN_ADVANCE (adjusted), independent of which #general announcement goes out.
+- Local state (offset, announcement log incl. purpose posts, frozen events) persists in `tmp/` (gitignored).
+  90% of the time the bot stays on one machine. If the state file is missing, falls back to
+  Slack history: match the last message containing `KEYWORD` to seek the event sequence.
+- On startup, if an unannounced event started >=1m ago (and is not frozen), asks on the shell
+  whether to announce it late. If no response in 1 minute, assume skip.
+- Mockup (`--mockup`): the current event is assumed to run late until the operator types
+  `goto next`. Events after the current one are never announced by the clock; extra
+  announcements and offset messages only follow operator-set offsets.
+- Testing (`--testing`): fake wall time = real wall time + an offset, initialized so that the
+  first event starts in ANNOUNCE_IN_ADVANCE minutes. `+{m}` fast-forwards it. Uses its own state
+  file, wiped on startup, and does not recover from Slack history.
+    - Never touches Slack: messages are printed to stdout in an ASCII frame instead.
+    - As a safety net, refuses to start if `SLACK_TOKEN_ANNOUNCEMENT_BOT` is set
+      (in the environment or `.env`).
 - Loads events.csv once at startup. If you change it during the conference, restart this script.
 '''
 
 from __future__ import annotations
 
 import argparse
+import importlib
+import json
 import os
 import re
-import select
-import importlib
 import sys
-import time
-from dataclasses import dataclass
+import textwrap
+import threading
+import traceback
+from dataclasses import dataclass, field
 from datetime import date, datetime, time as dtime, timedelta
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
 import pandas as pd
 from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
 
+from catalogue.build_catalogue import slack_channel_id
 from utils.shared import load_conference_timezone_name
 
 ANNOUNCE_IN_ADVANCE = 10  # minutes
+FRESH_WINDOW = timedelta(minutes=2 * ANNOUNCE_IN_ADVANCE)
+STARTED_GRACE = timedelta(minutes=2 * ANNOUNCE_IN_ADVANCE)
 ANNOUNCEMENTS_CHANNEL = "general"
 KEYWORD = "Beep Bop"
 PROMPT_TIMEOUT_SECONDS = 60
 BOT_TOKEN_ENV_VAR = "SLACK_TOKEN_ANNOUNCEMENT_BOT"
-SCRIPT_RESTART_GRACE_SECONDS = 10
 MISSED_EVENT_THRESHOLD_SECONDS = 60
 HISTORY_PAGE_LIMIT = 200
+MAX_SLEEP_SECONDS = 30.0
+STATE_DIR = Path("tmp")
+
+# Kinds of announcement log entries.
+MAIN = "main"      # regular announcement at T - ANNOUNCE_IN_ADVANCE
+EXTRA = "extra"    # announcement at the base-schedule time while running late
+UPDATE = "update"  # correction appended to an offset message
+SKIP = "skip"      # operator (or timeout) skipped a stale announcement
+PURPOSE = "purpose"  # event channel description posted in the event's own channel
+ANNOUNCING_KINDS = {MAIN, EXTRA, UPDATE}
+
+HELP_TEXT = f'''Commands ({{e}} is the event uid from events.csv):
+  whats {{e}}                       Show an event: base/adjusted start, status, announcements.
+  whats next                      Show the next event.
+  running late|early by {{m}}       Set today's offset to m minutes w.r.t. the base schedule.
+  calibrate {{e}} to {{hhmm|hh:mm}}   Set the offset so that event e starts at that conf-local time.
+  goto {{e}}                        Same as `calibrate {{e}} to now`. `goto next` only in mockup.
+  status                          Show offset, current/next events, and upcoming announcements.
+  announce | skip                 Answer a pending stale-announcement question.
+  +{{m}}                            (--testing only) Fast-forward the fake wall time by m minutes.
+  help                            Show this help.
+  Ctrl-D                          Quit.
+Announcements go out {ANNOUNCE_IN_ADVANCE} min before the adjusted start.'''
 
 
 @dataclass(frozen=True)
 class ScheduledEvent:
+    uid: int
     title: str
     channel_id: str
     start_at: datetime
@@ -72,20 +127,121 @@ class AnnouncementPointer:
     posted_at: datetime
 
 
-def render_announcement(
-    client,
-    channel_id: str, t_minus: int, is_mockup: bool = False, 
-) -> str:
-    msg = f"{KEYWORD}. Hello everyone! <#{channel_id}> is starting in {t_minus} minutes."
-    if is_mockup:
-        backstage_channel_id = find_channel_id(client, 'backstage')
-        return (
-            f'We are in a mockup, so **ignore me** and instead follow <#{backstage_channel_id}> instructions. '
-            'If this was the real conference, I would have said: \n> '
-            + msg
+@dataclass(frozen=True)
+class Offset:
+    day: date
+    minutes: int
+    updated_at: datetime
+
+
+@dataclass(frozen=True)
+class LogEntry:
+    uid: int
+    kind: str
+    at: datetime
+
+
+@dataclass
+class BotState:
+    offset: Offset | None = None
+    log: list[LogEntry] = field(default_factory=list)
+    started: dict[int, datetime] = field(default_factory=dict)  # frozen event starts
+    mock_cursor_uid: int | None = None
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "offset": None if self.offset is None else {
+                "day": self.offset.day.isoformat(),
+                "minutes": self.offset.minutes,
+                "updated_at": self.offset.updated_at.isoformat(),
+            },
+            "log": [
+                {"uid": entry.uid, "kind": entry.kind, "at": entry.at.isoformat()}
+                for entry in self.log
+            ],
+            "started": {str(uid): at.isoformat() for uid, at in self.started.items()},
+            "mock_cursor_uid": self.mock_cursor_uid,
+        }
+
+    @classmethod
+    def from_json(cls, data: dict[str, Any]) -> BotState:
+        offset_data = data.get("offset")
+        return cls(
+            offset=None if offset_data is None else Offset(
+                day=date.fromisoformat(offset_data["day"]),
+                minutes=int(offset_data["minutes"]),
+                updated_at=datetime.fromisoformat(offset_data["updated_at"]),
+            ),
+            log=[
+                LogEntry(
+                    uid=int(entry["uid"]),
+                    kind=str(entry["kind"]),
+                    at=datetime.fromisoformat(entry["at"]),
+                )
+                for entry in data.get("log", [])
+            ],
+            started={
+                int(uid): datetime.fromisoformat(at)
+                for uid, at in data.get("started", {}).items()
+            },
+            mock_cursor_uid=data.get("mock_cursor_uid"),
         )
+
+
+@dataclass
+class PendingPrompt:
+    uids: list[int]
+    deadline: datetime
+
+
+def plural_minutes(n: int) -> str:
+    return f"{n} minute" if n == 1 else f"{n} minutes"
+
+
+def slack_clock(dt: datetime) -> str:
+    # Rendered by Slack in each reader's local time; the fallback is conf-local.
+    return f"<!date^{int(dt.timestamp())}^{{time}}|{dt.strftime('%H:%M %Z')}>"
+
+
+def render_relative(t_minus: int) -> str:
+    if t_minus > 0:
+        return f"is starting in {plural_minutes(t_minus)}"
+    if t_minus == 0:
+        return "is starting now"
+    return f"started {plural_minutes(-t_minus)} ago"
+
+
+def render_announcement(channel_id: str, t_minus: int) -> str:
+    return f"{KEYWORD}. Hello everyone! <#{channel_id}> {render_relative(t_minus)}."
+
+
+def render_extra_announcement(
+    channel_id: str, base_start: datetime, adjusted_start: datetime, t_minus: int,
+) -> str:
+    return (
+        f"{KEYWORD}. Hi, everyone! <#{channel_id}> was planned for {slack_clock(base_start)} "
+        f"but will now start at {slack_clock(adjusted_start)}, in {plural_minutes(t_minus)}."
+    )
+
+
+def render_offset_message(
+    minutes: int, corrections: list[tuple[str, datetime, int]],
+) -> str:
+    if minutes > 0:
+        sentences = [f"{KEYWORD}. We are running {plural_minutes(minutes)} late."]
+    elif minutes < 0:
+        sentences = [f"{KEYWORD}. We are running {plural_minutes(-minutes)} early."]
     else:
-        return msg
+        sentences = [f"{KEYWORD}. We are back on schedule."]
+    for channel_id, adjusted_start, t_minus in corrections:
+        if t_minus == 0:
+            sentences.append(f"<#{channel_id}> is starting now.")
+        else:
+            sentences.append(
+                f"<#{channel_id}> now starts at {slack_clock(adjusted_start)}, "
+                f"in {plural_minutes(t_minus)}."
+            )
+    return " ".join(sentences)
 
 
 def get_event_channel_message(client: Any, channel_id: str) -> str:
@@ -105,25 +261,27 @@ def load_events(site_data_path: str) -> list[ScheduledEvent]:
 
     events: list[ScheduledEvent] = []
     for _, row in csv_data.iterrows():
-        channel_url = str(row.get("channel_url", "")).strip()
-        _, params = channel_url.split("?")
-        kv_pairs = {k: v for k, v in (pair.split("=") for pair in params.split("&"))}
-        channel_id = kv_pairs.get("channel", '').strip()
+        channel_id = slack_channel_id(str(row.get("channel_url", "")).strip())
         start_date = str(row.get("start_date", "")).strip()
         start_time = str(row.get("start_time", "")).strip()
         title = str(row.get("title", "")).strip()
-        if not channel_id or not start_date or not start_time or not title:
+        uid = str(row.get("uid", "")).strip()
+        if not channel_id or not start_date or not start_time or not title or not uid:
+            say(f"Not announcing uid={uid or '?'} \"{title}\": missing channel_url, date, time, or title.")
             continue
 
         start_at = parse_event_start_datetime(start_date, start_time, timezone)
         events.append(
             ScheduledEvent(
+                uid=int(float(uid)),
                 title=title,
                 channel_id=channel_id,
                 start_at=start_at,
             )
         )
 
+    uids = [event.uid for event in events]
+    assert len(uids) == len(set(uids)), f"Duplicate uid in {csv_path}."
     events.sort(key=lambda event: event.start_at)
     return events
 
@@ -143,6 +301,47 @@ def parse_event_start_datetime(
     second = int(time_parts[2]) if len(time_parts) == 3 else 0
     event_time = dtime(hour=hour, minute=minute, second=second)
     return datetime.combine(event_date, event_time, tzinfo=timezone)
+
+
+class StdoutSlackClient:
+    """Stands in for slack_sdk.WebClient in --testing. Prints posts instead of sending them."""
+
+    FRAME_WIDTH = 78
+
+    def __init__(self, channel_names: dict[str, str]) -> None:
+        self.channel_names = channel_names
+
+    def readable(self, text: str) -> str:
+        text = re.sub(r"<!date\^\d+\^\{time\}\|([^>]+)>", r"\1", text)
+        return re.sub(
+            r"<#([A-Za-z0-9]+)(?:\|[^>]*)?>",
+            lambda m: "#" + self.channel_names.get(m.group(1), m.group(1)),
+            text,
+        )
+
+    def chat_postMessage(self, channel: str, text: str) -> dict[str, Any]:
+        inner = self.FRAME_WIDTH - 4
+        title = f" Slack #{self.channel_names.get(channel, channel)} "
+        lines = [
+            wrapped
+            for paragraph in self.readable(text).splitlines() or [""]
+            for wrapped in (textwrap.wrap(paragraph, inner) or [""])
+        ]
+        frame = [f"+-{title}{'-' * (inner - len(title))}-+"]
+        frame += [f"| {line.ljust(inner)} |" for line in lines]
+        frame.append(f"+{'-' * (inner + 2)}+")
+        print("\n".join(frame), flush=True)
+        return {"ok": True}
+
+    def conversations_info(self, channel: str) -> dict[str, Any]:
+        name = self.channel_names.get(channel, channel)
+        return {"channel": {"purpose": {"value": f"(channel purpose of #{name})"}}}
+
+    def conversations_join(self, channel: str) -> dict[str, Any]:
+        return {"ok": True}
+
+    def conversations_history(self, **kwargs: Any) -> dict[str, Any]:
+        return {"messages": []}
 
 
 def create_slack_client(is_mockup: bool = False) -> Any:
@@ -191,7 +390,8 @@ def extract_announcement_pointer(message: dict[str, Any]) -> AnnouncementPointer
         return None
 
     match = re.search(
-        r"Hello everyone!\s+<#([A-Za-z0-9]+)(?:\|[^>]+)?>\s+is starting in\s+-?\d+\s+minutes\.",
+        r"Hello everyone!\s+<#([A-Za-z0-9]+)(?:\|[^>]+)?>\s+"
+        r"(?:is starting in\s+-?\d+\s+minutes?|is starting now|started\s+\d+\s+minutes?\s+ago)\.",
         text,
     )
     if match is None:
@@ -254,119 +454,668 @@ def find_resume_index(
     return best_position + 1
 
 
-def minutes_until(event: ScheduledEvent, now: datetime) -> int:
-    return round((event.start_at - now).total_seconds() / 60)
+def minutes_between(start: datetime, end: datetime) -> int:
+    return round((end - start).total_seconds() / 60)
 
 
-def should_prompt_for_missed_announcement(
-    event: ScheduledEvent,
-    now: datetime,
-    started_at_monotonic: float,
-) -> bool:
-    return (
-        (time.monotonic() - started_at_monotonic) <= SCRIPT_RESTART_GRACE_SECONDS
-        and (now - event.start_at).total_seconds() >= MISSED_EVENT_THRESHOLD_SECONDS
-    )
+def round_to_minute(dt: datetime) -> datetime:
+    floored = dt.replace(second=0, microsecond=0)
+    return floored + timedelta(minutes=1) if dt.second >= 30 else floored
 
 
-def prompt_should_skip(event: ScheduledEvent, now: datetime) -> bool:
-    t_minus = minutes_until(event, now)
-    print(
-        f"Missed announcement for {event.title} "
-        f"with t_minus={t_minus}. Skip it? [Y/n] ",
-        end="",
-        flush=True,
-    )
-    ready, _, _ = select.select([sys.stdin], [], [], PROMPT_TIMEOUT_SECONDS)
-    if not ready:
-        print("\nNo response received; skipping announcement.")
+stamp_clock: Callable[[], datetime] = datetime.now
+
+
+def say(*lines: str) -> None:
+    stamp = stamp_clock().strftime("%H:%M:%S")
+    for line in lines:
+        print(f"[{stamp}] {line}", flush=True)
+
+
+class AnnouncementBot:
+    def __init__(
+        self,
+        events: list[ScheduledEvent],
+        client: Any,
+        announcements_channel_id: str,
+        state_path: Path,
+        is_mockup: bool,
+        clock: Callable[[], datetime] | None = None,
+        is_testing: bool = False,
+    ) -> None:
+        self.events = events
+        self.by_uid = {event.uid: event for event in events}
+        self.index_of = {event.uid: i for i, event in enumerate(events)}
+        self.client = client
+        self.announcements_channel_id = announcements_channel_id
+        self.state_path = state_path
+        self.is_mockup = is_mockup
+        self.tz = events[0].start_at.tzinfo
+        self.is_testing = is_testing
+        self.fake_time_offset = timedelta(0)
+        if is_testing:
+            first_due = events[0].start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
+            self.fake_time_offset = first_due - datetime.now(tz=self.tz)
+        self._clock = clock or (lambda: datetime.now(tz=self.tz) + self.fake_time_offset)
+        self.lock = threading.RLock()
+        self.wakeup = threading.Condition(self.lock)
+        self.pending: PendingPrompt | None = None
+        self.state = BotState()
+
+    # ---------- time & schedule ----------
+
+    def now(self) -> datetime:
+        return self._clock().astimezone(self.tz)
+
+    def today(self) -> date:
+        return self.now().date()
+
+    def offset_minutes(self, event: ScheduledEvent) -> int:
+        offset = self.state.offset
+        if offset is None or offset.day != event.start_at.date():
+            return 0
+        return offset.minutes
+
+    def adjusted_start(self, event: ScheduledEvent) -> datetime:
+        frozen = self.state.started.get(event.uid)
+        if frozen is not None:
+            return frozen
+        return event.start_at + timedelta(minutes=self.offset_minutes(event))
+
+    def is_frozen(self, event: ScheduledEvent) -> bool:
+        return event.uid in self.state.started
+
+    def cursor_index(self) -> int:
+        uid = self.state.mock_cursor_uid
+        return -1 if uid is None or uid not in self.index_of else self.index_of[uid]
+
+    def is_held(self, event: ScheduledEvent) -> bool:
+        # Mockup: the current event runs late until the operator says `goto`.
+        return self.is_mockup and self.index_of[event.uid] > self.cursor_index()
+
+    def entries_for(self, uid: int, kinds: set[str] | None = None) -> list[LogEntry]:
+        return [
+            entry for entry in self.state.log
+            if entry.uid == uid and (kinds is None or entry.kind in kinds)
+        ]
+
+    def announced_since(self, event: ScheduledEvent, since: datetime) -> LogEntry | None:
+        recent = [
+            entry for entry in self.entries_for(event.uid)
+            if entry.kind != PURPOSE and entry.at >= since
+        ]
+        return recent[-1] if recent else None
+
+    def next_event(self) -> ScheduledEvent | None:
+        if self.is_mockup:
+            index = self.cursor_index() + 1
+            return self.events[index] if index < len(self.events) else None
+        now = self.now()
+        for event in self.events:
+            if not self.is_frozen(event) and self.adjusted_start(event) > now:
+                return event
+        return None
+
+    def main_due(self, event: ScheduledEvent, now: datetime) -> bool:
+        if self.is_frozen(event) or self.is_held(event):
+            return False
+        start = self.adjusted_start(event)
+        if now < start - timedelta(minutes=ANNOUNCE_IN_ADVANCE):
+            return False
+        return self.announced_since(event, start - FRESH_WINDOW) is None
+
+    def purpose_due(self, event: ScheduledEvent, now: datetime) -> bool:
+        # Once per event, at T - ANNOUNCE_IN_ADVANCE, whichever #general message (if any) went out.
+        if self.is_frozen(event) or self.is_held(event):
+            return False
+        if now < self.adjusted_start(event) - timedelta(minutes=ANNOUNCE_IN_ADVANCE):
+            return False
+        return not self.entries_for(event.uid, {PURPOSE, SKIP})
+
+    def extra_due(self, event: ScheduledEvent, now: datetime) -> bool:
+        late = self.offset_minutes(event)
+        if late <= 0 or self.is_frozen(event):
+            return False
+        base_due = event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
+        if not (base_due <= now < event.start_at):
+            return False
+        if self.adjusted_start(event) <= now:
+            return False
+        return self.announced_since(event, event.start_at - FRESH_WINDOW) is None
+
+    # ---------- persistence ----------
+
+    def save(self) -> None:
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = self.state_path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(self.state.to_json(), indent=2))
+        tmp_path.replace(self.state_path)
+
+    def load_or_recover(self) -> None:
+        if self.is_testing:
+            say(f"Testing: starting from a fresh state at {self.state_path}.")
+            self.save()
+            return
+        if self.state_path.exists():
+            try:
+                self.state = BotState.from_json(json.loads(self.state_path.read_text()))
+                say(f"Loaded state from {self.state_path} "
+                    f"({len(self.state.log)} logged announcements, "
+                    f"{len(self.state.started)} frozen events).")
+                return
+            except Exception as exc:
+                say(f"!! Could not parse {self.state_path} ({exc!r}); recovering from Slack history.")
+        else:
+            say(f"No state file at {self.state_path}; recovering from Slack history.")
+        self.recover_from_slack()
+        self.save()
+
+    def recover_from_slack(self) -> None:
+        pointer = fetch_last_announcement(self.client, self.announcements_channel_id)
+        resume = find_resume_index(self.events, pointer)
+        if pointer is None or resume == 0:
+            say("No previous announcement found in Slack; starting from the first event.")
+        else:
+            last = self.events[resume - 1]
+            for event in self.events[:resume - 1]:
+                self.state.started[event.uid] = event.start_at
+            posted_at = pointer.posted_at.astimezone(self.tz)
+            self.state.log.append(LogEntry(uid=last.uid, kind=MAIN, at=posted_at))
+            self.state.log.append(LogEntry(uid=last.uid, kind=PURPOSE, at=posted_at))
+            say(f"Last announcement in Slack was for {self.describe(last)}.")
+        if self.is_mockup:
+            before_today = [
+                i for i, event in enumerate(self.events) if event.start_at.date() < self.today()
+            ]
+            index = max([resume - 1, *before_today], default=-1)
+            self.state.mock_cursor_uid = self.events[index].uid if index >= 0 else None
+
+    # ---------- formatting ----------
+
+    def describe(self, event: ScheduledEvent) -> str:
+        base = event.start_at.strftime("%H:%M")
+        adjusted = self.adjusted_start(event)
+        day = event.start_at.strftime("%a %m-%d")
+        if adjusted == event.start_at:
+            times = f"{day} {base}"
+        else:
+            times = f"{day} {base} -> {adjusted.strftime('%H:%M')}"
+        return f"#{event.uid} \"{event.title}\" ({times})"
+
+    def describe_offset(self) -> str:
+        offset = self.state.offset
+        if offset is None or offset.minutes == 0:
+            text = "on schedule (offset 0)"
+        elif offset.minutes > 0:
+            text = f"running {plural_minutes(offset.minutes)} LATE"
+        else:
+            text = f"running {plural_minutes(-offset.minutes)} EARLY"
+        if offset is not None:
+            text += (f", for {offset.day.isoformat()}, "
+                     f"set at {offset.updated_at.astimezone(self.tz).strftime('%m-%d %H:%M')}")
+        return text
+
+    def event_status_lines(self, event: ScheduledEvent) -> list[str]:
+        now = self.now()
+        start = self.adjusted_start(event)
+        lines = [self.describe(event)]
+        if self.is_frozen(event):
+            lines.append(f"  frozen: started at {start.strftime('%H:%M')}")
+        elif self.is_held(event):
+            lines.append("  held: mockup waits for `goto` before announcing")
+        else:
+            due = start - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
+            fresh = self.announced_since(event, start - FRESH_WINDOW)
+            if fresh is not None:
+                verb = "skipped" if fresh.kind == SKIP else f"already announced ({fresh.kind})"
+                lines.append(f"  main: not needed, {verb} "
+                             f"at {fresh.at.astimezone(self.tz).strftime('%H:%M')}")
+            elif due > now:
+                lines.append(f"  main: due at {due.strftime('%H:%M')} "
+                             f"(in {plural_minutes(minutes_between(now, due))})")
+            else:
+                lines.append("  main: due now")
+        purpose = self.entries_for(event.uid, {PURPOSE})
+        if purpose:
+            lines.append(f"  purpose: posted at {purpose[-1].at.astimezone(self.tz).strftime('%H:%M')}")
+        elif not self.is_frozen(event) and not self.is_held(event):
+            due = start - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
+            lines.append(f"  purpose: due at {due.strftime('%H:%M')}" if due > now else "  purpose: due now")
+        late = self.offset_minutes(event)
+        base_due = event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
+        if late > 0 and not self.is_frozen(event) and now < event.start_at:
+            if self.announced_since(event, event.start_at - FRESH_WINDOW) is not None:
+                lines.append("  extra: not needed, already announced")
+            else:
+                lines.append(f"  extra (running late): due at {base_due.strftime('%H:%M')}")
+        for entry in self.entries_for(event.uid):
+            lines.append(f"  log: {entry.kind} at {entry.at.astimezone(self.tz).strftime('%m-%d %H:%M')}")
+        return lines
+
+    def print_status(self) -> None:
+        now = self.now()
+        lines = [
+            f"=== {'MOCKUP' if self.is_mockup else 'LIVE'}{' | TESTING (fake time)' if self.is_testing else ''} | now {now.strftime('%a %Y-%m-%d %H:%M:%S %Z')} ===",
+            f"Offset: {self.describe_offset()}",
+        ]
+        if self.is_mockup:
+            cursor = self.cursor_index()
+            current = self.events[cursor] if cursor >= 0 else None
+            lines.append(f"Current (mockup): {self.describe(current) if current else 'none yet'}")
+        upcoming = [
+            event for event in self.events
+            if not self.is_frozen(event) and self.adjusted_start(event) + STARTED_GRACE > now
+        ][:3]
+        lines.append("Upcoming:" if upcoming else "Upcoming: none")
+        for event in upcoming:
+            lines.extend("  " + line for line in self.event_status_lines(event))
+        if self.pending is not None:
+            lines.append("!! Pending question: `announce` or `skip` (see above).")
+        say(*lines)
+
+    # ---------- posting ----------
+
+    def post(self, text: str) -> None:
+        self.client.chat_postMessage(channel=self.announcements_channel_id, text=text)
+
+    def post_purpose(self, event: ScheduledEvent, now: datetime) -> None:
+        desc = get_event_channel_message(self.client, event.channel_id)
+        if desc:
+            join_channel_if_needed(self.client, event.channel_id)
+            message = desc.lstrip('_\n')
+            self.client.chat_postMessage(channel=event.channel_id, text=message)
+            say(f"Posted event channel purpose for {event.title} to <#{event.channel_id}>.")
+        else:
+            say(f"No purpose text configured for {event.title}; skipping event-channel post.")
+        # Logged either way, so an empty purpose is not retried every tick.
+        self.state.log.append(LogEntry(uid=event.uid, kind=PURPOSE, at=now))
+        self.save()
+
+    def post_main(self, event: ScheduledEvent, now: datetime) -> None:
+        t_minus = minutes_between(now, self.adjusted_start(event))
+        self.post(render_announcement(event.channel_id, t_minus))
+        self.state.log.append(LogEntry(uid=event.uid, kind=MAIN, at=now))
+        self.save()
+        say(f">> Announced {self.describe(event)}: {render_relative(t_minus)}.")
+
+    def post_extra(self, event: ScheduledEvent, now: datetime) -> None:
+        start = self.adjusted_start(event)
+        late = self.offset_minutes(event)
+        t_minus = minutes_between(now, start)
+        self.post(render_extra_announcement(event.channel_id, event.start_at, start, t_minus))
+        self.state.log.append(LogEntry(uid=event.uid, kind=EXTRA, at=now))
+        self.save()
+        say(f">> Extra (running {plural_minutes(late)} late) announcement for "
+            f"{self.describe(event)}, at its base-schedule time.")
+
+    # ---------- scheduler ----------
+
+    def freeze_started(self, now: datetime) -> None:
+        for event in self.events:
+            if self.is_frozen(event) or self.is_held(event):
+                continue
+            start = self.adjusted_start(event)
+            if now >= start + STARTED_GRACE:
+                self.state.started[event.uid] = start
+
+    def clear_stale_offset(self, now: datetime) -> None:
+        offset = self.state.offset
+        if offset is not None and offset.day < now.date():
+            say(f"Day changed: clearing offset from {offset.day.isoformat()} "
+                f"({offset.minutes:+d} min). Back to the base schedule.")
+            self.state.offset = None
+            self.save()
+
+    def find_stale(self, now: datetime) -> list[ScheduledEvent]:
+        threshold = timedelta(seconds=MISSED_EVENT_THRESHOLD_SECONDS)
+        return [
+            event for event in self.events
+            if self.main_due(event, now) and now - self.adjusted_start(event) >= threshold
+        ]
+
+    def ask_about_stale(self, stale: list[ScheduledEvent]) -> None:
+        now = self.now()
+        self.pending = PendingPrompt(
+            uids=[event.uid for event in stale],
+            deadline=now + timedelta(seconds=PROMPT_TIMEOUT_SECONDS),
+        )
+        lines = ["!! Missed announcement(s) while the bot was down:"]
+        for event in stale:
+            t_minus = minutes_between(now, self.adjusted_start(event))
+            lines.append(f"   {self.describe(event)}: {render_relative(t_minus)}")
+        lines.append(f"!! Type `announce` to post late, or `skip`. "
+                     f"Auto-skip in {PROMPT_TIMEOUT_SECONDS}s.")
+        say(*lines)
+
+    def resolve_pending(self, announce: bool) -> None:
+        pending = self.pending
+        assert pending is not None
+        self.pending = None
+        now = self.now()
+        for uid in pending.uids:
+            event = self.by_uid[uid]
+            if announce and self.main_due(event, now):
+                self.post_main(event, now)
+                if self.purpose_due(event, now):
+                    self.post_purpose(event, now)
+            else:
+                self.state.log.append(LogEntry(uid=uid, kind=SKIP, at=now))
+                say(f"Skipped stale announcement for {self.describe(event)}.")
+        self.save()
+
+    def tick(self) -> float:
+        with self.lock:
+            now = self.now()
+            self.clear_stale_offset(now)
+            self.freeze_started(now)
+            if self.pending is not None and now >= self.pending.deadline:
+                say("No response received; skipping.")
+                self.resolve_pending(announce=False)
+            pending_uids = set(self.pending.uids) if self.pending else set()
+            for event in self.events:
+                if event.uid in pending_uids:
+                    continue
+                if self.extra_due(event, now):
+                    self.post_extra(event, now)
+                if self.main_due(event, now):
+                    self.post_main(event, now)
+                if self.purpose_due(event, now):
+                    self.post_purpose(event, now)
+            self.save()
+            return self.seconds_until_next_action(now)
+
+    def seconds_until_next_action(self, now: datetime) -> float:
+        candidates: list[datetime] = []
+        for event in self.events:
+            if self.is_frozen(event):
+                continue
+            start = self.adjusted_start(event)
+            candidates.append(event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE))
+            if not self.is_held(event):
+                candidates.append(start - timedelta(minutes=ANNOUNCE_IN_ADVANCE))
+                candidates.append(start + STARTED_GRACE)
+        if self.pending is not None:
+            candidates.append(self.pending.deadline)
+        future = [(c - now).total_seconds() for c in candidates if c > now]
+        return max(0.5, min([MAX_SLEEP_SECONDS, *future]))
+
+    def scheduler_loop(self) -> None:
+        while True:
+            try:
+                wait = self.tick()
+            except Exception:
+                say("!! Scheduler error (will retry):")
+                traceback.print_exc()
+                wait = MAX_SLEEP_SECONDS
+            with self.wakeup:
+                self.wakeup.wait(timeout=wait)
+
+    def poke(self) -> None:
+        with self.wakeup:
+            self.wakeup.notify_all()
+
+    # ---------- offset changes ----------
+
+    def apply_offset(self, minutes: int, day: date) -> None:
+        now = self.now()
+        old = self.state.offset
+        old_minutes = old.minutes if old is not None and old.day == day else 0
+        self.state.offset = Offset(day=day, minutes=minutes, updated_at=now)
+        self.save()
+        if minutes == old_minutes:
+            say(f"Offset unchanged ({minutes:+d} min); nothing posted.")
+            return
+
+        corrections: list[tuple[str, datetime, int]] = []
+        corrected: list[ScheduledEvent] = []
+        for event in self.events:
+            if self.is_frozen(event) or not self.entries_for(event.uid, ANNOUNCING_KINDS):
+                continue
+            start = self.adjusted_start(event)
+            t_minus = minutes_between(now, start)
+            if t_minus >= 0:
+                corrections.append((event.channel_id, start, t_minus))
+                corrected.append(event)
+        text = render_offset_message(minutes, corrections)
+        try:
+            self.post(text)
+        except Exception:
+            say("!! Offset saved locally, but posting the schedule update to Slack failed:")
+            traceback.print_exc()
+            return
+        for event in corrected:
+            self.state.log.append(LogEntry(uid=event.uid, kind=UPDATE, at=now))
+        self.save()
+        if self.is_testing:
+            say(">> Posted schedule update.")
+        else:
+            say(">> Posted schedule update:", *("   " + line for line in text.splitlines()))
+
+    def calibrate(self, event: ScheduledEvent, target: datetime) -> bool:
+        if event.start_at.date() != self.today():
+            say(f"Rejected: {self.describe(event)} is not today ({self.today().isoformat()}).")
+            return False
+        now = self.now()
+        index = self.index_of[event.uid]
+        for earlier in self.events[:index]:
+            if not self.is_frozen(earlier):
+                self.state.started[earlier.uid] = min(self.adjusted_start(earlier), now)
+        for later in self.events[index:]:
+            self.state.started.pop(later.uid, None)
+        minutes = minutes_between(event.start_at, target)
+        self.apply_offset(minutes, event.start_at.date())
         return True
 
-    answer = sys.stdin.readline().strip().lower()
-    return answer not in {"n", "no"}
+    # ---------- commands ----------
+
+    def resolve_event(self, token: str) -> ScheduledEvent | None:
+        if token == "next":
+            event = self.next_event()
+            if event is None:
+                say("No next event.")
+            return event
+        event = self.by_uid.get(int(token))
+        if event is None:
+            say(f"No event with uid {token}.")
+        return event
+
+    def handle_command(self, line: str) -> None:
+        line = line.strip().lower()
+        if not line:
+            return
+        with self.lock:
+            try:
+                self._dispatch(line)
+            except Exception:
+                say("!! Command failed:")
+                traceback.print_exc()
+            self.poke()
+
+    def _dispatch(self, line: str) -> None:
+        if line in {"help", "?"}:
+            say(*HELP_TEXT.splitlines())
+            return
+        if line == "status":
+            self.print_status()
+            return
+        if line in {"announce", "skip", "y", "n", "yes", "no"}:
+            if self.pending is None:
+                say("Nothing pending.")
+                return
+            self.resolve_pending(announce=line in {"announce", "y", "yes"})
+            self.print_status()
+            return
+
+        match = re.fullmatch(r"\+\s*(\d+)", line)
+        if match:
+            if not self.is_testing:
+                say("Rejected: `+{m}` is only allowed with --testing.")
+                return
+            self.fast_forward(timedelta(minutes=int(match.group(1))))
+            self.print_status()
+            return
+
+        match = re.fullmatch(r"whats\s+(\d+|next)", line)
+        if match:
+            event = self.resolve_event(match.group(1))
+            if event is not None:
+                say(*self.event_status_lines(event))
+            return
+
+        match = re.fullmatch(r"running\s+(late|early)\s+by\s+(\d+)(?:\s*(?:m|min|mins|minutes?))?", line)
+        if match:
+            minutes = int(match.group(2)) * (1 if match.group(1) == "late" else -1)
+            today = self.today()
+            if not any(event.start_at.date() == today for event in self.events):
+                say(f"Warning: no events on {today.isoformat()}; the offset affects nothing.")
+            self.freeze_started(self.now())
+            self.apply_offset(minutes, today)
+            self.print_status()
+            return
+
+        match = re.fullmatch(r"calibrate\s+(\S+)\s+to\s+(?:(\d{1,2}):(\d{2})|(\d{3,4}))", line)
+        if match:
+            if match.group(1) == "next":
+                say("Rejected: `calibrate next` is ambiguous. Use the uid (see `whats next`).")
+                return
+            if not match.group(1).isdigit():
+                say(f"Bad event id: {match.group(1)}")
+                return
+            if match.group(4):
+                hour, minute = divmod(int(match.group(4)), 100)
+            else:
+                hour, minute = int(match.group(2)), int(match.group(3))
+            if hour > 23 or minute > 59:
+                say(f"Bad time: {hour}:{minute:02d}")
+                return
+            event = self.resolve_event(match.group(1))
+            if event is None:
+                return
+            target = datetime.combine(event.start_at.date(), dtime(hour, minute), tzinfo=self.tz)
+            say(f"Calibrating {self.describe(event)} to start at {target.strftime('%H:%M')}.")
+            self.calibrate(event, target)
+            self.print_status()
+            return
+
+        match = re.fullmatch(r"goto\s+(\d+|next)", line)
+        if match:
+            if match.group(1) == "next" and not self.is_mockup:
+                say("Rejected: `goto next` is only allowed in mockup. Use the uid (see `whats next`).")
+                return
+            event = self.resolve_event(match.group(1))
+            if event is None:
+                return
+            target = round_to_minute(self.now())
+            say(f"Going to {self.describe(event)}: it starts now ({target.strftime('%H:%M')}).")
+            if self.is_mockup and event.start_at.date() == self.today():
+                self.state.mock_cursor_uid = event.uid
+            if not self.calibrate(event, target):
+                return
+            # The operator says it has started: announce if needed, then pin it.
+            if self.main_due(event, self.now()):
+                self.post_main(event, self.now())
+            if self.purpose_due(event, self.now()):
+                self.post_purpose(event, self.now())
+            self.state.started[event.uid] = target
+            self.save()
+            self.print_status()
+            return
+
+        say(f"Unknown command: {line!r}. Type `help`.")
+
+    def fast_forward(self, delta: timedelta) -> None:
+        # Step like real time passing, so announcements go out in order with correct t_minus.
+        target = self.now() + delta
+        say(f"Fast-forwarding to {target.strftime('%H:%M')}...")
+        while self.now() < target:
+            step = min(timedelta(seconds=MAX_SLEEP_SECONDS), target - self.now())
+            self.fake_time_offset += step
+            self.tick()
+
+    # ---------- startup ----------
+
+    def start(self) -> None:
+        with self.lock:
+            say(f"Loaded {len(self.events)} events; "
+                f"{sum(e.start_at.date() == self.today() for e in self.events)} today.")
+            self.load_or_recover()
+            now = self.now()
+            self.clear_stale_offset(now)
+            if self.is_mockup and self.state.mock_cursor_uid is not None:
+                cursor_event = self.by_uid.get(self.state.mock_cursor_uid)
+                if cursor_event is None or cursor_event.start_at.date() < self.today():
+                    self.state.mock_cursor_uid = None
+            if self.is_mockup and self.state.mock_cursor_uid is None:
+                before_today = [e for e in self.events if e.start_at.date() < self.today()]
+                if before_today:
+                    self.state.mock_cursor_uid = before_today[-1].uid
+            self.freeze_started(now)
+            self.save()
+            self.print_status()
+            stale = self.find_stale(now)
+            if stale:
+                self.ask_about_stale(stale)
+            say("Type `help` for commands.")
+        threading.Thread(target=self.scheduler_loop, daemon=True).start()
 
 
-def sleep_until_due(event: ScheduledEvent, now: datetime) -> None:
-    due_at = event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
-    seconds_until_due = max(0.0, (due_at - now).total_seconds())
-    time.sleep(min(seconds_until_due, 30.0))
-
-
-def post_event_channel_message(client: Any, event: ScheduledEvent) -> None:
-    desc = get_event_channel_message(client, event.channel_id)
-    if not desc:
-        print(f"No purpose text configured for {event.title}; skipping event-channel post.")
+def run_shell(bot: AnnouncementBot) -> None:
+    if not sys.stdin.isatty():
+        for line in sys.stdin:
+            bot.handle_command(line)
         return
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.patch_stdout import patch_stdout
 
-    join_channel_if_needed(client, event.channel_id)
-    message = desc.lstrip('_\n')
-    client.chat_postMessage(channel=event.channel_id, text=message)
-    print(f"Posted event channel purpose for {event.title} to <#{event.channel_id}>.")
-
-
-def post_announcement(
-    client: Any,
-    announcements_channel_id: str,
-    event: ScheduledEvent,
-    now: datetime,
-    is_mockup: bool,
-) -> None:
-    t_minus = minutes_until(event, now)
-    message = render_announcement(client, event.channel_id, t_minus, is_mockup=is_mockup)
-    client.chat_postMessage(channel=announcements_channel_id, text=message)
-    post_event_channel_message(client, event)
-    print(
-        f"Posted announcement for {event.title} at "
-        f"{now.isoformat()} with t_minus={t_minus}."
-    )
+    session: PromptSession[str] = PromptSession()
+    prompt = "mockup> " if bot.is_mockup else "announce> "
+    with patch_stdout():
+        while True:
+            try:
+                line = session.prompt(prompt)
+            except KeyboardInterrupt:
+                continue
+            except EOFError:
+                break
+            bot.handle_command(line)
+    say("Bye.")
 
 
-def run(site_data_path: str, is_mockup: bool = False) -> None:
+def run(site_data_path: str, is_mockup: bool = False, is_testing: bool = False) -> None:
     events = load_events(site_data_path)
     if not events:
         raise RuntimeError(f"No announceable events found in {site_data_path}/events.csv.")
 
-    client = create_slack_client(is_mockup=is_mockup)
-    announcements_channel_id = find_channel_id(
-        client, ANNOUNCEMENTS_CHANNEL
-    )
-    join_channel_if_needed(client, announcements_channel_id)
-
-    last_announcement = fetch_last_announcement(client, announcements_channel_id)
-    cursor = find_resume_index(events, last_announcement)
-    started_at_monotonic = time.monotonic()
-
-    if last_announcement is None:
-        print("No previous announcement found; starting from the first event.")
-    else:
-        print(
-            f"Resuming after channel {last_announcement.channel_id}; next event index is {cursor}."
-        )
-
-    while cursor < len(events):
-        event = events[cursor]
-        now = datetime.now(tz=event.start_at.tzinfo)
-        due_at = event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
-        if now < due_at:
-            print(
-                'Next will be '
-                f"{event.title} at {due_at.isoformat()} (t_minus={minutes_until(event, now)})"
+    if is_testing:
+        load_dotenv(dotenv_path=Path(".") / ".env")
+        if os.environ.get(BOT_TOKEN_ENV_VAR, "").strip():
+            sys.exit(
+                f"--testing refuses to run while {BOT_TOKEN_ENV_VAR} is set "
+                "(environment or .env). Unset it and retry."
             )
-            print('Sleeping...')
-            sleep_until_due(event, now)
-            continue
+        announcements_channel_id = "ANNOUNCEMENTS"
+        client: Any = StdoutSlackClient({
+            announcements_channel_id: ANNOUNCEMENTS_CHANNEL,
+            **{event.channel_id: event.title for event in events},
+        })
+    else:
+        client = create_slack_client(is_mockup=is_mockup)
+        announcements_channel_id = find_channel_id(
+            client, ANNOUNCEMENTS_CHANNEL
+        )
+        join_channel_if_needed(client, announcements_channel_id)
 
-        if should_prompt_for_missed_announcement(
-            event, now, started_at_monotonic
-        ) and prompt_should_skip(event, now):
-            print(f"Skipping stale announcement for {event.channel_id}.")
-            cursor += 1
-            continue
-
-        post_announcement(client, announcements_channel_id, event, now, is_mockup)
-        cursor += 1
-
-    print("No more events to announce.")
+    suffix = ("_mockup" if is_mockup else "") + ("_testing" if is_testing else "")
+    state_path = STATE_DIR / f"announcement_bot_state{suffix}.json"
+    bot = AnnouncementBot(
+        events, client, announcements_channel_id, state_path, is_mockup,
+        is_testing=is_testing,
+    )
+    if is_testing:
+        global stamp_clock
+        stamp_clock = bot.now
+    bot.start()
+    run_shell(bot)
 
 
 def parse_args() -> argparse.Namespace:
@@ -374,14 +1123,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--mockup",
         action="store_true",
-        help="Use sitedata_mock, MOCKUP_SLACK_TOKEN_ANNOUNCEMENT_BOT, and mockup-formatted announcements.",
+        help="Use sitedata_mock and MOCKUP_SLACK_TOKEN_ANNOUNCEMENT_BOT.",
+    )
+    parser.add_argument(
+        "--testing",
+        action="store_true",
+        help="Fake wall time (fast-forward with `+{m}`); print Slack posts to stdout instead.",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    run("sitedata_mock" if args.mockup else "sitedata", is_mockup=args.mockup)
+    run(
+        "sitedata_mock" if args.mockup else "sitedata",
+        is_mockup=args.mockup, is_testing=args.testing,
+    )
 
 
 if __name__ == "__main__":

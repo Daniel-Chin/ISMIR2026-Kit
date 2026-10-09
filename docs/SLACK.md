@@ -138,9 +138,7 @@ final channel names. Session and position come from `session_assignment.csv`.
 the workspace (public + private channels the bot can see), creates a public
 channel; then writes `https://<workspace>.slack.com/archives/<id>` into the
 `channel_url` column for every row whose channel exists (the workspace URL comes
-from `auth.test`). The CSV is rewritten in place. To fix CSVs written with the
-old workspace-less `app_redirect` form, run
-`python -m scripts.bump_slack_channel_urls [--mockup]`.
+from `auth.test`). The CSV is rewritten in place.
 
 **`invite-authors`**: splits each row's `author_emails` on `;`, resolves each
 email to a workspace user ID, and invites them to the row's channel (skipping

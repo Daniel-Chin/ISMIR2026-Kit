@@ -129,22 +129,27 @@ def configure():
     config={'backend':backend,'githubOrigin':'https://'+username.lower()+'.github.io'}
     path.write_text(json.dumps(config,indent=2)+'\n');return config
 
-def pin_slack_team(schedule,team):
+def unpinned_slack_items(schedule):
     # app_redirect without team= opens the channel in the viewer's last-used workspace.
+    # https://<workspace>.slack.com/archives/<id> links already name the workspace.
+    for item in [e for e in schedule['events']]+[p for e in schedule['events'] for p in e.get('papers',[])]:
+        parts=urlsplit(item.get('links',{}).get('slack',''))
+        if parts.hostname=='slack.com' and parts.path=='/app_redirect' and 'team=' not in parts.query:yield item
+
+def pin_slack_team(schedule,team):
     if not team:return 0
     if not re.fullmatch(r'[TE][A-Z0-9]{6,}',team):raise ValueError('site-config.json slackTeamId 应为 T 开头的 Slack Team ID')
     changed=0
-    for item in [e for e in schedule['events']]+[p for e in schedule['events'] for p in e.get('papers',[])]:
-        url=item.get('links',{}).get('slack','');parts=urlsplit(url)
-        if parts.hostname=='slack.com' and parts.path=='/app_redirect' and 'team=' not in parts.query:
-            item['links']['slack']=url+'&team='+team;changed+=1
+    for item in list(unpinned_slack_items(schedule)):
+        item['links']['slack']+='&team='+team;changed+=1
     return changed
 
 def main():
     folder=Path(sys.argv[1]) if len(sys.argv)>1 else ROOT/'downloaded sitedata'
     schedule,notes=convert(folder)
     config=configure()
-    if not pin_slack_team(schedule,config.get('slackTeamId','').strip()):notes.append('site-config.json 未设置 slackTeamId：Slack 链接会在用户上次使用的工作区打开。')
+    pin_slack_team(schedule,config.get('slackTeamId','').strip())
+    if any(unpinned_slack_items(schedule)):notes.append('site-config.json 未设置 slackTeamId：Slack 链接会在用户上次使用的工作区打开。')
     out=ROOT/'output';out.mkdir(exist_ok=True)
     # Build public files before replacing the ready-to-upload schedule.
     with tempfile.TemporaryDirectory() as temporary:

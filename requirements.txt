@@ -9,4 +9,13 @@ pytz
 python-dateutil
 gunicorn
 requests
+pandas>=2.0.3
+openpyxl>=3.1.5
+icalendar>=6.3.2
+ics>=0.7.3
+slack-sdk>=3.43.0
 gdown>=5.2,<6
+google-api-python-client>=2.201.0
+google-auth-oauthlib>=1.5.0
+matplotlib>=3.11.2
+prompt-toolkit>=3.0.53

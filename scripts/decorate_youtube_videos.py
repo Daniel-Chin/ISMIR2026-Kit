@@ -407,6 +407,20 @@ def plan_updates(
     return plans
 
 
+def missing_videos(videos: Sequence[APIObject], papers: Mapping[str, PaperRow]) -> list[str]:
+    """Papers with a raw_video but no current YouTube upload, whether outdated or never uploaded."""
+    present = set[str]()
+    for video in videos:
+        claim = metadata(video['snippet']['description'])
+        if claim is None:
+            uid = fresh_paper_id(video, papers)
+            if uid is not None:
+                present.add(uid)
+        elif claim['google_drive_id'] == drive_id(papers[claim['paper_id']]['raw_video'], allow_url=True):
+            present.add(claim['paper_id'])
+    return [uid for uid, row in papers.items() if row['raw_video'] and uid not in present]
+
+
 def summarize_coverage(rows: Sequence[PaperRow]) -> None:
     def count(raw: bool, vid: bool) -> int:
         return sum(bool(row['raw_video']) == raw and bool(row.get('video')) == vid for row in rows)
@@ -570,6 +584,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if dry_run:
             print('DRY RUN: coverage below is the unchanged CSV.')
         summarize_coverage(rows)
+        missing = missing_videos(videos, papers)
+        print(f'Papers with raw_video but no current YouTube upload ({len(missing)}); upload by hand:')
+        for uid in missing:
+            print(f'  {uid}')
         return 0
     finally:
         print('Reminder: paste the video column back into Google Sheets.')

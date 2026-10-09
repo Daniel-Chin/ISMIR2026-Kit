@@ -44,6 +44,12 @@
       if (value) node.textContent = value;
     });
     if (conf.name) document.title = document.title.replace(/ISMIR \d{4}/g, conf.name);
+    // The page stands alone (no miniconf wrapper), so its own nav links back to the configured miniconf.
+    const links = { miniconf: conf.miniconfUrl ? programSite + '/' : '', official: conf.officialSiteUrl };
+    root.querySelectorAll('[data-site-link]').forEach((node) => {
+      const href = links[node.dataset.siteLink];
+      if (href) node.setAttribute('href', href);
+    });
   }
 
   window.ISMIRSite = {

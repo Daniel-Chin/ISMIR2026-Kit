@@ -11,7 +11,8 @@ This document is at `./live_overview/integration.md`. In this document, `.` refe
 - Miniconf is at `prefix`.
 - `prefix = "https://ismir2026program.ismir.net" | "https://daniel-chin.github.io/ISMIR2026-Kit"`.
   - See definition in [Input data](#input-data).
-- Live Overview page is at `{prefix}/live.html`.
+- ~~Live Overview page is at `{prefix}/live.html`.~~
+  - **Update:** the page is at `{prefix}/live-no-nav.html`, linked directly from the miniconf nav.
 - The Relay Backend should use a different server, enabling CORS. Its sole consumer is frontend js in users' browsers.
 
 ## Static deployment
@@ -68,13 +69,16 @@ This document is at `./live_overview/integration.md`. In this document, `.` refe
 - Both `.sh` scripts may assume they're run from `./live_overview` as current directory.
 
 ## UI integration
-- The Live Overview page will be an iframe under the miniconf nav header that says "Schedule Papers Music etc.".
-  - In other words, `build/live.html` renders the header and renders `build/live-no-nav.html`.
-- The iframe will occupy remaining viewport height and Live Overview scrolls internally.
+- ~~The Live Overview page will be an iframe under the miniconf nav header that says "Schedule Papers Music etc.".~~
+  - ~~In other words, `build/live.html` renders the header and renders `build/live-no-nav.html`.~~
+- ~~The iframe will occupy remaining viewport height and Live Overview scrolls internally.~~
+- **Update:** no iframe and no outer container. The miniconf nav item "Live Overview" (`templates/base.html`) links straight to `{prefix}/live-no-nav.html`, which keeps Live Overview's own nav bar. That nav has a "Mini Conf" link back to `{prefix}` (and "Official Website" from `official_site_url`), both read from `config.yml`.
+  - `templates/live.html` and the `/live.html` route are no longer linked from the nav.
 
 ## Ephemeral notes pertaining to the current design
-- Remove the nav bar that says "ISMIR 2026 ... HOME | LIVE EVENTS ..."
-- Move the Light Switch somewhere else. I trust you to design it well.
+- ~~Remove the nav bar that says "ISMIR 2026 ... HOME | LIVE EVENTS ..."~~
+- ~~Move the Light Switch somewhere else. I trust you to design it well.~~
+  - **Update:** the Live Overview nav bar (with the Light Switch) is kept, since the page is no longer under the miniconf header.
 - Change hardcoded conference info to use config.yml instead. 
 - Timezone should not be persistent and always default to local system timezone. This is the consistent behavior with miniconf.
 - Are you using URL param? That might need redesign with iframe; contact Daniel. (if you are an agent, scream to Liwei to contact Daniel about this)

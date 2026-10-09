@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build the miniconf-embedded Live Overview into live_overview/build.
+"""Build the standalone Live Overview (own nav, linked from the miniconf menu) into live_overview/build.
 
 Owned outputs (see integration.md):
-  build/live-no-nav.html   the page miniconf's live.html shows in an iframe
+  build/live-no-nav.html   the page; miniconf's nav links here directly (no iframe wrapper)
   build/live_overview/     assets, config and the frozen schedule snapshot
 Nothing else under build/ is written or removed.
 """
@@ -48,6 +48,7 @@ def read_config(path):
     if missing:
         raise ValueError(f'{path}: missing {", ".join(missing)}')
     conf['miniconf_url'] = conf['miniconf_url'].rstrip('/')
+    conf['official_site_url'] = values.get('official_site_url', '')  # optional
     return conf
 
 
@@ -136,7 +137,7 @@ def write_site(out, api_origin, conf, schedule):
         config = {
             'staticHosting': True,
             'apiOrigin': api_origin,
-            'conference': {'name': conf['name'], 'date': conf['date'], 'timezone': conf['timezone'], 'miniconfUrl': conf['miniconf_url']},
+            'conference': {'name': conf['name'], 'date': conf['date'], 'timezone': conf['timezone'], 'miniconfUrl': conf['miniconf_url'], 'officialSiteUrl': conf['official_site_url']},
         }
         (assets / 'public-site-config.js').write_text(
             'window.ISMIR_PUBLIC_CONFIG = Object.assign(' + json.dumps(config, ensure_ascii=False)

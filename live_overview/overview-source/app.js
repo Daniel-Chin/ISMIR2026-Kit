@@ -428,9 +428,9 @@ function eventMeta(e) {
 function presenterLabel(mode) {
   if (!mode) return 'Presentation mode TBA';
   const clean = String(mode).toLowerCase();
-  if (clean === 'online') return 'Presented online';
-  if (clean === 'mixed') return 'Presented onsite + online';
-  return 'Presented onsite';
+  if (clean === 'online') return 'Virtual';
+  if (clean === 'mixed') return 'In-person + Virtual';
+  return 'In-person';
 }
 
 function statCard(key, label, value, help) {
@@ -1552,12 +1552,12 @@ function canonEggPaperPool() {
   const pool = [];
   for (const event of currentState?.events || []) {
     for (const paper of event?.papers || []) {
-      const id = String(paper?.id || paper?.sourcePaperId || paper?.title || '').trim();
+      // Oral and poster sessions list the same paper under different ids; dedupe by source paper.
+      const id = String(paper?.sourcePaperId || paper?.id || paper?.title || '').trim();
       if (!id || seen.has(id)) continue;
       seen.add(id);
-      let fact = String(paper?.funFact || '').trim();
-      if (!fact && Array.isArray(paper?.subjects) && paper.subjects[0]) fact = `Its primary programme subject is “${paper.subjects[0]}”.`;
-      if (!fact && paper?.presenterMode) fact = `This paper is scheduled as a ${String(paper.presenterMode).toLowerCase()} presentation.`;
+      // Only papers with an author-provided fun fact are eligible.
+      const fact = String(paper?.funFact || '').trim();
       if (fact) pool.push({ id, title: String(paper?.title || id), fact });
     }
   }
@@ -1573,7 +1573,8 @@ function canonEggCloseFunFact() {
 
 function canonEggShowFunFact() {
   const pool = canonEggPaperPool();
-  if (!pool.length) return;
+  // No fun facts yet: reset so the puzzle can be played again instead of staying "completed".
+  if (!pool.length) { canonEggCloseFunFact(); return; }
   const paper = pool[Math.floor(Math.random() * pool.length)];
   const backdrop = document.createElement('div');
   backdrop.className = 'canon-egg-funfact-backdrop';

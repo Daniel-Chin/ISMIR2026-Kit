@@ -101,6 +101,8 @@ def convert(folder,warnings=None):
                 paper['detailUrl']=f'{PROGRAM_SITE}/poster_{puid}.html'
                 # Unknown attendance mode must not silently become "onsite".
                 if not raw.get('paper_presentation','').strip():paper.pop('presenterMode',None)
+                fact=helper.clean_text(raw.get('fun_facts'))
+                if fact:paper['funFact']=fact
                 for source,destination in [('raw_pdf_path','pdf'),('raw_video','video'),('raw_poster_pdf','poster'),('raw_thumbnail','thumbnail'),('raw_slides_pdf','slides')]:
                     value=raw.get(source,'').strip()
                     if value and urlsplit(value).scheme=='https':paper.setdefault('links',{})[destination]=value

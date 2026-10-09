@@ -1,7 +1,7 @@
 'use strict';
 const publicStatic = window.ISMIR_PUBLIC_CONFIG?.staticHosting === true;
 
-const ISMIR_BUILD_VERSION = '1.0.0-ui.7';
+const ISMIR_BUILD_VERSION = '1.0.0-ui.6';
 window.ISMIR_BUILD_VERSION = ISMIR_BUILD_VERSION;
 
 const root = document.getElementById('history-events-root');

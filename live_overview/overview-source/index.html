@@ -10,9 +10,23 @@
     } catch (error) {
       document.documentElement.dataset.theme = "light";
     }
-
+    try {
+      const params = new URLSearchParams(location.search);
+      if (["1", "true", "yes"].includes(String(params.get("debug") || "").toLowerCase())) {
+        document.documentElement.classList.add("debug-clock-only");
+        // Critical debug-only guard lives inline so stale/cached styles.css cannot reveal the normal site.
+        const guard = document.createElement("style");
+        guard.id = "debug-clock-only-guard";
+        guard.textContent = `
+          html.debug-clock-only body > :not(#debug-clock-panel):not(.timezone-dropdown) { display: none !important; }
+          html.debug-clock-only body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+          html.debug-clock-only #debug-clock-panel { width: min(720px, 100%); margin: 0; }
+        `;
+        document.head.appendChild(guard);
+      }
+    } catch (error) {}
   </script>
-  <link rel="stylesheet" href="./styles.css?v=1.0.0-ui.7" />
+  <link rel="stylesheet" href="/styles.css?v=1.0.0-ui.6" />
 </head>
 <body>
   <header class="site-header">
@@ -24,14 +38,53 @@
       <a href="#home">Home</a>
       <a href="#live-events">Live Events</a>
       <a href="#upcoming-events">Upcoming</a>
-      <a href="./history.html">History</a>
+      <a href="/history.html">History</a>
       <a href="https://ismir2026program.ismir.net/" target="_blank" rel="noopener noreferrer">Mini Conf</a>
       <a href="https://ismir2026.ismir.net/" target="_blank" rel="noopener noreferrer">Official Website</a>
     </nav>
     <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme">🌙 Lights Off</button>
   </header>
 
-
+  <section class="debug-clock-panel" id="debug-clock-panel" hidden aria-label="Debug clock controls">
+    <div class="debug-clock-copy">
+      <strong>Conference time control</strong>
+      <span id="debug-clock-now">Server time —</span>
+    </div>
+    <div class="debug-timezone-control" id="debug-timezone-control">
+      <span class="timezone-control-label">Time zone</span>
+      <button class="timezone-inline-value" type="button" data-timezone-trigger aria-label="Choose debug display time zone">
+        <span data-timezone-summary>Asia/Dubai (UTC+4)</span>
+      </button>
+    </div>
+    <form class="debug-clock-form" id="debug-clock-form">
+      <div class="debug-clock-fields" aria-label="Set conference date and time">
+        <label>
+          Date
+          <input id="debug-clock-date" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="YYYY-MM-DD" />
+        </label>
+        <label>
+          Hour
+          <select id="debug-clock-hour" aria-label="Hour"></select>
+        </label>
+        <label>
+          Minute
+          <select id="debug-clock-minute" aria-label="Minute"></select>
+        </label>
+        <label>
+          AM / PM
+          <select id="debug-clock-ampm" aria-label="AM or PM">
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
+          </select>
+        </label>
+      </div>
+      <div class="debug-clock-actions">
+        <button class="debug-clock-button" type="submit">Set time</button>
+        <button class="debug-clock-button secondary" id="debug-clock-reset" type="button">Current time</button>
+      </div>
+    </form>
+    <span class="debug-clock-hint" id="debug-clock-hint">Choose a time to freeze the conference clock, or return every connected client to real current time.</span>
+  </section>
 
   <main>
     <section class="hero home-hero" id="home">
@@ -103,15 +156,15 @@
 
   <footer class="footer">
     <span>ISMIR 2026 Live Overview</span>
-  <span class="build-version" data-build-version>UI 1.0.0-ui.7</span>
+  <span class="build-version" data-build-version>UI 1.0.0-ui.6</span>
   </footer>
 
-  <script src="./public-site-config.js?v=1.0.0-ui.7"></script>
-  <script src="./public-connection.js?v=1.0.0-ui.7"></script>
-  <script src="./timezone-preference.js?v=1.0.0-ui.7"></script>
-  <script src="./prompt-config.js?v=1.0.0-ui.7"></script>
-  <script src="./app.js?v=1.0.0-ui.7"></script>
-  <script src="./cursor-avatars.js?v=1.0.0-ui.7"></script>
-  <script src="./theme-toggle.js?v=1.0.0-ui.7"></script>
+  <script src="/public-site-config.js?v=1.0.0-ui.6"></script>
+  <script src="/public-connection.js?v=1.0.0-ui.6"></script>
+  <script src="/timezone-preference.js?v=1.0.0-ui.6"></script>
+  <script src="/prompt-config.js?v=1.0.0-ui.6"></script>
+  <script src="/app.js?v=1.0.0-ui.6"></script>
+  <script src="/cursor-avatars.js?v=1.0.0-ui.6"></script>
+  <script src="/theme-toggle.js?v=1.0.0-ui.6"></script>
 </body>
 </html>

@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""Read the three site CSVs; write schedule.json and the GitHub Pages export."""
+import csv,json,re,sys,tempfile,os
+from pathlib import Path
+from datetime import datetime,timedelta,timezone
+from urllib.parse import urlsplit
+import csv_helpers as helper
+from build_public_site import build
+ROOT=Path(__file__).resolve().parents[1]
+PROGRAM_SITE='https://ismir2026program.ismir.net'  # sitedata/config.yml miniconf_url
+
+def read(path):
+    with path.open(encoding='utf-8-sig',newline='') as f:
+        reader=csv.DictReader(f)
+        if not reader.fieldnames or len(set(reader.fieldnames))!=len(reader.fieldnames):raise ValueError(f'{path.name}: invalid headers')
+        rows=list(reader)
+        if any(None in r for r in rows):raise ValueError(f'{path.name}: malformed CSV row')
+        return rows
+
+def find_csv(folder,stem):
+    exact=folder/(stem+'.csv')
+    if exact.exists():return exact
+    found=[p for p in folder.glob('*.csv') if re.fullmatch(re.escape(stem)+r'\s*\(\d+\)\.csv',p.name)]
+    if len(found)!=1:raise ValueError(f'请在 {folder} 放入唯一的 {stem}.csv（也支持下载时的括号编号）。')
+    return found[0]
+
+def convert(folder):
+    sources={n:find_csv(folder,n) for n in ['events','papers','session_assignment']}
+    events,papers,assign=(read(sources[n]) for n in ['events','papers','session_assignment'])
+    paper_by_id={}
+    for row in papers:
+        uid=row.get('uid','').strip()
+        if not re.fullmatch(r'\d+',uid) or uid in paper_by_id or not row.get('title','').strip():raise ValueError('papers.csv: missing/duplicate uid or title')
+        paper_by_id[uid]=row
+    if not assign or 'Session Name' not in assign[0]:raise ValueError('session_assignment.csv 缺少 Session Name 列')
+    columns={k:int(k[3:]) for k in assign[0] if re.fullmatch(r'PS-\d+',k)}
+    if not columns or len(set(columns.values()))!=len(columns):raise ValueError('缺少或重复 PS-xx 列')
+    groups={n:[] for n in columns.values()};used=set();positions=set();block_times={}
+    for row in assign:
+        label=row['Session Name'].strip();m=re.fullmatch(r'Paper-(\d+)',label,re.I)
+        if label=='Session Day & Time (UTC+4)':block_times={n:row[k].strip() for k,n in columns.items()}
+        if not m:continue
+        pos=int(m[1])
+        if pos<1 or pos in positions:raise ValueError('重复或无效的 Paper-n 行')
+        positions.add(pos)
+        for col,num in columns.items():
+            uid=row[col].strip()
+            if not uid:continue
+            if uid not in paper_by_id:raise ValueError(f'{col}/{label}: 论文 uid {uid} 不存在')
+            if uid in used:raise ValueError(f'论文 uid {uid} 被分配多次')
+            used.add(uid);groups[num].append((pos,uid))
+    if used!=set(paper_by_id):raise ValueError('未分配的论文 uid: '+', '.join(sorted(set(paper_by_id)-used)))
+    output=[];seen=set();ordinary={};notes=[]
+    for idx,row in enumerate(events,1):
+        uid=row.get('uid','').strip();title=helper.clean_text(row.get('title'))
+        if not uid or uid in seen or not title:raise ValueError('events.csv: missing/duplicate uid or title')
+        seen.add(uid);category=helper.clean_text(row.get('category'))
+        typ=helper.event_type(title,category)
+        if category.lower()=='tutorials':typ='tutorial'
+        if category.lower()=='special':typ='special'
+        if category.lower()=='award nominee':typ='special'
+        start=helper.parse_local_datetime(row.get('start_date'),row.get('start_time'))
+        tbd=row.get('end_time','').strip().lower() in {'','tbd','tba'}
+        if tbd:
+            end=(start+timedelta(days=1)).replace(hour=0,minute=0,second=0)
+            notes.append(f'{title}: 结束时间待定，显示 TBD；仅用当地次日零点作为列表归档界限。')
+        else:
+            end=helper.parse_local_datetime(row.get('start_date'),row.get('end_time'))
+            if end<=start:end+=timedelta(days=1)
+        links={}
+        for src,dst in [('web_link','info'),('channel_url','slack'),('thumbnail_link','thumbnail')]:
+            if row.get(src,'').strip():links[dst]=row[src].strip()
+        live=row.get('live_url','').strip()
+        if live:links['zoom' if re.search(r'(^|\.)(zoom\.us|zoom\.com|zoomgov\.com)$',urlsplit(live).hostname or '') else 'youtube']=live
+        event={'id':'event-'+uid,'sourceEventId':uid,'title':title,'type':typ,'category':category,'track':'poster' if typ=='poster' else 'main','startsAt':start.isoformat(),'endsAt':end.isoformat(),'links':links,'day':start.strftime('%A'),'dayNumber':helper.parse_int(row.get('day')),'topic':helper.topic_from_event(typ,category),'summary':helper.clean_text(row.get('description')),'organiser':helper.clean_text(row.get('organiser'))}
+        if tbd:event['endTimeTBD']=True
+        if 'zoom' in links:event['zoomKind']='meeting' if typ=='poster' else 'webinar'
+        match=re.fullmatch(r'(Poster|Oral)\s+Session\s*-?\s*(\d+)',title,re.I)
+        if match:
+            num=int(match[2]);key=(typ,num)
+            if num not in groups or key in ordinary:raise ValueError(f'{title}: 缺少或重复分组')
+            ordinary[key]=event;event['sessionNumber']=num
+            if typ=='poster':event['posterSessionNumber']=num
+            event['papers']=[]
+            for pos,puid in sorted(groups[num]):
+                raw=paper_by_id[puid]
+                paper=helper.build_paper({**raw,'session':str(num),'position':str(pos)},event['id'])
+                # Stable source identity, independent of positional changes; separate Oral display instances.
+                paper['id']=f'paper-{puid}' if typ=='poster' else f'oral-{num}-paper-{puid}'
+                paper['displayId']=f'P{num}-{pos:02d}'
+                paper['detailUrl']=f'{PROGRAM_SITE}/poster_{puid}.html'
+                # Unknown attendance mode must not silently become "onsite".
+                if not raw.get('paper_presentation','').strip():paper.pop('presenterMode',None)
+                for source,destination in [('raw_pdf_path','pdf'),('raw_video','video'),('raw_poster_pdf','poster'),('raw_thumbnail','thumbnail'),('raw_slides_pdf','slides')]:
+                    value=raw.get(source,'').strip()
+                    if value and urlsplit(value).scheme=='https':paper.setdefault('links',{})[destination]=value
+                event['papers'].append(paper)
+            event['paperRange']={'first':min(p for p,_ in groups[num]),'last':max(p for p,_ in groups[num])}
+        output.append(event)
+    for n in groups:
+        if ('poster',n) not in ordinary or ('oral',n) not in ordinary:raise ValueError(f'PS-{n:02d}: 找不到对应 Oral 与 Poster 场次')
+        oral,poster=ordinary['oral',n],ordinary['poster',n]
+        expected=f"{datetime.fromisoformat(oral['startsAt']).strftime('%a, %H:%M')} - {datetime.fromisoformat(poster['endsAt']).strftime('%H:%M')}"
+        if block_times.get(n) and re.sub(r'\s+',' ',block_times[n])!=expected:raise ValueError(f'PS-{n:02d}: 分组表时间 {block_times[n]} 与 events.csv 的 Oral+Poster 时间 {expected} 不一致')
+    output.sort(key=lambda e:(e['startsAt'],e['id']))
+    if not any(e['links'].get('zoom') for e in output):notes.append('CSV 中没有 Zoom 链接。测试时在后台的“测试会议链接”填写。')
+    return {'schemaVersion':7,'generatedAt':datetime.now(timezone.utc).isoformat(),'conference':helper.infer_conference(events),'events':output,'source':[p.name for p in sources.values()]},notes
+
+def configure():
+    path=ROOT/'site-config.json'
+    if path.exists():return json.loads(path.read_text())
+    backend=input('Cloudflare 后台网址（https://...workers.dev）：').strip().rstrip('/')
+    username=input('GitHub 用户名：').strip()
+    if not re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?',username):raise ValueError('GitHub 用户名无效')
+    url=urlsplit(backend)
+    if url.scheme!='https' or not url.netloc or url.path or url.query or url.fragment or url.username:raise ValueError('请填写后台 HTTPS origin，不带路径')
+    config={'backend':backend,'githubOrigin':'https://'+username.lower()+'.github.io'}
+    path.write_text(json.dumps(config,indent=2)+'\n');return config
+
+def pin_slack_team(schedule,team):
+    # app_redirect without team= opens the channel in the viewer's last-used workspace.
+    if not team:return 0
+    if not re.fullmatch(r'[TE][A-Z0-9]{6,}',team):raise ValueError('site-config.json slackTeamId 应为 T 开头的 Slack Team ID')
+    changed=0
+    for item in [e for e in schedule['events']]+[p for e in schedule['events'] for p in e.get('papers',[])]:
+        url=item.get('links',{}).get('slack','');parts=urlsplit(url)
+        if parts.hostname=='slack.com' and parts.path=='/app_redirect' and 'team=' not in parts.query:
+            item['links']['slack']=url+'&team='+team;changed+=1
+    return changed
+
+def main():
+    folder=Path(sys.argv[1]) if len(sys.argv)>1 else ROOT/'downloaded sitedata'
+    schedule,notes=convert(folder)
+    config=configure()
+    if not pin_slack_team(schedule,config.get('slackTeamId','').strip()):notes.append('site-config.json 未设置 slackTeamId：Slack 链接会在用户上次使用的工作区打开。')
+    out=ROOT/'output';out.mkdir(exist_ok=True)
+    # Build public files before replacing the ready-to-upload schedule.
+    with tempfile.TemporaryDirectory() as temporary:
+        stage=Path(temporary)/'schedule.json';stage.write_text(json.dumps(schedule,ensure_ascii=False,indent=2)+'\n')
+        build(out/'github-pages',config['backend'],stage)
+        temp=out/'schedule.json.tmp';temp.write_text(stage.read_text());os.replace(temp,out/'schedule.json')
+    # Add the GitHub origin without dropping other allowed origins; leave the file untouched if already present.
+    wrangler=ROOT/'wrangler.jsonc';settings=json.loads(wrangler.read_text(encoding='utf-8'))
+    origins=[s.strip() for s in settings['vars'].get('PUBLIC_VIEW_ORIGINS','').split(',') if s.strip()]
+    if config['githubOrigin'].lower() not in {o.lower() for o in origins}:
+        settings['vars']['PUBLIC_VIEW_ORIGINS']=','.join(origins+[config['githubOrigin']]);wrangler.write_text(json.dumps(settings,indent=2)+'\n',encoding='utf-8')
+    (out/'import-notes.txt').write_text('\n'.join(notes)+'\n')
+    print(f"已生成 {len(schedule['events'])} 个活动、{sum(len(e.get('papers',[])) for e in schedule['events'] if e['type']=='poster')} 篇 Poster 论文。")
+    print('1. 后台上传 output/schedule.json\n2. GitHub 仓库上传 output/github-pages 内的文件（不是外层文件夹）。')
+    print('首次运行后执行 npm run deploy，让 GitHub 默认网址的跨域配置生效；以后只更新数据无需部署。')
+    for note in notes:print(note)
+
+if __name__=='__main__':
+    try:main()
+    except (ValueError,KeyError,OSError) as error:print('未完成更新：'+str(error),file=sys.stderr);sys.exit(1)

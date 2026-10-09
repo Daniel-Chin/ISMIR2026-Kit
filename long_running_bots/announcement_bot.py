@@ -104,6 +104,7 @@ HELP_TEXT = f'''Commands ({{e}} is the event uid from events.csv):
   whats next                      Show the next event.
   running late|early by {{m}}       Set today's offset to m minutes w.r.t. the base schedule.
   calibrate {{e}} to {{hhmm|hh:mm}}   Set the offset so that event e starts at that conf-local time.
+                                  If the time looks 12h early, asks to confirm (`y`/`n`).
   goto {{e}}                        Same as `calibrate {{e}} to now`. `goto next` only in mockup.
   status                          Show offset, current/next events, and upcoming announcements.
   announce | skip                 Answer a pending stale-announcement question.
@@ -500,6 +501,8 @@ class AnnouncementBot:
         self.lock = threading.RLock()
         self.wakeup = threading.Condition(self.lock)
         self.pending: PendingPrompt | None = None
+        # (event, as typed, typed + 12h) awaiting `y`/`n`.
+        self.pending_calibration: tuple[ScheduledEvent, datetime, datetime] | None = None
         self.state = BotState()
 
     # ---------- time & schedule ----------
@@ -938,11 +941,24 @@ class AnnouncementBot:
         if line == "status":
             self.print_status()
             return
-        if line in {"announce", "skip", "y", "n", "yes", "no"}:
+        if self.pending_calibration is not None:
+            event, typed, plus_12h = self.pending_calibration
+            self.pending_calibration = None
+            if line in {"y", "yes"}:
+                self.run_calibration(event, plus_12h)
+                return
+            if line in {"n", "no"}:
+                self.run_calibration(event, typed)
+                return
+            say(f"Calibration of #{event.uid} cancelled.")
+        if line in {"y", "n", "yes", "no"}:
+            say("Nothing to confirm.")
+            return
+        if line in {"announce", "skip"}:
             if self.pending is None:
                 say("Nothing pending.")
                 return
-            self.resolve_pending(announce=line in {"announce", "y", "yes"})
+            self.resolve_pending(announce=line == "announce")
             self.print_status()
             return
 
@@ -992,9 +1008,16 @@ class AnnouncementBot:
             if event is None:
                 return
             target = datetime.combine(event.start_at.date(), dtime(hour, minute), tzinfo=self.tz)
-            say(f"Calibrating {self.describe(event)} to start at {target.strftime('%H:%M')}.")
-            self.calibrate(event, target)
-            self.print_status()
+            plus_12h = target + timedelta(hours=12)
+            if hour < 12 and abs(plus_12h - event.start_at) < abs(target - event.start_at):
+                self.pending_calibration = (event, target, plus_12h)
+                say(f"?? {target.strftime('%H:%M')} is {abs(minutes_between(event.start_at, target))} min "
+                    f"from the base start of {self.describe(event)}. "
+                    f"Did you mean {plus_12h.strftime('%H:%M')}?",
+                    f"?? `y` = {plus_12h.strftime('%H:%M')}, `n` = {target.strftime('%H:%M')} as typed. "
+                    "Any other command except `status`/`help` cancels.")
+                return
+            self.run_calibration(event, target)
             return
 
         match = re.fullmatch(r"goto\s+(\d+|next)", line)
@@ -1022,6 +1045,11 @@ class AnnouncementBot:
             return
 
         say(f"Unknown command: {line!r}. Type `help`.")
+
+    def run_calibration(self, event: ScheduledEvent, target: datetime) -> None:
+        say(f"Calibrating {self.describe(event)} to start at {target.strftime('%H:%M')}.")
+        self.calibrate(event, target)
+        self.print_status()
 
     def fast_forward(self, delta: timedelta) -> None:
         # Step like real time passing, so announcements go out in order with correct t_minus.

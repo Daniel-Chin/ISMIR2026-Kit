@@ -32,7 +32,7 @@ Bot output appears above the prompt while you type. Every command prints the res
 | `status` | Offset, current/next events, upcoming announcements. |
 | `whats {e}` / `whats next` | One event: base and adjusted start, what is due, what was posted. |
 | `running late by {m}` / `running early by {m}` | Set today's offset to m minutes **relative to the base schedule** (not cumulative). `running late by 0` = back on schedule. Posts "We are running m minutes late." |
-| `calibrate {e} to {hh:mm}` (or `{hhmm}`) | Set the offset so event e starts at that time. `next` is rejected; use the uid. |
+| `calibrate {e} to {hh:mm}` (or `{hhmm}`) | Set the offset so event e starts at that time. `next` is rejected; use the uid. If the time looks 12 h early (e.g. `3:10` for a 15:00 event), asks: `y` = 15:10, `n` = as typed. |
 | `goto {e}` | Event e starts now (`calibrate {e} to now`). `goto next` only in mockup. |
 | `announce` / `skip` | Answer the startup question about announcements missed while the bot was down (auto-skip after 60 s). |
 | `+{m}` | `--testing` only: fast-forward fake time by m minutes. |

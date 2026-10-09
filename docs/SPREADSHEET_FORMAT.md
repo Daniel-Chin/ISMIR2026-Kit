@@ -44,7 +44,7 @@ secondary_subject, long_presentation, is_tismir, SpecialTrack, StudentAuthor,
 AwardNominee, publish_reviews, summary_of_updates_post_review,
 pdf_name, pdf_n_bytes, raw_pdf_path,
 raw_video, video, raw_captions, raw_poster_pdf, raw_thumbnail, raw_slides_pdf,
-review1, review2, review3, review4, meta_review
+review1, review2, review3, review4, meta_review, fun_facts
 ```
 
 | Column | Format / meaning |
@@ -61,6 +61,7 @@ review1, review2, review3, review4, meta_review
 | ⚙️ `slack_channel` | generated: `p{session}-{position}-{first-3-title-words}` |
 | ⚙️ `channel_url` | Slack deep link written back after channel creation |
 | `review1`–`review4`, `meta_review` | markdown review text; shown on the page only when `publish_reviews=TRUE`, but should be blank if FALSE anyway. |
+| `fun_facts` | optional free text from authors (Google Form); filled by `scripts/parse_google_form_author_uploaded_materials.py`, which appends the column if missing (not displayed on pages yet) |
 
 ## Tab `session_assignment` — paper assignments
 

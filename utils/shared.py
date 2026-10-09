@@ -19,6 +19,10 @@ def load_site_config(site_data_path: str) -> dict:
     return config
 
 
+def load_helpdesk_url(site_data_path: str) -> str:
+    return str(load_site_config(site_data_path)["helpdesk_url"])
+
+
 @lru_cache(maxsize=32)
 def load_conference_timezone_name(
     site_data_path: str,

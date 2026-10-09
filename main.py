@@ -31,7 +31,7 @@ from markdown_it import MarkdownIt
 from markupsafe import Markup
 
 from utils.zoom_redirect import build_zoom_redirect_url
-from utils.shared import load_site_config
+from utils.shared import load_helpdesk_url, load_site_config
 from utils.calendar import build_calendar
 from utils.session_assignment import parse_file as parse_session_assignment
 
@@ -172,6 +172,8 @@ def main(site_data_path: str):
                 None,
                 include_token=False,
             )
+
+    app.jinja_env.globals["helpdesk_url"] = load_helpdesk_url(site_data_path)
 
     site_data["main_calendar"] = build_calendar(site_data["events"], site_data["config"])
 

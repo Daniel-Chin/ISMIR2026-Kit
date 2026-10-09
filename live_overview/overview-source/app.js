@@ -428,9 +428,9 @@ function eventMeta(e) {
 function presenterLabel(mode) {
   if (!mode) return 'Presentation mode TBA';
   const clean = String(mode).toLowerCase();
-  if (clean === 'online') return 'Virtual';
-  if (clean === 'mixed') return 'In-person + Virtual';
-  return 'In-person';
+  if (clean === 'online') return 'Presented Virtual';
+  if (clean === 'mixed') return 'Presented In-person + Virtual';
+  return 'Presented In-person';
 }
 
 function statCard(key, label, value, help) {

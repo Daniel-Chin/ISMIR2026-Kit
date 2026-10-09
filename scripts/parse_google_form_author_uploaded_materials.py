@@ -32,7 +32,7 @@ class AuthorUploadedMaterials:
     thumbnail_url: str | None = field(metadata={'header': 'thumbnail', 'output': 'raw_thumbnail'})
     video_url: str | None = field(metadata={'header': 'video presentation', 'output': 'raw_video'})
     captions_url: str | None = field(metadata={'header': 'captions', 'output': 'raw_captions'})
-    fun_facts: str | None = field(metadata={'header': 'fun facts'})
+    fun_facts: str | None = field(metadata={'header': 'fun facts', 'output': 'fun_facts'})
 
 
 # paper_id -> field name -> every value ever submitted for it
@@ -128,15 +128,21 @@ def write_into_sitedata(papers: dict[int, AuthorUploadedMaterials], history: His
         headers = next(reader, None)
         if not headers or len(headers) != len(set(headers)):
             raise ValueError('Missing or duplicate output CSV headers')
-        if missing := {'uid', *output_map.values()} - set(headers):
-            raise ValueError(f'Missing output columns: {sorted(missing)}')
+        if 'uid' not in headers:
+            raise ValueError('Missing output column: uid')
+        added = [column for column in output_map.values() if column not in headers]
+        if added:
+            print(f'Info: adding new output columns {added}.')
+        n_cells = len(headers)
+        headers += added
         uid_index = headers.index('uid')
         output_columns = {name: headers.index(column) for name, column in output_map.items()}
         rows: list[list[str]] = []
         seen: set[int] = set()
         for row in reader:
-            if len(row) != len(headers):
-                raise ValueError(f'Output CSV line {reader.line_num}: expected {len(headers)} cells, got {len(row)}')
+            if len(row) != n_cells:
+                raise ValueError(f'Output CSV line {reader.line_num}: expected {n_cells} cells, got {len(row)}')
+            row += [''] * len(added)
             paper_id = int(row[uid_index])
             if paper_id <= 0 or paper_id in seen:
                 raise ValueError(f'Invalid or duplicate output paper ID: {paper_id}')

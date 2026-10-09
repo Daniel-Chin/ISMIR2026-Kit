@@ -31,7 +31,7 @@ const expandedLivePaperEventIds = new Set();
 let lastTopologyKey = '';
 let realtimeUpdateQueued = false;
 let pendingRealtimeState = null;
-let conferenceTimeZone = 'Asia/Dubai';
+let conferenceTimeZone = window.ISMIRSite?.timeZone || 'Asia/Dubai';
 let debugClockPollTimer = null;
 let latestDebugClockRevision = -1;
 let lastClockAuthoritySignature = '';
@@ -1278,6 +1278,7 @@ async function fetchInitial() {
     window.ISMIRPublic.start({ ...window.ISMIR_PUBLIC_CONFIG,
       onStatus: setConnection,
       onState: state => {
+        state = window.ISMIRSite?.localizeState(state) || state;
         latestClockRevisionSeen = -1; pendingRealtimeState = null;
         if (!currentState || state.scheduleRevision !== currentState.scheduleRevision || Boolean(state.offline) !== Boolean(currentState.offline)) render(state);
         else patchRealtimeState(state);
@@ -1618,7 +1619,7 @@ function handleZoomTabClick(event) {
   if (!anchor || anchor.target !== '_blank') return;
   let url;
   try { url = new URL(anchor.href, window.location.href); } catch (_) { return; }
-  const zoomRedirect = url.hostname === 'ismir2026program.ismir.net' && url.pathname === '/zoom.html';
+  const zoomRedirect = window.ISMIRSite ? Boolean(window.ISMIRSite.zoomRedirectUrl(url.href)) : url.hostname === 'ismir2026program.ismir.net' && url.pathname === '/zoom.html';
   if (url.protocol !== 'https:' || !(zoomRedirect || /(^|\.)(zoom\.us|zoom\.com|zoomgov\.com)$/.test(url.hostname))) return;
   let tab;
   try {

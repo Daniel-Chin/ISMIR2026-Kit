@@ -1,0 +1,37 @@
+node_modules/
+.wrangler/
+dist/
+build/
+.dev.vars*
+.env*
+secrets*.json
+*private*.json
+*.enc
+*.key
+
+# Private: Zoom App manifests (OAuth redirect / allow lists)
+observer_config/
+# Local per-user config written by scripts/update_schedule.py
+site-config.json
+# Generated schedules and raw sheet downloads contain raw Zoom live_url values
+output/
+data/
+downloaded sitedata/
+# Server migration bundles and zipped exports
+*migration*.json
+*.zip
+
+# Backend (Cloudflare Worker): source, config, tooling and tests stay out of this repo.
+# The miniconf build only needs overview-source/ and the schedule/build scripts below.
+src/
+public/
+wrangler.jsonc
+package.json
+package-lock.json
+.dev.vars.example
+README.md
+VALIDATION.json
+scripts/*.mjs
+scripts/migrate_server.py
+test/*
+!test/test_schedule.py

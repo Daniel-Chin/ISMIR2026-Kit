@@ -24,13 +24,18 @@ def find_csv(folder,stem):
     if len(found)!=1:raise ValueError(f'请在 {folder} 放入唯一的 {stem}.csv（也支持下载时的括号编号）。')
     return found[0]
 
-def convert(folder):
+def convert(folder,warnings=None):
+    # warnings=None: any data problem aborts (manual upload). With a list, problems are
+    # recorded there and the offending row/link is skipped, so CI builds never stop on sheet edits.
+    def problem(message):
+        if warnings is None:raise ValueError(message)
+        warnings.append(message)
     sources={n:find_csv(folder,n) for n in ['events','papers','session_assignment']}
     events,papers,assign=(read(sources[n]) for n in ['events','papers','session_assignment'])
     paper_by_id={}
     for row in papers:
         uid=row.get('uid','').strip()
-        if not re.fullmatch(r'\d+',uid) or uid in paper_by_id or not row.get('title','').strip():raise ValueError('papers.csv: missing/duplicate uid or title')
+        if not re.fullmatch(r'\d+',uid) or uid in paper_by_id or not row.get('title','').strip():problem(f'papers.csv: missing/duplicate uid or title (uid={uid!r})');continue
         paper_by_id[uid]=row
     if not assign or 'Session Name' not in assign[0]:raise ValueError('session_assignment.csv 缺少 Session Name 列')
     columns={k:int(k[3:]) for k in assign[0] if re.fullmatch(r'PS-\d+',k)}
@@ -41,32 +46,35 @@ def convert(folder):
         if label=='Session Day & Time (UTC+4)':block_times={n:row[k].strip() for k,n in columns.items()}
         if not m:continue
         pos=int(m[1])
-        if pos<1 or pos in positions:raise ValueError('重复或无效的 Paper-n 行')
+        if pos<1 or pos in positions:problem(f'session_assignment.csv: 重复或无效的 Paper-n 行 ({label})');continue
         positions.add(pos)
         for col,num in columns.items():
             uid=row[col].strip()
             if not uid:continue
-            if uid not in paper_by_id:raise ValueError(f'{col}/{label}: 论文 uid {uid} 不存在')
-            if uid in used:raise ValueError(f'论文 uid {uid} 被分配多次')
+            if uid not in paper_by_id:problem(f'{col}/{label}: 论文 uid {uid} 不存在');continue
+            if uid in used:problem(f'{col}/{label}: 论文 uid {uid} 被分配多次');continue
             used.add(uid);groups[num].append((pos,uid))
-    if used!=set(paper_by_id):raise ValueError('未分配的论文 uid: '+', '.join(sorted(set(paper_by_id)-used)))
+    if used!=set(paper_by_id):problem('未分配的论文 uid: '+', '.join(sorted(set(paper_by_id)-used)))
     output=[];seen=set();ordinary={};notes=[]
     for idx,row in enumerate(events,1):
         uid=row.get('uid','').strip();title=helper.clean_text(row.get('title'))
-        if not uid or uid in seen or not title:raise ValueError('events.csv: missing/duplicate uid or title')
+        if not uid or uid in seen or not title:problem(f'events.csv: missing/duplicate uid or title (row {idx}, uid={uid!r})');continue
         seen.add(uid);category=helper.clean_text(row.get('category'))
         typ=helper.event_type(title,category)
         if category.lower()=='tutorials':typ='tutorial'
         if category.lower()=='special':typ='special'
         if category.lower()=='award nominee':typ='special'
-        start=helper.parse_local_datetime(row.get('start_date'),row.get('start_time'))
         tbd=row.get('end_time','').strip().lower() in {'','tbd','tba'}
-        if tbd:
-            end=(start+timedelta(days=1)).replace(hour=0,minute=0,second=0)
-            notes.append(f'{title}: 结束时间待定，显示 TBD；仅用当地次日零点作为列表归档界限。')
-        else:
-            end=helper.parse_local_datetime(row.get('start_date'),row.get('end_time'))
-            if end<=start:end+=timedelta(days=1)
+        try:
+            start=helper.parse_local_datetime(row.get('start_date'),row.get('start_time'))
+            if tbd:
+                end=(start+timedelta(days=1)).replace(hour=0,minute=0,second=0)
+                notes.append(f'{title}: 结束时间待定，显示 TBD；仅用当地次日零点作为列表归档界限。')
+            else:
+                end=helper.parse_local_datetime(row.get('start_date'),row.get('end_time'))
+                if end<=start:end+=timedelta(days=1)
+        except ValueError as error:
+            problem(f'events.csv: {title} (uid {uid}) 时间无效: {error}');continue
         links={}
         for src,dst in [('web_link','info'),('channel_url','slack'),('thumbnail_link','thumbnail')]:
             if row.get(src,'').strip():links[dst]=row[src].strip()
@@ -78,7 +86,9 @@ def convert(folder):
         match=re.fullmatch(r'(Poster|Oral)\s+Session\s*-?\s*(\d+)',title,re.I)
         if match:
             num=int(match[2]);key=(typ,num)
-            if num not in groups or key in ordinary:raise ValueError(f'{title}: 缺少或重复分组')
+            if num not in groups or key in ordinary:
+                problem(f'{title}: 缺少或重复分组')
+                output.append(event);continue
             ordinary[key]=event;event['sessionNumber']=num
             if typ=='poster':event['posterSessionNumber']=num
             event['papers']=[]
@@ -95,13 +105,13 @@ def convert(folder):
                     value=raw.get(source,'').strip()
                     if value and urlsplit(value).scheme=='https':paper.setdefault('links',{})[destination]=value
                 event['papers'].append(paper)
-            event['paperRange']={'first':min(p for p,_ in groups[num]),'last':max(p for p,_ in groups[num])}
+            if groups[num]:event['paperRange']={'first':min(p for p,_ in groups[num]),'last':max(p for p,_ in groups[num])}
         output.append(event)
     for n in groups:
-        if ('poster',n) not in ordinary or ('oral',n) not in ordinary:raise ValueError(f'PS-{n:02d}: 找不到对应 Oral 与 Poster 场次')
+        if ('poster',n) not in ordinary or ('oral',n) not in ordinary:problem(f'PS-{n:02d}: 找不到对应 Oral 与 Poster 场次');continue
         oral,poster=ordinary['oral',n],ordinary['poster',n]
         expected=f"{datetime.fromisoformat(oral['startsAt']).strftime('%a, %H:%M')} - {datetime.fromisoformat(poster['endsAt']).strftime('%H:%M')}"
-        if block_times.get(n) and re.sub(r'\s+',' ',block_times[n])!=expected:raise ValueError(f'PS-{n:02d}: 分组表时间 {block_times[n]} 与 events.csv 的 Oral+Poster 时间 {expected} 不一致')
+        if block_times.get(n) and re.sub(r'\s+',' ',block_times[n])!=expected:problem(f'PS-{n:02d}: 分组表时间 {block_times[n]} 与 events.csv 的 Oral+Poster 时间 {expected} 不一致')
     output.sort(key=lambda e:(e['startsAt'],e['id']))
     if not any(e['links'].get('zoom') for e in output):notes.append('CSV 中没有 Zoom 链接。测试时在后台的“测试会议链接”填写。')
     return {'schemaVersion':7,'generatedAt':datetime.now(timezone.utc).isoformat(),'conference':helper.infer_conference(events),'events':output,'source':[p.name for p in sources.values()]},notes

@@ -134,7 +134,7 @@ def write_into_sitedata(papers: dict[int, AuthorUploadedMaterials]) -> None:
                     raise ValueError(f'Paper ID does not match dictionary key: {paper_id}')
                 for name, index in output_columns.items():
                     value = getattr(materials, name)
-                    if value is not None:
+                    if value is not None and not row[index].strip():
                         row[index] = value
             rows.append(row)
     if unknown := papers.keys() - seen:

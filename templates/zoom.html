@@ -110,6 +110,18 @@
     margin-top: 1rem;
     border-radius: 14px;
   }
+
+  .zoom-slack-button,
+  .zoom-slack-button:hover,
+  .zoom-slack-button:focus {
+    background-color: #26d;
+    border-color: #26d;
+    color: #fff;
+  }
+
+  .zoom-slack-button:hover {
+    filter: brightness(1.1);
+  }
 </style>
 {% endblock %}
 
@@ -150,7 +162,7 @@
 
     <div id="zoom-slack-help" class="zoom-alert d-none">
       <div id="zoom-slack-help-text" class="zoom-notice-text mb-2"></div>
-      <a id="zoom-slack-help-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm d-none">
+      <a id="zoom-slack-help-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-lg zoom-slack-button d-none">
         Open event Slack channel
       </a>
       <div class="zoom-notice-text mt-2">Afterwards, this page will memorize your registered status.</div>

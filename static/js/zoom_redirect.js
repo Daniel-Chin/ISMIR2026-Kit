@@ -43,7 +43,7 @@
   function showSlackPrompt(targetRoom) {
     const hasChannelLink = Boolean(targetRoom.channel_url);
     const channelLabel = targetRoom.slack_channel ? ` (${targetRoom.slack_channel})` : "";
-    slackHelpTextElement.textContent = "To skip passcodes, join Zoom from channel descriptions on Slack, one-time:";
+    slackHelpTextElement.textContent = "Registrants only. Please join Zoom from the channel description on Slack, one-time:";
     if (hasChannelLink) {
       slackHelpLinkElement.href = targetRoom.channel_url;
       slackHelpLinkElement.classList.remove("d-none");
@@ -200,8 +200,8 @@
 
   if (!hasValidAccess()) {
     statusElement.classList.add("d-none");
-    joinButton.textContent = "Join Zoom (Passcode required)";
-    registrantsNoticeElement.classList.remove("d-none");
+    joinButton.closest(".zoom-actions").classList.add("d-none");
+    joinButton.disabled = true;
   } else if (savedPreference === "YES") {
     statusElement.textContent = "Saved credentials detected. Redirecting automatically.";
     showCountdown("YES", targetRoom);

@@ -89,7 +89,8 @@ def load_schedule(data_path, conf):
             problems.append(f"extra-events.json: {event['id']} is also in events.csv")
             continue
         schedule['events'].append(event)
-    schedule['events'].sort(key=lambda e: (e['startsAt'], e['id']))
+    # On-the-day time changes (schedule-overrides.json); this also sorts the events.
+    update_schedule.apply_overrides(schedule, conf, problems.append)
     return schedule, notes, problems
 
 

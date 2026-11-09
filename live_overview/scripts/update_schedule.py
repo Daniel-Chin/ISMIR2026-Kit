@@ -76,6 +76,32 @@ def extra_events(conf,problem,path=EXTRA_EVENTS):
         out.append(event)
     return out
 
+SCHEDULE_OVERRIDES=ROOT/'schedule-overrides.json'
+
+def apply_overrides(schedule,conf,problem,path=SCHEDULE_OVERRIDES):
+    """On-the-day changes (schedule-overrides.json): new start/end for events.csv sessions, by uid.
+
+    Only the Live Overview follows them; the miniconf keeps the sheet's times. Applied after
+    convert, so the PS-xx block-time check still compares the sheet with itself.
+    """
+    if not path.exists():return
+    by_uid={e.get('sourceEventId'):e for e in schedule['events']}
+    for item in json.loads(path.read_text(encoding='utf-8')).get('overrides',[]):
+        uid=helper.clean_text(item.get('uid'));event=by_uid.get(uid)
+        if event is None:problem(f'schedule-overrides.json: no events.csv uid {uid!r}');continue
+        # "title" guards against a renumbered sheet moving the wrong session.
+        if item.get('title') and helper.clean_text(item['title'])!=event['title']:problem(f"schedule-overrides.json: uid {uid} is now {event['title']!r}, not {item['title']!r}");continue
+        date=item.get('date') or datetime.fromisoformat(event['startsAt']).strftime('%Y-%m-%d')
+        try:
+            start=helper.parse_local_datetime(date,item.get('start'),conf['timezone'])
+            end=helper.parse_local_datetime(date,item.get('end'),conf['timezone'])
+            if end<=start:end+=timedelta(days=1)
+        except ValueError as error:
+            problem(f'schedule-overrides.json: uid {uid} 时间无效: {error}');continue
+        event['startsAt'],event['endsAt']=start.isoformat(),end.isoformat()
+        event.pop('endTimeTBD',None);event['day']=start.strftime('%A')
+    schedule['events'].sort(key=lambda e:(e['startsAt'],e['id']))
+
 def convert(folder,conf,warnings=None):
     # conf: name/timezone/miniconf_url from config.yml (see build_miniconf.read_config).
     # warnings=None: any data problem aborts (manual upload). With a list, problems are

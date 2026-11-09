@@ -37,6 +37,19 @@ class Tests(unittest.TestCase):
             s,notes=tool.convert(root,CONF)
             self.assertEqual([e.get('venue') for e in s['events']],['A6-008','A6 Upper Atrium',None,None])
             self.assertEqual([e.get('venueUrl') for e in s['events']],[None,'https://maps.example/a6',None,None])
+    def test_schedule_overrides(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);fixture(root);s,notes=tool.convert(root,CONF)
+            path=root/'overrides.json'
+            path.write_text(json.dumps({'overrides':[{'uid':'1','title':'Oral Session - 1','start':'10:30','end':'11:00'},{'uid':'2','start':'11:00','end':'12:00'},
+                                                     {'uid':'3','title':'Renamed','start':'19:00','end':'20:00'},{'uid':'99','start':'1:00','end':'2:00'}]}),encoding='utf-8')
+            problems=[];tool.apply_overrides(s,CONF,problems.append,path=path)
+            by={e['sourceEventId']:e for e in s['events']}
+            self.assertEqual((by['1']['startsAt'],by['1']['endsAt']),('2026-11-09T10:30:00+04:00','2026-11-09T11:00:00+04:00'))
+            self.assertEqual((by['2']['startsAt'],by['2']['endsAt']),('2026-11-09T11:00:00+04:00','2026-11-09T12:00:00+04:00'))
+            self.assertEqual(by['3']['startsAt'],'2026-11-09T18:00:00+04:00')  # title mismatch: left alone
+            self.assertEqual(len(problems),2)
+            self.assertEqual([e['startsAt'] for e in s['events']],sorted(e['startsAt'] for e in s['events']))
     def test_missing_and_duplicate_assignments_fail(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);fixture(root)

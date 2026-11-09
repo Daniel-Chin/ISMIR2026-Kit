@@ -418,6 +418,18 @@ def register_live_route():
         return send_file(live_path)
 
 
+@app.route("/build_info.html")
+def build_info():
+    """Troubleshooting: when this page was frozen, i.e. when the site was built."""
+    built = datetime.datetime.now(datetime.timezone.utc)
+    data = _data()
+    data["built_utc"] = built.isoformat()
+    data["built_label"] = built.astimezone(
+        datetime.timezone(datetime.timedelta(hours=4))
+    ).strftime("%a, %b %-d %Y, %H:%M:%S (UTC+4)")
+    return render_template("build_info.html", **data)
+
+
 @app.route("/tutorials.html")
 def tutorials():
     data = _data()

@@ -1,0 +1,36 @@
+{% set page_title = "Build Info" %}
+{% extends "base.html" %}
+{% block tabs %}
+{% endblock %}
+
+{% block content %}
+<div class="pp-card m-3">
+  <div class="card-header">
+    <h2 class="card-title main-title text-center">Build Info</h2>
+  </div>
+  <div class="card-body text-center">
+    <p>Site built at <strong>{{ built_label }}</strong></p>
+    <p id="build-ago" data-built="{{ built_utc }}"></p>
+  </div>
+</div>
+<script>
+  (function () {
+    const el = document.getElementById("build-ago");
+    const built = new Date(el.dataset.built);
+    function render() {
+      let s = Math.max(0, Math.floor((Date.now() - built) / 1000));
+      const parts = [[86400, "day"], [3600, "hour"], [60, "minute"], [1, "second"]]
+        .map(([unit, name]) => {
+          const n = Math.floor(s / unit);
+          s %= unit;
+          return n ? `${n} ${name}${n === 1 ? "" : "s"}` : null;
+        })
+        .filter(Boolean)
+        .slice(0, 2);
+      el.textContent = (parts.join(", ") || "0 seconds") + " ago";
+    }
+    render();
+    setInterval(render, 1000);
+  })();
+</script>
+{% endblock %}

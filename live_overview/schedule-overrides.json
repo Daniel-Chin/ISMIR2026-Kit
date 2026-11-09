@@ -2,6 +2,7 @@
   "_comment": "On-the-day schedule changes, Live Overview only (the miniconf keeps events.csv). Each entry moves one events.csv session, by uid, to new local start/end times on its own day (\"date\" is optional, to move it to another day). Remove an entry to go back to the sheet's times.",
   "overrides": [
     {"uid": "17", "title": "Oral Session - 3", "start": "14:30", "end": "15:00"},
-    {"uid": "18", "title": "Poster Session - 3", "start": "15:00", "end": "16:00"}
+    {"uid": "18", "title": "Poster Session - 3", "start": "15:00", "end": "16:00"},
+    {"uid": "20", "title": "Keynote 1", "start": "16:00", "end": "17:00"}
   ]
 }

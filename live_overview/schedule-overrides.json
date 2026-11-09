@@ -3,6 +3,12 @@
   "overrides": [
     {"uid": "17", "title": "Oral Session - 3", "start": "14:30", "end": "15:00"},
     {"uid": "18", "title": "Poster Session - 3", "start": "15:00", "end": "16:00"},
-    {"uid": "20", "title": "Keynote 1", "start": "16:00", "end": "17:00"}
+    {"uid": "20", "title": "Keynote 1", "start": "16:00", "end": "17:00"},
+    {"uid": "21", "title": "Oral Session - 4", "start": "17:00", "end": "17:30"},
+    {"uid": "22", "title": "Poster Session - 4", "start": "17:30", "end": "18:30"},
+    {"uid": "23", "title": "★ Award Nominees Oral Session - 1", "start": "18:30", "end": "19:30"},
+    {"uid": "24", "title": "Music Program", "start": "20:30", "end": "22:30"},
+    {"uid": "25", "title": "Majlis-2 Ethics in MIR (Online)", "start": "22:30", "end": "23:30"},
+    {"uid": "26", "title": "ISMIR Bash Social Event (Online)", "start": "23:30", "end": "00:29"}
   ]
 }

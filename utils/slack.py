@@ -676,7 +676,7 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
     EXCLUDE = []
 
     def render(
-        category: str, zoom_link: str, friendly_time_description: str, 
+        category: str, title: str, zoom_link: str, friendly_time_description: str, 
     ):
         buf = []
         buf.append('_\nSchedule: ')
@@ -688,6 +688,9 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
             buf.append('<' + zoom_link + '>')
         elif category_ == 'tutorials':
             pass
+        elif category_ == 'majlis' and '(Online)' not in title:
+            # Same condition as ZoomCreator._isOnlineMajlis: only "(Online)" majlis get a Zoom.
+            buf.append("This is an onsite-only event; there is no Zoom room. Join the discussion here on Slack!")
         else:
             buf.append("If you aren't onsite, you can join the ")
             match category_:
@@ -736,7 +739,7 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
             channel = channel_info.get('channel', {})
             current_description = channel.get('purpose', {}).get('value', '').replace('&amp;', '&')
             current_topic = channel.get('topic', {}).get('value', '')
-            new_description = render(category, webinar_link, format_session_window(
+            new_description = render(category, title, webinar_link, format_session_window(
                 start_date, start_time, end_time,
                 conference_timezone,
             ))

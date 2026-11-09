@@ -2,8 +2,9 @@
 
 Creates Zoom links for live sessions in the events CSV, writes the join URLs
 back into the CSV's `live_url` column (which the site and calendar link to).
-Uses one Zoom meeting with breakout rooms per poster session and Unconference, and uses one
-shared Zoom webinar link for all other live events.
+Uses one Zoom meeting with breakout rooms per poster session and Unconference
+(hosted on the `_2` account, see below), and uses one shared Zoom webinar link
+(on the main account) for all other live events.
 
 ## Architecture
 
@@ -193,6 +194,23 @@ The utility resolves the target event from `events.csv` and uses that event's
 `Join Zoom now` always redirects immediately and updates state based on the
 checkbox.
 
+### Accounts
+
+`setup-zoom` uses only the main `ZOOM_API_*` credentials. Poster-session
+meetings are scheduled on behalf of another licensed user in the same Zoom
+account, named in `.env`:
+
+```
+ZOOM_HOST_FOR_POSTER_SESSIONS=<that user's email>
+```
+
+All other meetings (e.g. Unconference) and the shared webinar stay on the app
+creator (`users/me`). Scheduling for another user requires the main app's
+`:admin` meeting scopes (member-created apps can't select them), and the poster
+host needs the breakout-room settings. Existing meetings are looked up under
+their own host only, so a poster meeting previously created under `me` is not
+reused: a new one is created for the poster host. Delete the old one by hand.
+
 ### What it does
 
 For every row in `events.csv`, `setup-zoom` splits behavior into three paths:
@@ -271,9 +289,9 @@ orchestration logic against a copy of the mock CSV —
 
 ```python
 from utils import zoom
-zoom.getListOfMeetings = lambda: []
+zoom.getListOfMeetings = lambda hostUser="me": []
 zoom.getListOfWebinars = lambda: []
-zoom.createMeeting = lambda topic, start, dur, rooms=None: {
+zoom.createMeeting = lambda topic, start, dur, rooms=None, **kwargs: {
     "id": 1, "topic": topic, "join_url": "https://zoom.us/j/1"}
 zoom.createWebinar = lambda *args, **kwargs: {
   "id": 2, "topic": "ISMIR2026 Livestream", "join_url": "https://zoom.us/w/2"}

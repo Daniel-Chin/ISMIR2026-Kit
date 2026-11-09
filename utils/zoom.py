@@ -117,8 +117,24 @@ def _listPaginated(apiEndpointUrl, itemsKey):
         }
 
 
-def getListOfMeetings():
-    meetings = _listPaginated("https://api.zoom.us/v2/users/me/meetings", "meetings")
+def _posterSessionHost():
+    """Zoom user (email or id) that hosts poster-session meetings: another
+    licensed user in the main account. The admin-scoped app schedules on their
+    behalf; all other meetings and webinars stay on the app creator ("me")."""
+    load_dotenv(dotenv_path=Path(".") / ".env")
+    host = os.environ.get("ZOOM_HOST_FOR_POSTER_SESSIONS")
+    if not host:
+        raise RuntimeError(
+            "Missing ZOOM_HOST_FOR_POSTER_SESSIONS in .env — the email of the Zoom "
+            "user (in the main account) who hosts poster-session meetings"
+        )
+    return host
+
+
+def getListOfMeetings(hostUser="me"):
+    meetings = _listPaginated(
+        f"https://api.zoom.us/v2/users/{hostUser}/meetings", "meetings"
+    )
     return [
         (meeting["id"], meeting["topic"], meeting.get("join_url"))
         for meeting in meetings
@@ -174,15 +190,17 @@ def createMeeting(
     timezone=None,
     passcode=None,
     extraSettings=None,
+    hostUser="me",
 ):
     """
+    hostUser: Zoom user (email or id) to schedule the meeting for.
     extraSettings: merged into the meeting's `settings` payload.
     breakoutRooms: optional list of room names, pre-created in the meeting
     (host still opens them live). Zoom caps pre-assigned rooms at 50 and
     room names at 32 characters.
     """
     accessToken, _ = checkToken()
-    apiEndpointUrl = "https://api.zoom.us/v2/users/me/meetings"
+    apiEndpointUrl = f"https://api.zoom.us/v2/users/{hostUser}/meetings"
     headers = {
         "Authorization": f"Bearer {accessToken}",
         "content-type": "application/json",
@@ -532,9 +550,8 @@ def createZoomLinksIfNeeded(
     conferenceTimezone = _load_conference_timezone(csvFilename)
     # an all-empty link column reads back as float64; make it hold strings
     csvData[zoomColumnId] = csvData[zoomColumnId].astype("object")
-    existingByTopic = {
-        meeting[1]: meeting for meeting in getListOfMeetings()
-    }  # (id, topic, join_url)
+    # host -> {topic: (id, topic, join_url)}; poster host listed only if needed
+    existingByHost = {"me": {m[1]: m for m in getListOfMeetings()}}
     posterCreated, posterBackfilled = 0, 0
     webinarCreated, webinarUpdated = 0, 0
     webinarRowsAssigned = 0
@@ -561,6 +578,14 @@ def createZoomLinksIfNeeded(
     try:
         for index, row, breakoutRooms in posterRows:
             topic = topicPrefix + row[topicColumnId]
+            hostUser = "me"
+            if _isPosterSessionRow(row):  # not Unconference etc.
+                hostUser = _posterSessionHost()
+                if hostUser not in existingByHost:
+                    existingByHost[hostUser] = {
+                        m[1]: m for m in getListOfMeetings(hostUser)
+                    }
+            existingByTopic = existingByHost[hostUser]
             if topic in existingByTopic:
                 posterBackfilled += 1
                 meetingId = existingByTopic[topic][0]
@@ -603,6 +628,7 @@ def createZoomLinksIfNeeded(
                         UNCONFERENCE_MEETING_SETTINGS
                         if row.get("category") == "Unconference" else None
                     ),
+                    hostUser=hostUser,
                 )
                 if planOnly:
                     plan("createMeeting", *createArgs,

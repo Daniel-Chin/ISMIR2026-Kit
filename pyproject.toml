@@ -27,6 +27,7 @@ dependencies = [
     "matplotlib>=3.11.2",
     "prompt-toolkit>=3.0.53",
     "pyperclip>=1.11.0",
+    "pillow>=12.3.0",
 ]
 
 [project.optional-dependencies]

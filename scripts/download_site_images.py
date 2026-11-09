@@ -15,8 +15,12 @@ import argparse
 import csv
 import json
 import re
+import io
+import mimetypes
 import shutil
 from pathlib import Path
+
+from PIL import Image
 
 import download_paper_thumbnails as dl
 
@@ -25,7 +29,47 @@ ROOT = dl.ROOT
 MARKDOWN_COLUMNS = {"events.csv": ["event_desc"]}
 CACHE_DIR = ROOT / ".cache" / "drive_site_images"
 OUT_DIR = ROOT / "static" / "site_images"
+COMPRESS_ABOVE_BYTES = 800_000
+MAX_SIDE_PX = 1600
 MARKDOWN_IMAGE = re.compile(r"!\[[^\]]*\]\(\s*<?([^)\s>]+)")
+
+
+def compress(body: bytes) -> bytes:
+    """Re-encode as JPEG, shrinking until under COMPRESS_ABOVE_BYTES."""
+    image = Image.open(io.BytesIO(body))
+    image = image.convert("RGB")
+    image.thumbnail((MAX_SIDE_PX, MAX_SIDE_PX))
+    quality = 85
+    while True:
+        out = io.BytesIO()
+        image.save(out, "JPEG", quality=quality, optimize=True)
+        if out.tell() <= COMPRESS_ABOVE_BYTES or quality <= 40:
+            return out.getvalue()
+        quality -= 10
+
+
+def download(file_id: str, url: str) -> Path | None:
+    body, content_type = dl.fetch(file_id)
+    if not content_type.startswith("image/"):
+        # Usually an HTML page: file not shared publicly, or deleted.
+        print(f"WARNING: {file_id} is not an image ({content_type}); skipped")
+        return None
+    ext = mimetypes.guess_extension(content_type) or ".img"
+    if len(body) > COMPRESS_ABOVE_BYTES:
+        original = len(body)
+        body = compress(body)
+        ext = ".jpg"
+        print(
+            f"  compressed {file_id}: {original:,} -> {len(body):,} bytes "
+            f"({original / len(body):.1f}x)",
+            flush=True,
+        )
+    dl.check_size(len(body), url)
+    path = CACHE_DIR / f"{file_id}{ext}"
+    tmp = path.with_name(path.name + ".part")
+    tmp.write_bytes(body)
+    tmp.replace(path)  # atomic, so a killed job never caches a truncated file
+    return path
 
 
 def main():
@@ -62,7 +106,7 @@ def main():
         else:
             file_id = dl.drive_file_id(url)
             print(f"downloading image for {where} ({file_id})", flush=True)
-            path = dl.download(file_id, url)
+            path = download(file_id, url)
             if path is None:
                 n_failed += 1
                 continue

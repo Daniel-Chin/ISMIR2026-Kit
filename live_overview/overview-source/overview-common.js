@@ -57,14 +57,42 @@ function eventStatusAt(event, now) {
   return 'history';
 }
 
+/**
+ * pacing feature: the organisers' on-the-day times (backend pacing.js, e.paced) replace the planned
+ * ones; the planned ones stay in plannedStartsAt/plannedEndsAt for the "was" note.
+ */
+function pacedEvent(e, now) {
+  const p = e?.paced;
+  if (!p || !ismirFeature('pacing')) return e;
+  return { ...e, startsAt: p.startsAt, endsAt: p.endsAt, plannedStartsAt: e.startsAt, plannedEndsAt: e.endsAt, held: Boolean(p.held), waiting: Boolean(p.waiting) };
+}
+/** A held session stays live past its end; a waiting one stays upcoming past its start. */
+function pacedStatusAt(e, now) {
+  if (e.waiting) return 'upcoming';
+  if (e.held) return now < Date.parse(e.startsAt) ? 'upcoming' : 'live';
+  return eventStatusAt(e, now);
+}
+/** "was 15:30–16:30" next to a session the organisers moved (pacing feature); '' otherwise. */
+function rescheduledHtml(e, fmt, now) {
+  if (!e?.plannedStartsAt) return '';
+  const notes = [];
+  if (e.plannedStartsAt !== e.startsAt || e.plannedEndsAt !== e.endsAt) {
+    notes.push(`<span class="event-rescheduled-was">was <s>${esc(fmt(e.plannedStartsAt))}–${esc(fmt(e.plannedEndsAt))}</s></span>`);
+  }
+  if (e.held && e.status === 'live' && now >= Date.parse(e.endsAt)) notes.push('<span class="event-rescheduled-over">running over</span>');
+  if (e.waiting && e.status === 'upcoming' && now >= Date.parse(e.startsAt)) notes.push('<span class="event-rescheduled-over">starting soon</span>');
+  return notes.length ? `<span class="event-rescheduled">${notes.join(' · ')}</span>` : '';
+}
+
 /** The state as of conference time: each event (and its papers) live, upcoming or history. */
 function stateAtConferenceTime(state) {
   if (!state) return state;
   const now = conferenceNow(state);
   const events = (state.events || [])
     .filter(e => !e?.debugOnly || window.ISMIRChannel === 'debug')   // organisers' test events: live-debug.html only
+    .map(e => pacedEvent(e, now))
     .map(e => {
-      const status = eventStatusAt(e, now);
+      const status = pacedStatusAt(e, now);
       if (status === e.status && !(e.papers || []).some(p => p?.status !== status)) return e;
       return { ...e, status, papers: (e.papers || []).map(p => ({ ...p, status })) };
     });

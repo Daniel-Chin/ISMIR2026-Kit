@@ -386,7 +386,7 @@ function renderCompactLivePaperPanel(e) {
 
 
 function liveOngoingMeta(e) {
-  return `<div class="live-ongoing-meta"><strong>Ongoing</strong><span aria-hidden="true"> · </span><time datetime="${esc(e.startsAt)}">${fmtTime(e.startsAt)}</time><span aria-hidden="true">–</span><time datetime="${esc(e.endsAt)}">${(e.endTimeTBD ? 'TBD' : fmtTime(e.endsAt))}</time><span class="live-event-timezone">· ${esc(fmtUtcOffset(e.startsAt))}</span>${venueHtml(e)}</div>`;
+  return `<div class="live-ongoing-meta"><strong>Ongoing</strong><span aria-hidden="true"> · </span><time datetime="${esc(e.startsAt)}">${fmtTime(e.startsAt)}</time><span aria-hidden="true">–</span><time datetime="${esc(e.endsAt)}">${(e.endTimeTBD ? 'TBD' : fmtTime(e.endsAt))}</time><span class="live-event-timezone">· ${esc(fmtUtcOffset(e.startsAt))}</span>${venueHtml(e)}${rescheduledHtml(e, fmtTime, conferenceNow(currentState))}</div>`;
 }
 
 function renderEventCard(e, opts = {}) {
@@ -636,7 +636,7 @@ function renderUpcomingCard(e) {
   const hasPapers = sessionHasPapers(e);
   return `<article class="timeline-item upcoming-completed-card${isPoster ? ' upcoming-poster-card' : ''}" data-event-id="${esc(e.id)}" data-event-type="${esc(e.type || 'event')}">
     <div class="timeline-status-row upcoming-card-time-row">
-      <div class="timeline-time upcoming-card-time"><span class="upcoming-clock-icon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><circle cx="8" cy="8" r="5.75"></circle><path d="M8 4.75v3.6l2.45 1.45"></path></svg></span><time datetime="${esc(e.startsAt)}">${fmtTimelineTime(e.startsAt)}</time><span aria-hidden="true">–</span><time datetime="${esc(e.endsAt)}">${(e.endTimeTBD ? 'TBD' : fmtTimelineTime(e.endsAt))}</time><span class="upcoming-event-timezone">· ${esc(fmtUtcOffset(e.startsAt))}</span>${venueHtml(e)}</div>
+      <div class="timeline-time upcoming-card-time"><span class="upcoming-clock-icon" aria-hidden="true"><svg viewBox="0 0 16 16" focusable="false"><circle cx="8" cy="8" r="5.75"></circle><path d="M8 4.75v3.6l2.45 1.45"></path></svg></span><time datetime="${esc(e.startsAt)}">${fmtTimelineTime(e.startsAt)}</time><span aria-hidden="true">–</span><time datetime="${esc(e.endsAt)}">${(e.endTimeTBD ? 'TBD' : fmtTimelineTime(e.endsAt))}</time><span class="upcoming-event-timezone">· ${esc(fmtUtcOffset(e.startsAt))}</span>${venueHtml(e)}${rescheduledHtml(e, fmtTimelineTime, conferenceNow(currentState))}</div>
     </div>
     <div class="upcoming-card-title-row">
       ${eventTitleHtml(e, 'card-title upcoming-card-title')}

@@ -5783,3 +5783,18 @@ html:not([data-theme="light"]) .canon-egg-board li { background: rgba(255, 255, 
 }
 html[data-theme="light"] #live-events .live-tutorial-venue { color: #805c15; }
 a.event-venue { text-decoration: underline; text-underline-offset: 2px; }
+
+/* pacing feature (features.js): a session the organisers moved on the day, and its planned times. */
+.event-rescheduled {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  white-space: nowrap;
+  font-size: .9em;
+  font-weight: 600;
+  color: #b45309;
+}
+.event-rescheduled s { text-decoration-thickness: 1.5px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .event-rescheduled { color: #fbbf24; } }
+:root[data-theme="dark"] .event-rescheduled { color: #fbbf24; }

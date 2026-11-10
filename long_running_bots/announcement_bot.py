@@ -32,6 +32,8 @@ Details:
       A stale offset (from an earlier day) is cleared on load and on day change.
     - On change, posts "We are running XX minutes late." plus corrections for events that
       were already announced but have not started yet.
+    - If running late and the next event's *base* start is within `ANNOUNCE_IN_ADVANCE` or past,
+      that message is also posted in the event's channel.
     - If running late, also posts an extra announcement at the *base* announcement time,
       for participants who missed the delay notice.
     - A due announcement is skipped if the event was already announced (any kind) no more than
@@ -999,6 +1001,8 @@ class AnnouncementBot:
         text = render_offset_message(offset.minutes, corrections)
         self.post(text)
         self.offset_post_owed = False
+        attempt("posting the schedule update to the event channel",
+                self.post_offset_update_to_event_channel, text, now)
         for event in corrected:
             self.state.log.append(LogEntry(uid=event.uid, kind=UPDATE, at=now))
         self.save()
@@ -1006,6 +1010,18 @@ class AnnouncementBot:
             say(">> Posted schedule update.")
         else:
             say(">> Posted schedule update:", *("   " + line for line in text.splitlines()))
+
+    def post_offset_update_to_event_channel(self, text: str, now: datetime) -> None:
+        # Running late, and by the base plan the next event is imminent or already started:
+        # people may be waiting in its channel.
+        event = self.next_event()
+        if event is None or self.offset_minutes(event) <= 0:
+            return
+        if now < event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE):
+            return
+        join_channel_if_needed(self.client, event.channel_id)
+        self.client.chat_postMessage(channel=event.channel_id, text=text)
+        say(f">> Also posted the schedule update to <#{event.channel_id}>.")
 
     def calibrate(self, event: ScheduledEvent, target: datetime) -> bool:
         if event.start_at.date() != self.today():

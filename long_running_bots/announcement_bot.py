@@ -247,7 +247,7 @@ def plural_minutes(n: int) -> str:
 
 def slack_clock(dt: datetime) -> str:
     # Rendered by Slack in each reader's local time; the fallback is conf-local.
-    return f"<!date^{int(dt.timestamp())}^{{time}}|{dt.strftime('%H:%M %Z')}>"
+    return f"<!date^{int(dt.timestamp())}^{{time}}|{dt.strftime('%H:%M')}>"
 
 
 def render_relative(t_minus: int) -> str:
@@ -904,8 +904,8 @@ class AnnouncementBot:
             day = "" if start.date() == now.date() else start.strftime("%a ")
             was = "" if start == event.start_at else f" (was {event.start_at.strftime('%H:%M')})"
             t_minus = max(0, minutes_between(now, start))
-            lines.append(f"• <#{event.channel_id}> at {day}{start.strftime('%H:%M %Z')}{was}, "
-                         f"T-{plural_minutes(t_minus)}")
+            lines.append(f"• <#{event.channel_id}> at {day}{start.strftime('%H:%M')}{was}, "
+                         f"in {plural_minutes(t_minus)}")
         if not upcoming:
             lines.append("Nothing more on the schedule.")
         return "\n".join(lines)

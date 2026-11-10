@@ -47,6 +47,8 @@ def actual_start(uid: int, base: datetime, tape: list[dict]) -> datetime:
             continue
         offset = record["offset"]
         minutes = offset["minutes"] if offset and date.fromisoformat(offset["day"]) == base.date() else 0
+        if minutes and offset.get("shrink_after") and base > datetime.fromisoformat(offset["shrink_after"]):
+            minutes -= offset["shrink_minutes"]  # a poster session before this event absorbed the delay
         start = base + timedelta(minutes=minutes)
     return start.astimezone(base.tzinfo)
 

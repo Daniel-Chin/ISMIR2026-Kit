@@ -76,7 +76,7 @@ function pacedStatusAt(e, now) {
 function rescheduledHtml(e, fmt, now) {
   if (!e?.plannedStartsAt) return '';
   const notes = [];
-  if (e.plannedStartsAt !== e.startsAt || e.plannedEndsAt !== e.endsAt) {
+  if (Date.parse(e.plannedStartsAt) !== Date.parse(e.startsAt) || Date.parse(e.plannedEndsAt) !== Date.parse(e.endsAt)) {
     notes.push(`<span class="event-rescheduled-was">was <s>${esc(fmt(e.plannedStartsAt))}–${esc(fmt(e.plannedEndsAt))}</s></span>`);
   }
   if (e.held && e.status === 'live' && now >= Date.parse(e.endsAt)) notes.push('<span class="event-rescheduled-over">running over</span>');

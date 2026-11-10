@@ -911,10 +911,12 @@ class AnnouncementBot:
 
     def render_forecast(self, now: datetime) -> str:
         lines = [f"{KEYWORD}. {FORECAST_HEADER}"]
-        offset = self.state.offset
-        if offset is not None and offset.day == now.date() and offset.minutes != 0:
-            lines[0] += " " + render_delay(offset.minutes)
         upcoming = self.upcoming(now)[:FORECAST_SIZE]
+        if upcoming:
+            # How late the next event actually is, i.e. after shrinks, not the raw offset.
+            late = minutes_between(upcoming[0].start_at, self.adjusted_start(upcoming[0]))
+            if late != 0:
+                lines[0] += " " + render_delay(late)
         for event in upcoming:
             start = self.adjusted_start(event)
             other_day = start.date() != now.date()

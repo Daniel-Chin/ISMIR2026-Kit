@@ -264,8 +264,10 @@ def plural_minutes(n: int) -> str:
     return f"{n} minute" if n == 1 else f"{n} minutes"
 
 
-def slack_clock(dt: datetime) -> str:
+def slack_clock(dt: datetime, with_day: bool = False) -> str:
     # Rendered by Slack in each reader's local time; the fallback is conf-local.
+    if with_day:
+        return f"<!date^{int(dt.timestamp())}^{{date_short_pretty}} {{time}}|{dt.strftime('%a %H:%M')}>"
     return f"<!date^{int(dt.timestamp())}^{{time}}|{dt.strftime('%H:%M')}>"
 
 
@@ -359,7 +361,7 @@ class StdoutSlackClient:
         self.channel_names = channel_names
 
     def readable(self, text: str) -> str:
-        text = re.sub(r"<!date\^\d+\^\{time\}\|([^>]+)>", r"\1", text)
+        text = re.sub(r"<!date\^\d+\^[^|]*\|([^>]+)>", r"\1", text)
         return re.sub(
             r"<#([A-Za-z0-9]+)(?:\|[^>]*)?>",
             lambda m: "#" + self.channel_names.get(m.group(1), m.group(1)),
@@ -856,7 +858,10 @@ class AnnouncementBot:
             lines.append(f"  purpose: due at {due.strftime('%H:%M')}" if due > now else "  purpose: due now")
         late = self.offset_minutes(event)
         base_due = event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
-        if late > 0 and not self.is_frozen(event) and now < event.start_at:
+        shrinks = self.state.offset.shrinks if self.state.offset else ()
+        if shrinks and event.start_at > shrinks[0][0]:
+            pass  # extra_due skips it: the forecast already gave the post-shrink time
+        elif late > 0 and not self.is_frozen(event) and now < event.start_at:
             if self.announced_since(event, event.start_at - FRESH_WINDOW) is not None:
                 lines.append("  extra: not needed, already announced")
             else:
@@ -912,10 +917,10 @@ class AnnouncementBot:
         upcoming = self.upcoming(now)[:FORECAST_SIZE]
         for event in upcoming:
             start = self.adjusted_start(event)
-            day = "" if start.date() == now.date() else start.strftime("%a ")
-            was = "" if start == event.start_at else f" (was {event.start_at.strftime('%H:%M')})"
+            other_day = start.date() != now.date()
+            was = "" if start == event.start_at else f" (was {slack_clock(event.start_at)})"
             t_minus = max(0, minutes_between(now, start))
-            lines.append(f"• <#{event.channel_id}> at {day}{start.strftime('%H:%M')}{was}, "
+            lines.append(f"• <#{event.channel_id}> at {slack_clock(start, other_day)}{was}, "
                          f"in {plural_minutes(t_minus)}")
         if not upcoming:
             lines.append("Nothing more on the schedule.")
@@ -945,7 +950,7 @@ class AnnouncementBot:
 
     def render_channel_note(self, event: ScheduledEvent) -> str:
         start = self.adjusted_start(event)
-        was = "" if start == event.start_at else f" (was {event.start_at.strftime('%H:%M')})"
+        was = "" if start == event.start_at else f" (was {slack_clock(event.start_at)})"
         return f"{KEYWORD}. <#{event.channel_id}> starts at {slack_clock(start)}{was}."
 
     def maintain_channel_notes(self) -> None:

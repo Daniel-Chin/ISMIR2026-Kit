@@ -47,7 +47,7 @@ Details:
     - An event is frozen (its start pinned) `STARTED_GRACE` after its adjusted start, or when a
       later event is calibrated. Offset changes do not move frozen events.
 - The event channel description (purpose) is posted into the event's channel once per event,
-  at T - ANNOUNCE_IN_ADVANCE (adjusted), independent of which #general announcement goes out.
+  right before its start-time message, or at T - ANNOUNCE_IN_ADVANCE (adjusted) at the latest.
 - Local state (offset, announcement log incl. purpose posts, frozen events) persists in `tmp/` (gitignored).
   90% of the time the bot stays on one machine. If the state file is missing, falls back to
   Slack history: match the last "starts now" message to seek the event sequence, and the last
@@ -961,6 +961,9 @@ class AnnouncementBot:
         then edits it whenever its start time changes, until the event starts."""
         for event in self.upcoming(self.now())[:FORECAST_SIZE]:
             if event.uid not in self.state.channel_notes:
+                # The channel description goes first, then the start-time message.
+                if not self.entries_for(event.uid, {PURPOSE, SKIP}):
+                    self.post_purpose(event, self.now())
                 text = self.render_channel_note(event)
                 join_channel_if_needed(self.client, event.channel_id)
                 response = self.client.chat_postMessage(channel=event.channel_id, text=text)

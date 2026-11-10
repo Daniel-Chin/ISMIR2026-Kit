@@ -35,12 +35,13 @@ Details:
     - Tagged with the conference-local date it applies to; only events on that date are shifted.
       A stale offset (from an earlier day) is cleared on load and on day change.
     - On change, refreshes the forecast (which states "We are running XX minutes late.").
-    - Poster sessions absorb lateness: when running late is set, the first not-yet-started poster
-      session of the day is shrunk by up to `POSTER_MAX_SHRINK` minutes, i.e. events after it get
-      that much less offset.
-    - If running late and the next event's *base* start is within `ANNOUNCE_IN_ADVANCE` or past,
-      a "running late" message with the new start times is posted in the event's channel.
-    - If running late, also refreshes the forecast at the *base* announcement time.
+    - Poster sessions, lunch and special sessions absorb lateness: when running late is set, the
+      day's not-yet-started ones are shrunk in order, each by up to `MAX_SHRINK[category]`
+      minutes, until the delay is absorbed. Events after a shrunk one get that much less offset.
+    - Each event channel gets one start-time message, posted when the forecast first lists the
+      event and edited whenever its start time changes, until the event starts.
+    - If running late, also refreshes the forecast at the *base* announcement time, except for
+      events after a shrunk one (the forecast already gave their shrunk-schedule time).
     - A due forecast refresh is skipped if the event was already announced (any kind) no more than
       `2 * ANNOUNCE_IN_ADVANCE` before its adjusted start.
     - An event is frozen (its start pinned) `STARTED_GRACE` after its adjusted start, or when a
@@ -75,6 +76,20 @@ Details:
     - A failing event does not block the others. Its post is retried on the next tick.
     - A failed offset message is rebuilt and retried on the next tick.
 - Loads events.csv once at startup. If you change it during the conference, restart this script.
+
+Cleanup for a future conference:
+- This bot was changed mid-ISMIR 2026 while live, so parts of it tolerate state files and Slack
+  history written by older versions. With a fresh state file and empty Slack channels, simplify:
+    - `BotState.from_json`: `.get(...)` defaults for fields added mid-conference (`shrinks`,
+      `channel_notes`, `forecast_ts`) can become plain `data[...]` lookups.
+    - Offsets saved by older versions (single `shrink_after`/`shrink_minutes`) are dropped on load
+      and have to be set again; nothing to keep.
+    - `recover_from_slack` / `fetch_last_announcement` read messages that may have been posted by
+      older versions. Match only the current formats, or drop Slack recovery entirely if the
+      state file is reliably kept.
+    - The `UPDATE` log kind survives from the removed "running late" event-channel message; it
+      now only marks offset changes so `main_due` skips a redundant forecast refresh. Consider
+      folding it into the forecast bookkeeping.
 '''
 
 from __future__ import annotations
@@ -112,8 +127,8 @@ KEYWORD = "Keesh Kosh"
 KEYWORD_PATTERN = r"Keesh Kosh"  # potentially match more
 FORECAST_HEADER = "Coming up:"
 FORECAST_SIZE = 2
-POSTER_MAX_SHRINK = 15  # minutes
-POSTER_CATEGORY = "Poster session"  # events.csv `category`
+# events.csv `category` -> max minutes such an event shrinks by to absorb lateness.
+MAX_SHRINK = {"Poster session": 15, "Lunch": 10, "Special": 10}
 PROMPT_TIMEOUT_SECONDS = 60
 BOT_TOKEN_ENV_VAR = "SLACK_TOKEN_ANNOUNCEMENT_BOT"
 MISSED_EVENT_THRESHOLD_SECONDS = 60
@@ -167,9 +182,8 @@ class Offset:
     day: date
     minutes: int
     updated_at: datetime
-    # Events with a base start after this (a poster session's base start) get shrink_minutes less.
-    shrink_after: datetime | None = None
-    shrink_minutes: int = 0
+    # (base start of a shrunk event, minutes): later events get that much less offset.
+    shrinks: tuple[tuple[datetime, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -186,6 +200,8 @@ class BotState:
     started: dict[int, datetime] = field(default_factory=dict)  # frozen event starts
     mock_cursor_uid: int | None = None
     forecast_ts: str | None = None  # Slack ts of the live forecast message in #general
+    # uid -> {"ts", "text"} of the start-time message maintained in the event's own channel.
+    channel_notes: dict[int, dict[str, str]] = field(default_factory=dict)
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -193,9 +209,7 @@ class BotState:
                 "day": self.offset.day.isoformat(),
                 "minutes": self.offset.minutes,
                 "updated_at": self.offset.updated_at.isoformat(),
-                "shrink_after": None if self.offset.shrink_after is None
-                else self.offset.shrink_after.isoformat(),
-                "shrink_minutes": self.offset.shrink_minutes,
+                "shrinks": [[after.isoformat(), minutes] for after, minutes in self.offset.shrinks],
             },
             "log": [
                 {"uid": entry.uid, "kind": entry.kind, "at": entry.at.isoformat()}
@@ -204,6 +218,7 @@ class BotState:
             "started": {str(uid): at.isoformat() for uid, at in self.started.items()},
             "mock_cursor_uid": self.mock_cursor_uid,
             "forecast_ts": self.forecast_ts,
+            "channel_notes": {str(uid): note for uid, note in self.channel_notes.items()},
         }
 
     @classmethod
@@ -214,9 +229,10 @@ class BotState:
                 day=date.fromisoformat(offset_data["day"]),
                 minutes=int(offset_data["minutes"]),
                 updated_at=datetime.fromisoformat(offset_data["updated_at"]),
-                shrink_after=None if offset_data.get("shrink_after") is None
-                else datetime.fromisoformat(offset_data["shrink_after"]),
-                shrink_minutes=int(offset_data.get("shrink_minutes", 0)),
+                shrinks=tuple(
+                    (datetime.fromisoformat(after), int(minutes))
+                    for after, minutes in offset_data.get("shrinks", [])
+                ),
             ),
             log=[
                 LogEntry(
@@ -232,6 +248,9 @@ class BotState:
             },
             mock_cursor_uid=data.get("mock_cursor_uid"),
             forecast_ts=data.get("forecast_ts"),
+            channel_notes={
+                int(uid): note for uid, note in data.get("channel_notes", {}).items()
+            },
         )
 
 
@@ -269,21 +288,6 @@ def render_delay(minutes: int) -> str:
     if minutes < 0:
         return f"We are running {plural_minutes(-minutes)} early."
     return "We are back on schedule."
-
-
-def render_offset_message(
-    minutes: int, corrections: list[tuple[str, datetime, int]],
-) -> str:
-    sentences = [f"{KEYWORD}. {render_delay(minutes)}"]
-    for channel_id, adjusted_start, t_minus in corrections:
-        if t_minus == 0:
-            sentences.append(f"<#{channel_id}> is starting now.")
-        else:
-            sentences.append(
-                f"<#{channel_id}> now starts at {slack_clock(adjusted_start)}, "
-                f"in {plural_minutes(t_minus)}."
-            )
-    return " ".join(sentences)
 
 
 def get_event_channel_message(client: Any, channel_id: str) -> str:
@@ -365,6 +369,10 @@ class StdoutSlackClient:
     def chat_delete(self, channel: str, ts: str) -> dict[str, Any]:
         print(f"[Slack #{self.channel_names.get(channel, channel)}: deleted message {ts}]", flush=True)
         return {"ok": True}
+
+    def chat_update(self, channel: str, ts: str, text: str) -> dict[str, Any]:
+        print(f"[Slack #{self.channel_names.get(channel, channel)}: edited message {ts}]", flush=True)
+        return self.chat_postMessage(channel, text)
 
     def chat_postMessage(self, channel: str, text: str) -> dict[str, Any]:
         inner = self.FRAME_WIDTH - 4
@@ -641,9 +649,8 @@ class AnnouncementBot:
         offset = self.state.offset
         if offset is None or offset.day != event.start_at.date():
             return 0
-        if offset.shrink_after is not None and event.start_at > offset.shrink_after:
-            return offset.minutes - offset.shrink_minutes
-        return offset.minutes
+        return offset.minutes - sum(
+            minutes for after, minutes in offset.shrinks if event.start_at > after)
 
     def adjusted_start(self, event: ScheduledEvent) -> datetime:
         frozen = self.state.started.get(event.uid)
@@ -720,9 +727,9 @@ class AnnouncementBot:
         late = self.offset_minutes(event)
         if late <= 0 or self.is_frozen(event):
             return False
-        shrink_after = self.state.offset.shrink_after if self.state.offset else None
-        if shrink_after is not None and event.start_at > shrink_after:
-            # The forecast already announced the post-shrink time alongside the poster session.
+        shrinks = self.state.offset.shrinks if self.state.offset else ()
+        if shrinks and event.start_at > shrinks[0][0]:
+            # The forecast already announced the post-shrink time alongside the shrunk event.
             return False
         base_due = event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
         if not (base_due <= now < event.start_at):
@@ -810,9 +817,9 @@ class AnnouncementBot:
             text = f"running {plural_minutes(offset.minutes)} LATE"
         else:
             text = f"running {plural_minutes(-offset.minutes)} EARLY"
-        if offset is not None and offset.shrink_after is not None:
-            text += (f", poster session at {offset.shrink_after.strftime('%H:%M')} "
-                     f"shrunk by {plural_minutes(offset.shrink_minutes)}")
+        if offset is not None:
+            for after, minutes in offset.shrinks:
+                text += f", event at {after.strftime('%H:%M')} shrunk by {plural_minutes(minutes)}"
         if offset is not None:
             text += (f", for {offset.day.isoformat()}, "
                      f"set at {offset.updated_at.astimezone(self.tz).strftime('%m-%d %H:%M')}")
@@ -934,6 +941,35 @@ class AnnouncementBot:
         self.forecast_owed = False
         self.save()
         say(">> Refreshed the forecast.")
+        attempt("maintaining event channel messages", self.maintain_channel_notes)
+
+    def render_channel_note(self, event: ScheduledEvent) -> str:
+        start = self.adjusted_start(event)
+        was = "" if start == event.start_at else f" (was {event.start_at.strftime('%H:%M')})"
+        return f"{KEYWORD}. <#{event.channel_id}> starts at {slack_clock(start)}{was}."
+
+    def maintain_channel_notes(self) -> None:
+        """Posts a start-time message in each event channel once the forecast lists the event,
+        then edits it whenever its start time changes, until the event starts."""
+        for event in self.upcoming(self.now())[:FORECAST_SIZE]:
+            if event.uid not in self.state.channel_notes:
+                text = self.render_channel_note(event)
+                join_channel_if_needed(self.client, event.channel_id)
+                response = self.client.chat_postMessage(channel=event.channel_id, text=text)
+                self.state.channel_notes[event.uid] = {"ts": str(response["ts"]), "text": text}
+                self.save()
+                say(f">> Posted start time in <#{event.channel_id}>.")
+        for uid, note in self.state.channel_notes.items():
+            event = self.by_uid[uid]
+            if self.is_frozen(event) or self.entries_for(uid, {NOW, SKIP}):
+                continue
+            text = self.render_channel_note(event)
+            if text == note["text"]:
+                continue
+            self.client.chat_update(channel=event.channel_id, ts=note["ts"], text=text)
+            note["text"] = text
+            self.save()
+            say(f">> Updated start time in <#{event.channel_id}>.")
 
     def post_main(self, event: ScheduledEvent, now: datetime) -> None:
         self.forecast_owed = True
@@ -1080,19 +1116,19 @@ class AnnouncementBot:
         now = self.now()
         old = self.state.offset
         old_minutes = old.minutes if old is not None and old.day == day else 0
-        shrink_after, shrink_minutes = None, 0
-        if minutes > 0:
-            poster = next((
-                event for event in self.events
-                if event.start_at.date() == day and not self.is_frozen(event)
-                and event.category == POSTER_CATEGORY
-            ), None)
-            if poster is not None:
-                shrink_after, shrink_minutes = poster.start_at, min(minutes, POSTER_MAX_SHRINK)
-                say(f"Shrinking {self.describe(poster)} by {plural_minutes(shrink_minutes)} "
-                    "to absorb the delay.")
-        self.state.offset = Offset(day=day, minutes=minutes, updated_at=now,
-                                   shrink_after=shrink_after, shrink_minutes=shrink_minutes)
+        shrinks: list[tuple[datetime, int]] = []
+        remaining = minutes
+        for event in self.events:
+            if remaining <= 0:
+                break
+            if event.start_at.date() != day or self.is_frozen(event) \
+                    or event.category not in MAX_SHRINK:
+                continue
+            shrink = min(remaining, MAX_SHRINK[event.category])
+            shrinks.append((event.start_at, shrink))
+            remaining -= shrink
+            say(f"Shrinking {self.describe(event)} by {plural_minutes(shrink)} to absorb the delay.")
+        self.state.offset = Offset(day=day, minutes=minutes, updated_at=now, shrinks=tuple(shrinks))
         self.save()
         if minutes == old_minutes:
             say(f"Offset unchanged ({minutes:+d} min); nothing posted.")
@@ -1102,45 +1138,18 @@ class AnnouncementBot:
             say("!! Offset saved locally; the schedule update will be retried.")
 
     def post_offset_update(self) -> None:
-        offset = self.state.offset
-        if offset is None:
+        if self.state.offset is None:
             self.offset_post_owed = False
             return
         now = self.now()
-        corrections: list[tuple[str, datetime, int]] = []
-        corrected: list[ScheduledEvent] = []
-        for event in self.events:
-            if self.is_frozen(event) or not self.entries_for(event.uid, ANNOUNCING_KINDS):
-                continue
-            start = self.adjusted_start(event)
-            t_minus = minutes_between(now, start)
-            if t_minus >= 0:
-                corrections.append((event.channel_id, start, t_minus))
-                corrected.append(event)
-        text = render_offset_message(offset.minutes, corrections)
-        self.refresh_forecast()
+        self.refresh_forecast()  # also updates the event channels' messages
         self.offset_post_owed = False
-        attempt("posting the schedule update to the event channel",
-                self.post_offset_update_to_event_channel, text, now)
-        for event in corrected:
-            self.state.log.append(LogEntry(uid=event.uid, kind=UPDATE, at=now))
+        for event in self.events:
+            if not self.is_frozen(event) and self.entries_for(event.uid, ANNOUNCING_KINDS) \
+                    and self.adjusted_start(event) >= now:
+                self.state.log.append(LogEntry(uid=event.uid, kind=UPDATE, at=now))
         self.save()
-        if self.is_testing:
-            say(">> Posted schedule update.")
-        else:
-            say(">> Posted schedule update:", *("   " + line for line in text.splitlines()))
-
-    def post_offset_update_to_event_channel(self, text: str, now: datetime) -> None:
-        # Running late, and by the base plan the next event is imminent or already started:
-        # people may be waiting in its channel.
-        event = self.next_event()
-        if event is None or self.offset_minutes(event) <= 0:
-            return
-        if now < event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE):
-            return
-        join_channel_if_needed(self.client, event.channel_id)
-        self.client.chat_postMessage(channel=event.channel_id, text=text)
-        say(f">> Also posted the schedule update to <#{event.channel_id}>.")
+        say(">> Posted schedule update.")
 
     def calibrate(self, event: ScheduledEvent, target: datetime) -> bool:
         if event.start_at.date() != self.today():

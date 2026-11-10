@@ -185,7 +185,8 @@ def main(site_data_path: str, mockup: bool = False):
         live_url = str(event.get("live_url", "")).strip()
         if live_url.upper() not in ("", "NA", "NAN"):
             event["join_url"] = live_url
-            event["zoom_url"] = build_zoom_redirect_url(
+            # no passcode means a public meeting: link Zoom directly
+            event["zoom_url"] = live_url if "pwd" not in parse_qs(urlparse(live_url).query) else build_zoom_redirect_url(
                 load_site_config(site_data_path)["miniconf_url"],
                 str(event["uid"]),
                 None,

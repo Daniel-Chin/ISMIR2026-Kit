@@ -2,7 +2,9 @@
 
 For each event (in schedule order): post a mention of the event's channel, then upload its
 video, audio, transcript and cc files one by one. Nothing runs in parallel.
-Messages/files the bot already posted to the target channel are skipped, so reruns resume.
+Messages/files the bot already posted are skipped, so reruns resume.
+After an event's files are up, the event channel gets a note pointing to the recordings channel.
+Sponsored events are never uploaded (no permission).
 
 uv run --env-file real.env python -m scripts.upload_recordings_to_slack day-1 --csv-day 2 --dry-run
 """
@@ -16,6 +18,7 @@ EVENTS_CSV = './sitedata/events.csv'
 TARGET_CHANNEL_ID = 'C0C7ME3JWAH'  # #yesterday-on-videotape
 FILE_SUFFIXES = ['video.mp4', 'audio.m4a', 'transcript.vtt', 'cc.vtt']
 UPLOAD_TIMEOUT_SECONDS = 1800
+RELEASED_NOTICE = f'Video recordings of this event have been released in <#{TARGET_CHANNEL_ID}>.'
 
 
 def start_minutes(row: dict) -> int:
@@ -23,31 +26,34 @@ def start_minutes(row: dict) -> int:
     return int(h) * 60 + int(m)
 
 
-def match_event_channel(folder: str, events: list[dict]) -> str:
-    '''Slack channel of the event a recording folder belongs to.
+def event_channel(event: dict) -> str:
+    return event['slack_channel'].strip().lstrip('#')
+
+
+def match_event(folder: str, events: list[dict]) -> dict:
+    '''The events.csv row a recording folder belongs to, matched via its Slack channel.
 
     Folder names are slugified titles, which may differ slightly from the channel name
     (award-nominees vs award-nominees-1), so fall back to containment either way.
     '''
-    channels = [e['slack_channel'].strip().lstrip('#') for e in events]
     for is_match in (
         lambda c: c == folder,
         lambda c: c in folder,
         lambda c: folder in c,
     ):
-        hits = [c for c in channels if c and is_match(c)]
+        hits = [e for e in events if event_channel(e) and is_match(event_channel(e))]
         if len(hits) == 1:
             return hits[0]
         if len(hits) > 1:
-            raise LookupError(f'{folder}: ambiguous channels {hits}')
+            raise LookupError(f'{folder}: ambiguous channels {[event_channel(e) for e in hits]}')
     raise LookupError(f'{folder}: no matching event channel')
 
 
-def already_posted(slack) -> tuple[set[str], set[str]]:
-    '''(texts, file names) the bot has already posted to the target channel.'''
+def already_posted(slack, channel_id: str) -> tuple[set[str], set[str]]:
+    '''(texts, file names) the bot has already posted to the channel.'''
     bot_user_id = slack.client_bot.auth_test()['user_id']
     texts, file_names = set(), set()
-    for page in slack.client_bot.conversations_history(channel=TARGET_CHANNEL_ID, limit=slack.PAGE_LIMIT):
+    for page in slack.client_bot.conversations_history(channel=channel_id, limit=slack.PAGE_LIMIT):
         for m in page.get('messages') or []:
             if m.get('user') != bot_user_id and m.get('bot_id') is None:
                 continue
@@ -65,17 +71,23 @@ def main():
 
     with open(EVENTS_CSV, encoding='utf-8') as f:
         events = [r for r in csv.DictReader(f) if r['day'].strip() == args.csv_day]
-    channel_order = {e['slack_channel'].strip().lstrip('#'): start_minutes(e) for e in events}
 
     day_dir = RECORDINGS_ROOT / args.day_folder
     sessions = []
     for folder in sorted(p for p in day_dir.iterdir() if p.is_dir()):
-        channel = match_event_channel(folder.name, events)
+        if folder.name.startswith('dont_upload'):
+            print(f'skipping {folder.name}')
+            continue
+        event = match_event(folder.name, events)
+        channel = event_channel(event)
+        if 'sponsored' in event['title'].lower():
+            print(f'WARNING: skipping {folder.name} (#{channel}): sponsored event, no permission to upload.')
+            continue
         files = [folder / f'{folder.name}-{suffix}' for suffix in FILE_SUFFIXES]
         missing = [p for p in files if not p.exists()]
         if missing:
             raise FileNotFoundError(f'missing: {missing}')
-        sessions.append((channel_order[channel], channel, files))
+        sessions.append((start_minutes(event), channel, files))
     sessions.sort()
 
     if args.dry_run:
@@ -89,7 +101,7 @@ def main():
     slack.configure_clients(is_mockup=False)
     slack.client_bot.timeout = UPLOAD_TIMEOUT_SECONDS
     slack.client_bot.conversations_join(channel=TARGET_CHANNEL_ID)
-    posted_texts, posted_files = already_posted(slack)
+    posted_texts, posted_files = already_posted(slack, TARGET_CHANNEL_ID)
 
     for _, channel, files in sessions:
         channel_id = slack.getChannelID(channel)
@@ -107,6 +119,12 @@ def main():
                 continue
             print(f'  {p.name}: uploading ({p.stat().st_size / 1e6:.0f} MB)...', flush=True)
             slack.client_bot.files_upload_v2(channel=TARGET_CHANNEL_ID, file=str(p), filename=p.name, title=p.name)
+        slack.client_bot.conversations_join(channel=channel_id)
+        if RELEASED_NOTICE in already_posted(slack, channel_id)[0]:
+            print(f'  #{channel}: release notice already posted')
+        else:
+            print(f'  #{channel}: posting release notice')
+            slack.client_bot.chat_postMessage(channel=channel_id, text=RELEASED_NOTICE)
 
 
 if __name__ == '__main__':

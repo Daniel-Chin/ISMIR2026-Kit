@@ -939,7 +939,8 @@ class AnnouncementBot:
                 error_response = getattr(exc, "response", {})
                 if not hasattr(error_response, "get") or \
                         error_response.get("error") != "message_not_found":
-                    raise
+                    # Still post the new forecast; the old one lingers until deleted by hand.
+                    reporter.report("deleting the old forecast (posting the new one anyway)")
             self.state.forecast_ts = None
             self.save()
         response = self.client.chat_postMessage(
@@ -973,10 +974,16 @@ class AnnouncementBot:
             text = self.render_channel_note(event)
             if text == note["text"]:
                 continue
-            self.client.chat_update(channel=event.channel_id, ts=note["ts"], text=text)
+            try:
+                self.client.chat_update(channel=event.channel_id, ts=note["ts"], text=text)
+                say(f">> Updated start time in <#{event.channel_id}>.")
+            except Exception:
+                reporter.report("editing an event channel message (posting a new one instead)")
+                response = self.client.chat_postMessage(channel=event.channel_id, text=text)
+                note["ts"] = str(response["ts"])
+                say(f">> Reposted start time in <#{event.channel_id}>.")
             note["text"] = text
             self.save()
-            say(f">> Updated start time in <#{event.channel_id}>.")
 
     def post_main(self, event: ScheduledEvent, now: datetime) -> None:
         self.forecast_owed = True

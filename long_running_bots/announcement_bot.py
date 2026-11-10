@@ -720,6 +720,10 @@ class AnnouncementBot:
         late = self.offset_minutes(event)
         if late <= 0 or self.is_frozen(event):
             return False
+        shrink_after = self.state.offset.shrink_after if self.state.offset else None
+        if shrink_after is not None and event.start_at > shrink_after:
+            # The forecast already announced the post-shrink time alongside the poster session.
+            return False
         base_due = event.start_at - timedelta(minutes=ANNOUNCE_IN_ADVANCE)
         if not (base_due <= now < event.start_at):
             return False

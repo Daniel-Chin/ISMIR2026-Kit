@@ -44,8 +44,9 @@ class ZoomCreator:
         return row["category"] == "Majlis" and "(Online)" in str(row["title"])
 
     # Events whose Zoom links are made by hand: an existing link is kept.
-    # Used external zoom room in 2026.
-    MANUAL_ZOOM_TITLE_RE = re.compile(r"\b(Bash|Trivia)\b")
+    # Used external zoom room in 2026. Majlis-3/4: own meetings on another host,
+    # see scripts/less_generalizable/move_majlis_3_4_zoom.py.
+    MANUAL_ZOOM_TITLE_RE = re.compile(r"\b(Bash|Trivia|Majlis-3|Majlis-4)\b")
 
     def _hasManualZoomLink(self, row):
         return (bool(self.MANUAL_ZOOM_TITLE_RE.search(str(row["title"])))

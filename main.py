@@ -183,6 +183,9 @@ def main(site_data_path: str, mockup: bool = False):
             by_uid[typ][p["uid"]] = p
     for event in site_data.get("events", []):
         live_url = str(event.get("live_url", "")).strip()
+        # Majlis Zoom links are never published (shared in their Slack channels instead).
+        if is_majlis(event):
+            continue
         if live_url.upper() not in ("", "NA", "NAN"):
             event["join_url"] = live_url
             # no passcode means a public meeting: link Zoom directly
@@ -391,6 +394,12 @@ def schedule():
     return render_template("schedule.html", **data)
 
 
+def is_majlis(event):
+    """Majlis sessions: their Zoom links stay off the site (zoom.html and event pages)."""
+    return (str(event.get("category", "")).strip().lower() == "majlis"
+            or str(event.get("title", "")).strip().lower().startswith("majlis"))
+
+
 @app.route("/zoom.html")
 def zoom_redirect():
     data = _data()
@@ -403,7 +412,7 @@ def zoom_redirect():
             "slack_channel": str(row.get("slack_channel") or ""),
         }
         for row in site_data.get("events", [])
-        if str(row.get("join_url") or row.get("live_url") or "").strip()
+        if str(row.get("join_url") or row.get("live_url") or "").strip() and not is_majlis(row)
     }
     return render_template("zoom.html", **data)
 

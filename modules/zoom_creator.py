@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 
@@ -42,7 +43,17 @@ class ZoomCreator:
     def _isOnlineMajlis(self, row):
         return row["category"] == "Majlis" and "(Online)" in str(row["title"])
 
+    # Events whose Zoom links are made by hand: an existing link is kept.
+    # Used external zoom room in 2026.
+    MANUAL_ZOOM_TITLE_RE = re.compile(r"\b(Bash|Trivia)\b")
+
+    def _hasManualZoomLink(self, row):
+        return (bool(self.MANUAL_ZOOM_TITLE_RE.search(str(row["title"])))
+                and "zoom.us" in str(row["live_url"]))
+
     def _wantsZoom(self, row):
+        if self._hasManualZoomLink(row):
+            return False
         return self._isOnlineMajlis(row) or row["category"] not in self.SKIP_CATEGORIES
 
     def _staticLiveUrl(self, row):
@@ -70,6 +81,22 @@ class ZoomCreator:
 
     UNCONFERENCE_ROOMS = ["Please set topic 1 name", "Please set topic 2 name"]
 
+    # ISMIR 2026 only: extra rooms per poster session number, appended after the
+    # session's own papers, keeping the paper's original (session, position)
+    # numbering. Ignored in any other year.
+    EXTRA_POSTER_PAPERS_2026 = {
+        8: [("Multi-Task Multi-Frame Visual Piano Transcription", 4, 1)],
+    }
+
+    def _extraPosterRooms(self, session):
+        if datetime.date.today().year != 2026:
+            return []
+        from modules.papers import title2channelID
+        return [
+            title2channelID(title, session_number=origSession, paper_number=position)
+            for title, origSession, position in self.EXTRA_POSTER_PAPERS_2026.get(session, [])
+        ]
+
     def _breakoutRooms(self, row):
         """Breakout room names for a meeting row, else None (-> shared webinar).
         Poster sessions: paper Slack channels. Unconference: placeholder topics."""
@@ -86,6 +113,7 @@ class ZoomCreator:
             self.papers.session == int(match.group(1))
         ].sort_values("position")
         rooms = [str(ch) for ch in sessionPapers.slack_channel.dropna()]
+        rooms += self._extraPosterRooms(int(match.group(1)))
         return rooms or None
 
     def setupZoomCalls(self, zoomUtils, passcode=None, planOnly=False):

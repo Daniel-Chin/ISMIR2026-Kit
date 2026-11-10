@@ -676,21 +676,23 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
     EXCLUDE = []
 
     def render(
-        category: str, title: str, zoom_link: str, friendly_time_description: str, 
+        category: str, title: str, zoom_link: str | None, friendly_time_description: str, 
     ):
         buf = []
         buf.append('_\nSchedule: ')
         buf.append(friendly_time_description)
         buf.append('\n')
         category_ = category.lower().strip()
-        if category_ == 'poster session':
-            buf.append("During that time, use this Zoom room for live interaction with authors and audiences:\n")
-            buf.append('<' + zoom_link + '>')
-        elif category_ == 'tutorials':
+        if category_ == 'tutorials':
             pass
         elif category_ == 'majlis' and '(Online)' not in title:
             # Same condition as ZoomCreator._isOnlineMajlis: only "(Online)" majlis get a Zoom.
             buf.append("This is an onsite-only event; there is no Zoom room. Join the discussion here on Slack!")
+        elif zoom_link is None:
+            buf.append("There is no Zoom room for this event. Join the discussion here on Slack!")
+        elif category_ == 'poster session':
+            buf.append("During that time, use this Zoom room for live interaction with authors and audiences:\n")
+            buf.append('<' + zoom_link + '>')
         else:
             buf.append("If you aren't onsite, you can join the ")
             match category_:
@@ -725,7 +727,7 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
                 #         break
                 # if input_ == 'y':
                 continue
-            webinar_link = build_zoom_redirect_url(
+            webinar_link = None if row['live_url'].strip() == 'NA' else build_zoom_redirect_url(
                 load_site_config(sitedata_dir)['miniconf_url'], 
                 uid_,
                 load_zoom_redirect_access_token(),

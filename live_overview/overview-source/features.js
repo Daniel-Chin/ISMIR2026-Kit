@@ -16,7 +16,7 @@
   const FEATURES = Object.freeze({
     // name: 'debug' | 'live', e.g. newPanel: 'debug'.
     venue: 'live',   // each session's onsite room (events.csv onsite_location), when it has one
-    pacing: 'debug', // the organisers' on-the-day pacing (admin.html 现场进度): paced times, "was" times, held sessions
+    pacing: 'live',  // the organisers' on-the-day pacing (admin.html 现场进度): paced times, "was" times, held sessions
   });
   const channel = document.documentElement.dataset.channel === 'debug' ? 'debug' : 'live';
   window.ISMIRChannel = channel;

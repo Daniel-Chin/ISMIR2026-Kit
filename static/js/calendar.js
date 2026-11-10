@@ -270,6 +270,27 @@ function make_cal(name) {
                 fitAll();
                 window.scrollTo(window.scrollX, pageScroll);
             }, 100));
+
+            // tui.Calendar decides which column is "today" (and so where the current-time line goes)
+            // only at render, and its minute tick can stall while the page is frozen in the background
+            // or the back/forward cache. Redraw when the page comes back.
+            const refresh = () => {
+                const pageScroll = window.scrollY;
+                fitAll();
+                window.scrollTo(window.scrollX, pageScroll);
+            };
+            window.addEventListener('pageshow', e => { if (e.persisted) refresh(); });
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') refresh();
+            });
+
+            // Mobile (one calendar per day): open at today, unless going back/forward to the page.
+            const nav = performance.getEntriesByType('navigation')[0];
+            const todayIndex = moment(toWallClock(new Date())).startOf('day').diff(moment(firstDay), 'days');
+            const today = document.getElementById(`cal__${todayIndex}-0`);
+            if (today && today.offsetParent && !(nav && nav.type === 'back_forward')) {
+                window.scrollTo(window.scrollX, today.getBoundingClientRect().top + window.scrollY - 80);
+            }
         })
 
     })

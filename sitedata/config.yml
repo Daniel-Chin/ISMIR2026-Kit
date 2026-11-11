@@ -46,6 +46,7 @@ calendar:
     Opening:        {bg: '#FBF1DC', border: '#C9A24D'}
     Awards:         {bg: '#FBF1DC', border: '#C9A24D'}
     Oral_session:   {bg: '#D9EEE9', border: '#2E8C7E'}
+    Special_oral_session: {bg: '#D9EEE9', border: '#2E8C7E'}
     Poster_session: {bg: '#EAF5F2', border: '#2E8C7E'}
     Award_nominee:  {bg: '#F7E2E5', border: '#B4566B'}
     Tutorials:      {bg: '#E5E8F7', border: '#5764B0'}

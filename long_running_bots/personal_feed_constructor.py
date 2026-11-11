@@ -82,7 +82,7 @@ SETTLED_INVITE_ERRORS = {
 CATEGORY_OPTIONS = [
     ("award", "★ Award nominee sessions", {"Award nominee"}, True),
     ("keynote", "Keynotes", {"All Meeting"}, True),
-    ("oral", "Oral sessions", {"Oral session"}, True),
+    ("oral", "Oral sessions", {"Oral session", "Special oral session"}, True),
     ("poster", "Poster sessions", {"Poster session"}, True),
     ("special", "Special sessions", {"Special"}, False),
     ("majlis", "Majlis", {"Majlis"}, False),

@@ -46,7 +46,7 @@ def toDescription(site_data_path, event):
         rel_link = "lbds.html"
     elif event["category"] == "Tutorials":
         rel_link = "tutorials.html"
-    elif event["category"] in ["Industry", "Music"]:
+    elif event["category"] in ["Industry", "Music", "Special oral session"]:
         rel_link = event_link(event)
     elif event["category"] == "Satellite":
         rel_link = event["web_link"]

@@ -56,6 +56,7 @@ def chain_functions(*functions: Callable) -> Callable:
 
 
 AWARD_NOMINEE_CATEGORY = "Award nominee"
+SPECIAL_ORAL_CATEGORY = "Special oral session"  # its papers are named in event_desc
 
 site_data = {}
 by_uid = {}
@@ -341,6 +342,21 @@ def _award_papers(award_session):
          "session": row["session"], "position": row["position"],
          "authors": remove_affiliation(row["authors_and_affil"])}
         for _, row in sorted(papers, key=lambda p: p[0])
+    ]
+
+
+def _papers_named_in(text):
+    """Papers whose title appears in an event description, in order of appearance."""
+    found = sorted(
+        ((text.find(row["title"]), row) for row in site_data["papers"]
+         if row["title"] and row["title"] in text),
+        key=lambda pair: pair[0],
+    )
+    return [
+        {"id": row["uid"], "title": row["title"],
+         "session": row["session"], "position": row["position"],
+         "authors": remove_affiliation(row["authors_and_affil"])}
+        for _, row in found
     ]
 
 
@@ -809,7 +825,19 @@ def event(slug):
     award_session = next(
         (s for s, uid in award_event_uids.items() if uid == event), None
     )
-    data["award_papers"] = _award_papers(award_session) if award_session else []
+    if award_session:
+        data["award_papers"] = _award_papers(award_session)
+    elif v["category"] == SPECIAL_ORAL_CATEGORY:
+        desc = str(v.get("event_desc") or "")
+        papers = _papers_named_in(desc)
+        data["award_papers"] = papers
+        # Lines naming those papers are superseded by the linked list.
+        data["event"] = {**v, "event_desc": "\n".join(
+            line for line in desc.splitlines()
+            if not any(p["title"] in line for p in papers)
+        )}
+    else:
+        data["award_papers"] = []
     data["sponsor_tiers"] = sponsors["tiers"] if v["category"] == "Industry" else []
     data["start_label"] = start.strftime("%a, %b %-d, %H:%M")
     data["start_utc"] = start.astimezone(pytz.UTC).isoformat()

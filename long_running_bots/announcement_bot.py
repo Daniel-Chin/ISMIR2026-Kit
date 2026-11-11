@@ -123,7 +123,7 @@ FRESH_WINDOW = timedelta(minutes=2 * ANNOUNCE_IN_ADVANCE)
 STARTED_GRACE = timedelta(minutes=2 * ANNOUNCE_IN_ADVANCE)
 ANNOUNCEMENTS_CHANNEL = "general"
 BOT_HOME_CHANNEL = "bot-home"
-KEYWORD = "Ke.. Beep Boop."
+KEYWORD = "Beep Boop"
 KEYWORD_PATTERN = r"Keesh Kosh"  # potentially match more
 FORECAST_HEADER = "Coming up:"
 FORECAST_SIZE = 2

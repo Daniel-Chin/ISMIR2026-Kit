@@ -19,8 +19,9 @@ MIN_COVER_S = 10  # a screen is full when its covers would be shorter than this
 
 
 def can_present(lbd: dict) -> bool:
-    """Shown on the screens: presented online, and cleared to present (ok_to_present not No)."""
-    return lbd.get('mode', '').lower() == 'virtual' and lbd.get('ok', 'Yes').strip().lower() != 'no'
+    """Shown on the screens: presented online, and cleared to present (ok_to_present Yes; not In progress, TBC,
+    No or empty)."""
+    return lbd.get('mode', '').lower() == 'virtual' and lbd.get('ok', 'Yes').strip().lower() == 'yes'
 
 
 def on_video(lbd: dict) -> bool:
@@ -28,7 +29,8 @@ def on_video(lbd: dict) -> bool:
 
 
 def on_poster(lbd: dict) -> bool:
-    return lbd['uid'] not in NO_POSTER_SCREEN and can_present(lbd)
+    """Every LBD's poster is on a poster screen, whatever its mode or ok_to_present: only the videos ask for them."""
+    return lbd['uid'] not in NO_POSTER_SCREEN
 
 
 def order(uid: str):

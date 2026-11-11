@@ -108,23 +108,24 @@ scrolls the titles of this video and the next. Before the start, the screen show
 another group, there only for a play it had no time for on its own screen, is listed with the play-backs,
 by its code.
 
-As planned from the Live Database on 7 November:
+As planned from the Live Database on 12 November:
 
 | Screen | Topic | Videos | Plays | Cover | Total |
 |---|---|---:|---:|---:|---:|
-| 1 | Music Generation | 15 | 30 | 15 s | 119.8 min |
+| 1 | Music Generation | 14 | 28 | 20 s | 113.3 min |
 | 2 | Performance Analysis | 16 | 30 | 13 s | 119.8 min |
-| 3 | Symbolic / Notation | 13 | 26 | 20 s | 115.7 min |
+| 3 | Symbolic / Notation | 12 | 24 | 20 s | 105.0 min |
 | 4 | Representations / Retrieval | 13 | 26 | 20 s | 114.4 min |
-| 5 | Audio Synthesis / Production | 12 | 24 | 20 s | 113.7 min |
-| 6 | Human-Centered MIR (+626, +689 once each) | 13 | 24 | 20 s | 110.1 min |
-| 7 | MIREX | 10 | 30 | 20 s | 119.1 min |
+| 5 | Audio Synthesis / Production (+689 once) | 11 | 21 | 20 s | 98.3 min |
+| 6 | Human-Centered MIR (+626 once) | 11 | 21 | 20 s | 94.0 min |
+| 7 | MIREX | 9 | 27 | 20 s | 103.8 min |
 
 ### LBD plan
 
 The screens show the LBDs presented online and cleared to present: `presentation_mode` Virtual and
-`ok_to_present` not No in the LBDs tab. In-person ones present at their poster. The MIREX overview, m1, is the
-exception: it plays on the video screen whatever the sheet says, and has no poster. Each LBD plays on the
+`ok_to_present` Yes in the LBDs tab (not In progress, TBC, No or empty). In-person ones present at their poster. The MIREX overview, m1, is the
+exception: it plays on the video screen whatever the sheet says, and has no poster. The poster screens show
+every other LBD's poster, in person or not cleared to present too. Each LBD plays on the
 screen of its group (`group_id`), twice, MIREX three times: once through in uid order, then again. Where a
 screen cannot hold them all with covers of 10 s, the extra plays move to the end of the screen with the most
 time to spare, first those of LBDs new to that screen, then those of the longest videos. The cover takes what
@@ -177,8 +178,8 @@ A video with no file plays without subtitles, as before.
 
 ## LBD posters
 
-The 4 poster screens show the posters of the LBDs on the video screens (see [LBD plan](#lbd-plan)), but not
-the MIREX overview, in group order, split into 4 runs of 23, 23, 23 and 20 posters: 5:13 each, from 15:00 to
+The 4 poster screens show the posters of all the LBDs (see [LBD plan](#lbd-plan)), but not
+the MIREX overview, in group order, split into 4 runs of 27, 27, 27 and 26 posters: 4:26 each, from 15:00 to
 17:00. Within each run the posters are ordered so that none is up while its own video or cover is on a video
 screen, with 30 s to spare. This is part of the LBD plan, worked out with the video screens' plan. The LBD
 screens, LBD posters and Manage pages warn of any clash that edits on the day make; *Reset to default plan*

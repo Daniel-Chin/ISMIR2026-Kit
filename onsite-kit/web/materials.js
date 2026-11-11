@@ -100,7 +100,7 @@ async function poll() {
     $('notice').innerHTML = `<div class="notice">${Kit.esc(document.body.dataset.unconfigured
       || 'No DRIVE_FOLDER_* lines in .onsite_env')}: see README.md.</div>`;
   } else if (data.unmatched.length) {
-    $('notice').innerHTML = `<div class="notice">Drive folders with no LBD in .onsite_env, skipped: ${data.unmatched.map(Kit.esc).join(', ')}. Rerun make_env.py.</div>`;
+    $('notice').innerHTML = `<div class="notice">At the last Check Drive, Drive folders with no LBD in the Live Database, skipped: ${data.unmatched.map(Kit.esc).join(', ')}. Check Drive again; if they stay, name each folder after its LBD's uid (or, for MIREX, link a file in it from the LBDs tab).</div>`;
   } else {
     $('notice').innerHTML = '';
   }

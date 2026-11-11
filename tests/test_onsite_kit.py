@@ -62,13 +62,14 @@ def test_env_rows_keep_extra_pipes_in_the_last_column(server):
 def test_poster_screens_split_every_poster_in_group_order(server, tmp_path):
     lbds = [{'uid': uid, 'title': uid, 'group': group, 'mode': 'Virtual'} for uid, group in
             [('m2', '7'), ('m1', '7'), ('600', '2'), ('569', '1'), ('601', '2'), ('570', '1')]]
-    lbds += [{'uid': '602', 'group': '2', 'mode': 'In-Person'}, {'uid': '603', 'group': '2', 'mode': 'Virtual', 'ok': 'No'}]
+    lbds += [{'uid': '602', 'group': '2', 'mode': 'In-Person'}, {'uid': '603', 'group': '2', 'mode': 'Virtual', 'ok': 'No'},
+             {'uid': '604', 'group': '2', 'mode': 'Virtual', 'ok': 'In progress'}]
     reading(tmp_path, lbds)
     serve.Handler.kit = serve.Kit()
     serve.Handler.kit.plan.pop('posters', None)  # worked out here, not the plan's
     screens = [json.loads(request(server, 'GET', f'/api/lbd/P{n}')[1]) for n in range(1, 5)]
-    # No m1, nor the LBDs presented in person or not cleared to present; each run reordered clear of the videos.
-    assert [sorted(screen['plays']) for screen in screens] == [['569', '570'], ['600', '601'], ['m2'], []]
+    # Every poster but m1's, in person or not cleared to present too; each run reordered clear of the videos.
+    assert [sorted(screen['plays']) for screen in screens] == [['569', '570'], ['600', '601'], ['602', '603'], ['604', 'm2']]
     assert {screen['poster_s'] for screen in screens} == {3600}  # two posters a screen at most, 7200 s
     assert request(server, 'GET', '/api/lbd/P5')[0].status == 404
     serve.Handler.kit.plan['posters'] = {'P2': {'plays': ['601', '600'], 'poster_s': 90}}  # as the LBD plan fixes it
@@ -347,7 +348,7 @@ def test_the_plan_follows_the_live_database():
     assert one['plays'] == ['a1', 'a2', 'a3', 'a1', 'a2'] and two['plays'] == ['b1', 'b1', 'a3']
     assert mirex['plays'] == ['m1', 'm2'] * 3 and problems == []  # m1 though in person; x and y not at all
     assert one['theme'] == 'Topic one' and one['timetable_s'] == min(20, (7200 - 5700) // 5)
-    assert sorted(uid for screen in plan['posters'].values() for uid in screen['plays']) == ['a1', 'a2', 'a3', 'b1', 'm2']
+    assert sorted(uid for screen in plan['posters'].values() for uid in screen['plays']) == ['a1', 'a2', 'a3', 'b1', 'm2', 'x', 'y']
     assert any(line.startswith('Screen 1: adds a3') for line in lbdplan.changes(reference, plan))
     _, problems = lbdplan.build(reference, lbds + [lbd('c1', '9')], {}, lambda uid: lengths.get(uid, 0) or None, 0, 7200)
     assert problems == ['c1: group 9 has no video screen']

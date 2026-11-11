@@ -2,7 +2,7 @@
 account, and write its join URL into its events.csv live_url cell.
 
 Zoom cannot transfer a meeting between users, so a new meeting is created with
-the same settings ZoomCreator uses (utils/zoom.createMeeting). Idempotent: a
+the same breakout rooms and settings ZoomCreator gives the Unconference. Idempotent: a
 meeting already on the host with TOPIC is reused.
 
 Usage (from repo root; the ZOOM_API_* creds must be the org admin app):
@@ -15,6 +15,7 @@ import argparse
 import pandas as pd
 
 import utils.zoom as zoomUtils
+from modules.zoom_creator import ZoomCreator
 
 EVENTS_CSV = 'sitedata/events.csv'
 HOST_USER = 'liwei.lin+ismir2026@nyu.edu'
@@ -44,8 +45,10 @@ def main():
         joinUrl = '<new join_url>'
     else:
         passcode = input('Enter passcode (empty for none): ').strip() or None
-        joinUrl = zoomUtils.createMeeting(TOPIC, startTime, duration, timezone=timezone,
-                                          passcode=passcode, hostUser=HOST_USER)['join_url']
+        joinUrl = zoomUtils.createMeeting(TOPIC, startTime, duration, ZoomCreator.UNCONFERENCE_ROOMS,
+                                          timezone=timezone, passcode=passcode,
+                                          extraSettings=zoomUtils.UNCONFERENCE_MEETING_SETTINGS,
+                                          hostUser=HOST_USER)['join_url']
         print(f'(created) {TOPIC}: {joinUrl}')
 
     if row['live_url'] != joinUrl:

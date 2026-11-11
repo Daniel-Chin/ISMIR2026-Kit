@@ -700,6 +700,8 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
                     buf.append(f"Webinar: <{zoom_link}>\nWe'll take Q&A there as well as here on Slack!")
                 case 'oral session':
                     buf.append(f"livestream: <{zoom_link}>\nNo time for live Q&A; Discuss on Slack!")
+                case 'unconference':
+                    buf.append(f"Zoom meeting: <{zoom_link}>\nStart your discussion here on Slack!")
                 case _:
                     buf.append(f"Webinar: <{zoom_link}>\nStart your discussion here on Slack!")
         return ''.join(buf).rstrip('\n')

@@ -18,7 +18,7 @@ import utils.zoom as zoomUtils
 from modules.zoom_creator import ZoomCreator
 
 EVENTS_CSV = 'sitedata/events.csv'
-HOST_USER = 'liwei.lin+ismir2026@nyu.edu'
+HOST_USER = 'linliwei3916+observer1@gmail.com'
 SLACK_CHANNEL = 'unconference'
 TOPIC = 'Unconference at ISMIR 2026'
 

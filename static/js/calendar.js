@@ -162,10 +162,17 @@ function make_cal(name) {
                 }).observe($(container)[0], { subtree: true, childList: true, attributes: true, attributeFilter: ['style'] });
             };
             const Calendar = tui.Calendar;
-            // tui.Calendar v1 weeks are always 7 days; show only the days with events.
-            const firstDay = moment(d3.min(events, e => e.start)).startOf('day').toDate();
+            const allFirstDay = moment(d3.min(events, e => e.start)).startOf('day').toDate();
             const lastDay = moment(d3.max(events, e => e.end)).subtract(1, 'ms').startOf('day').toDate();
-            const numDays = moment(lastDay).diff(moment(firstDay), 'days') + 1;
+            // "Hide past events": a day is past once the next day's first event is less than 1h away.
+            // The last event day never is, so this never hides all days.
+            const soon = moment(toWallClock(new Date())).add(1, 'hour').toDate();
+            const startedDays = [...new Set(events.filter(e => e.start < soon)
+                .map(e => moment(e.start).startOf('day').valueOf()))].sort((a, b) => a - b);
+            const pastCutoffDay = startedDays.length > 1 ? new Date(startedDays[startedDays.length - 1]) : null;
+            if (pastCutoffDay) $('#hidePastEventsBox').show();
+            // tui.Calendar v1 weeks are always 7 days; show only the days with events.
+            let firstDay, numDays;
             const weekDayRange = Calendar.prototype._getWeekDayRange;
             Calendar.prototype._getWeekDayRange = function () {
                 const [start] = weekDayRange.call(this, firstDay, firstDay.getDay(), false);
@@ -207,65 +214,76 @@ function make_cal(name) {
                 });
             };
 
-            addCalendars(d3.select('#calendar'), '#calendar', events, {
-                defaultView: 'week',
-                isReadOnly: true,
-                taskView: false,
-                scheduleView: ['time'],
-                usageStatistics: false,
-                week: {
-                    daynames: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-                    startDayOfWeek: firstDay.getDay(),
-                },
-                timezones,
-                theme: {
-                  'week.dayname.height': '42px',
-                  'week.timegridOneHour.height': '68px',
-                },
-                template: {
-                    timegridDisplayPrimaryTime: function (time) {
-                      var hour = time.hour < 10 ? `0${time.hour}` : time.hour;
-                      var min = time.minutes === 0 ? '00' : time.minutes;
-                      return hour + ':' + min;
-                    },
-                    time: timeTemplate,
-                    weekDayname: function (model) {
-                        const date = moment(model.renderDate, 'YYYY-MM-DD').format('MMM D');
-                        return '<span class="tui-full-calendar-dayname-name">' + date + ' (' + model.dayName + ')</span>';
-                    },
-                },
-            }, cal => {
-                cal.setDate(firstDay);
-            });
+            const fitAll = () => all_cals.forEach(([c, container]) => fitHeight(c, container));
+            const build = () => {
+                firstDay = pastCutoffDay && $('#hidePastEvents').prop('checked') ? pastCutoffDay : allFirstDay;
+                numDays = moment(lastDay).diff(moment(firstDay), 'days') + 1;
+                all_cals.forEach(([c]) => c.destroy());
+                all_cals.length = 0;
+                $('#calendar, #calendar_small').empty();
+                const shownEvents = events.filter(e => e.start >= firstDay);
 
-            const c_sm = d3.select('#calendar_small');
-            for (let i = 0; i < numDays; i++) {
-                const day = moment(firstDay).add(i, 'days').toDate();
-                const dayEvents = events.filter(e => moment(e.start).isSame(day, 'day'));
-                addCalendars(c_sm.append('div').attr('class', 'calendar-day'), '#cal__' + i, dayEvents, {
-                    defaultView: 'day',
-                    template: { time: timeTemplate },
+                addCalendars(d3.select('#calendar'), '#calendar', shownEvents, {
+                    defaultView: 'week',
                     isReadOnly: true,
                     taskView: false,
                     scheduleView: ['time'],
                     usageStatistics: false,
+                    week: {
+                        daynames: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                        startDayOfWeek: firstDay.getDay(),
+                    },
                     timezones,
+                    theme: {
+                      'week.dayname.height': '42px',
+                      'week.timegridOneHour.height': '68px',
+                    },
+                    template: {
+                        timegridDisplayPrimaryTime: function (time) {
+                          var hour = time.hour < 10 ? `0${time.hour}` : time.hour;
+                          var min = time.minutes === 0 ? '00' : time.minutes;
+                          return hour + ':' + min;
+                        },
+                        time: timeTemplate,
+                        weekDayname: function (model) {
+                            const date = moment(model.renderDate, 'YYYY-MM-DD').format('MMM D');
+                            return '<span class="tui-full-calendar-dayname-name">' + date + ' (' + model.dayName + ')</span>';
+                        },
+                    },
                 }, cal => {
-                    cal.setDate(day);
-                    cal.on('clickSchedule', e => {
-                        const s = e.schedule;
-                        if (isTabLocation(s.location)) {
-                            var location = s.location.split("|");
-                            $('.nav-pills .nav-item .nav-link').eq(location[1]).trigger('click');
-                            $(`#tab-${location[1]} #day .${location[location.length - 1]}`)[0].scrollIntoView();
-                            $('html')[0].scrollTop -= 150;
-                        }
-                    });
+                    cal.setDate(firstDay);
                 });
-            }
 
-            const fitAll = () => all_cals.forEach(([c, container]) => fitHeight(c, container));
-            fitAll();
+                const c_sm = d3.select('#calendar_small');
+                for (let i = 0; i < numDays; i++) {
+                    const day = moment(firstDay).add(i, 'days').toDate();
+                    const dayEvents = events.filter(e => moment(e.start).isSame(day, 'day'));
+                    addCalendars(c_sm.append('div').attr('class', 'calendar-day'), '#cal__' + i, dayEvents, {
+                        defaultView: 'day',
+                        template: { time: timeTemplate },
+                        isReadOnly: true,
+                        taskView: false,
+                        scheduleView: ['time'],
+                        usageStatistics: false,
+                        timezones,
+                    }, cal => {
+                        cal.setDate(day);
+                        cal.on('clickSchedule', e => {
+                            const s = e.schedule;
+                            if (isTabLocation(s.location)) {
+                                var location = s.location.split("|");
+                                $('.nav-pills .nav-item .nav-link').eq(location[1]).trigger('click');
+                                $(`#tab-${location[1]} #day .${location[location.length - 1]}`)[0].scrollIntoView();
+                                $('html')[0].scrollTop -= 150;
+                            }
+                        });
+                    });
+                }
+
+                fitAll();
+            };
+            build();
+            $('#hidePastEvents').on('change', build);
             $(window).on('resize', _.debounce(function () {
                 const pageScroll = window.scrollY;
                 fitAll();

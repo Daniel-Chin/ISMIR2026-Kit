@@ -48,6 +48,11 @@ def build_calendar(events, config):
             "category": "time",
             "calendarId": event["category"].replace(" ", "_"),
             "scrollKey": "\n".join(description),
-            "raw": {"endTimeTbd": end_time_tbd},
+            "raw": {"endTimeTbd": end_time_tbd, "sideLane": in_side_lane(event)},
         })
     return schedules
+
+
+def in_side_lane(event):
+    """Shown in the calendar's right-hand column: Majlis and the special online sessions."""
+    return event["category"] == "Majlis" or event["title"].startswith("Special Online Session")

@@ -16,7 +16,8 @@ function make_cal(name) {
     const eventTitle = schedule => {
         const className = schedule.raw && schedule.raw.endTimeTbd
             ? 'calendar-end-tbd' : '';
-        return `<span class="${className}">${schedule.title}</span>`;
+        const lane = schedule.raw && schedule.raw.sideLane ? ' side-lane' : '';
+        return `<span class="${className}${lane}">${schedule.title}</span>`;
     };
 
     // POSIX inverts the sign: Etc/GMT+1 is UTC-1.
@@ -103,14 +104,14 @@ function make_cal(name) {
                 return [[0, gapStart + pad], [gapEnd - pad, 24]];
             };
 
-            // In each day with SIDE_LANE events, they get a column of their own on the right, instead of
+            // In each day with side-lane events (raw.sideLane), they get a column of their own on the right, instead of
             // halving whatever they overlap. The rest are laid out again in what is left: side by side
             // only where they overlap one another (tui.Calendar counted the lane's events too).
-            const SIDE_LANE = 'Majlis', SIDE_LANE_WIDTH = 30;   // a calendarId (category); percent
+            const SIDE_LANE_WIDTH = 40;   // percent
             const layOutSideLane = container => {
                 $(container + ' .tui-full-calendar-time-date').each((_, day) => {
                     const blocks = [...day.querySelectorAll('.tui-full-calendar-time-date-schedule-block')];
-                    const inLane = b => b.querySelector(`[data-calendar-id="${SIDE_LANE}"]`);
+                    const inLane = b => b.querySelector('.side-lane');
                     if (!blocks.some(inLane)) return;
                     const rest = 100 - SIDE_LANE_WIDTH;
                     const place = (b, left, width) => { b.style.left = left + '%'; b.style.width = width + '%'; };

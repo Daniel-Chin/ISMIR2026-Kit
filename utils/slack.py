@@ -668,9 +668,10 @@ def truncateText(text: str, max_length: int) -> str:
         return text
     return text[:max_length - 3] + "..."
 
-def batch_set_channel_description_interactive(sitedata_dir: str):
+def batch_set_channel_description_interactive(sitedata_dir: str, apply_to: str | None = None):
     '''
     A CLI session to batch set the description (purpose) of each channel.  
+    `apply_to`: if given, only events whose title/category/channel contains it (case-insensitive).  
     '''
 
     EXCLUDE = []
@@ -720,6 +721,8 @@ def batch_set_channel_description_interactive(sitedata_dir: str):
             start_date = row['start_date']
             start_time = row['start_time']
             end_time = row['end_time']
+            if apply_to and apply_to.lower() not in f'{title}\n{category}\n{slack_channel}'.lower():
+                continue
             print('\nEvent:', title)
             if category.lower().strip() in EXCLUDE:
                 # print(f'Do you want to skip it, because {category = }?')

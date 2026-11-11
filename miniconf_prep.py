@@ -93,6 +93,10 @@ def parse_arguments():
         help="action to run (for example setup-zoom, setup-tutorial-channels, create-tutorial-channels, add-admins-to-tutorials, add-registrants-to-tutorials, setup-papers-create-channels, setup-papers-set-desc, setup-event-channels, create-event-channels, set-event-channel-desc)",
         required=True,
     )
+    parser.add_argument(
+        "--apply-to",
+        help="set-event-channel-desc only: case-insensitive keyword; only events whose title, category, or Slack channel contains it",
+    )
 
     args = parser.parse_args()
     return args
@@ -168,10 +172,10 @@ def createEventChannels(eventsCsvFile):
     eventsObj.createSlackChannels()
 
 
-def setEventChannelDesc(data_path):
+def setEventChannelDesc(data_path, apply_to=None):
     from utils.slack import batch_set_channel_description_interactive
 
-    batch_set_channel_description_interactive(data_path)
+    batch_set_channel_description_interactive(data_path, apply_to)
 
 def setupLbdChannels(lbdCsvFile):
     from modules.lbds import Lbds
@@ -303,7 +307,7 @@ if __name__ == "__main__":
         createEventChannels(os.path.join(data_path, "events.csv"))
     
     elif action == "set-event-channel-desc":
-        setEventChannelDesc(data_path)
+        setEventChannelDesc(data_path, args.apply_to)
 
     elif action == "setup-lbd-channels":
         setupLbdChannels(os.path.join(data_path, "lbds.csv"))

@@ -238,10 +238,9 @@ def main(site_data_path: str, mockup: bool = False):
 
 
 def _program_url(category, mockup):
-    """Page of the category's only event; "" in the mockup, which has none."""
+    """Page of the category's first event; "" in the mockup, which has none."""
     programs = [e for e in site_data.get("events", []) if e["category"] == category]
-    expected = (0, 1) if mockup else (1, )
-    assert len(programs) in expected, f"Expected {expected} {category} events, got {len(programs)}"
+    assert programs or mockup, f"Expected at least one {category} event"
     return event_link(programs[0]) if programs else ""
 
 

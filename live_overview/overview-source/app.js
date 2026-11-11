@@ -248,8 +248,7 @@ function dashboardStats(state) {
 const PROMPT_UPCOMING = 6;   // "Coming up next": this many events
 
 function promptLiveEvent(e, now) {
-  const end = Date.parse(e.endsAt);
-  const lines = [`### ${e.title} · ${e.category || e.type} · ${promptRange(e)} · ${e.endTimeTBD ? 'LIVE now' : `LIVE now, ends in ${promptDuration(end - now)}`}`];
+  const lines = [`### ${e.title} · ${e.category || e.type} · ${promptRange(e)} · ${promptWhen(e, now)}${promptRescheduled(e)}`];
   if (eventVenue(e)) lines.push(`Room (on-site): ${eventVenue(e)}`);
   const links = promptLinks([['Slack', e.links?.slack], ['Zoom', e.links?.zoom], ['Papers and abstracts', promptSessionFile(e)]]);
   if (links) lines.push(links);
@@ -273,7 +272,7 @@ function promptLiveEvent(e, now) {
 function promptUpcomingLine(e, now) {
   const room = eventVenue(e) ? ` · Room: ${eventVenue(e)}` : '';
   const links = promptLinks([['Slack', e.links?.slack], ['Papers', promptSessionFile(e)]]);
-  return `- ${promptRange(e)} ${e.title} (${e.category || e.type}) · starts in ${promptDuration(Date.parse(e.startsAt) - now)}${room}${links ? ` · ${links}` : ''}`;
+  return `- ${promptRange(e)} ${e.title} (${e.category || e.type}) · ${promptWhen(e, now)}${promptRescheduled(e)}${room}${links ? ` · ${links}` : ''}`;
 }
 
 function buildPromptContext(display) {

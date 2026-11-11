@@ -8,10 +8,14 @@ they can read plain text, so the programme lives here and they open only what a 
   papers.txt         every paper, one line each: ID, title, authors, topics, its session file
   session-N.txt      paper session N (oral N and poster N): every paper with its abstract
 
-Only public links are written: Slack channels, livestreams, miniconf pages and the miniconf's
-Zoom redirect page (zoom.html), never a raw Zoom link. Times are the conference's local time.
+Only links that are public all the time are written: Slack channels and miniconf pages. Zoom
+and livestream links are not: the backend publishes them only while a session is live (and never
+for a Majlis, src/model.js publicState), so they reach the AI through the copied prompt instead.
+Times are the conference's local time, with the on-the-day moves of schedule-overrides.json; the
+organisers' pacing on the day (admin.html) is live data, in the prompt only.
 """
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 DIR = 'llm'
 
@@ -54,13 +58,6 @@ def _mode(paper):
     return {'online': 'virtual', 'mixed': 'in-person + virtual'}.get(mode, 'in-person' if mode else 'mode TBA')
 
 
-def _zoom_page(conf, event):
-    if not (event.get('links') or {}).get('zoom'):
-        return ''
-    uid = str(event.get('sourceEventId') or str(event.get('id', '')).removeprefix('event-'))
-    return f"{conf['miniconf_url']}/zoom.html?event_uid={uid}"
-
-
 def _room(event):
     room = _text(event.get('venue'))
     return f' · Room: {room}' if room else ''
@@ -68,8 +65,7 @@ def _room(event):
 
 def _event_links(conf, event):
     links = event.get('links') or {}
-    return _links([('Slack', links.get('slack')), ('Zoom', _zoom_page(conf, event)),
-                   ('Livestream', links.get('youtube')), ('Info', event.get('detailUrl'))])
+    return _links([('Slack', links.get('slack')), ('Info', event.get('detailUrl'))])
 
 
 def _paper_sessions(events):
@@ -102,14 +98,14 @@ def build(schedule, conf):
     out = [f"# {conf['name']} reference for AI assistants",
            f"{conf['name']} is the conference of the International Society for Music Information Retrieval (ISMIR), {conf['date']}.",
            f'All times in these files are conference local time: {tz} ({offset}).',
-           'Live status (what is on right now, Zoom headcounts) is not in these files; it comes from the prompt copied from the Live Overview page.',
+           f"Built {datetime.now(timezone.utc).astimezone(ZoneInfo(tz)):%a %b %d %H:%M} conference time. Live status (what is on now, Zoom headcounts, Zoom links, sessions moved on the day) is not in these files: it is in the prompt copied from the Live Overview page, which wins where the two disagree.",
            '',
            '## How to read this',
            '- Oral Session N and Poster Session N present the same papers: short talks first, then the poster session where you talk to the authors (on-site posters, plus one Zoom room per poster for online participants).',
            f'- All papers, one line each (title, authors, topics, when): {base}papers.txt',
            f"- Paper IDs like P3-07 mean paper session 3, paper 7. Abstracts of session N, with each paper's Slack channel and page: {base}session-N.txt",
            '- Every session and every paper has its own Slack channel in the conference Slack workspace, for questions and discussion with the authors, also after the session.',
-           '- "Zoom" links go to the program site, which sends signed-in attendees to the meeting.',
+           '- Zoom links are given in the copied prompt while a session is live. Majlis sessions share theirs in their Slack channel.',
            '- "Room" is where an event takes place on-site (NYU Abu Dhabi campus); events without one have no on-site room listed.',
            '',
            '## Links',

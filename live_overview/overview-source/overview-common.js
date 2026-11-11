@@ -209,6 +209,27 @@ function promptRange(e) {
   return `${promptDateTime(start)}–${e.endTimeTBD ? 'end TBD' : promptHM(end)}`;
 }
 
+/** Where a session stands at `now`, with the pacing feature's held (running over) and waiting cases. */
+function promptWhen(e, now) {
+  const start = Date.parse(e.startsAt), end = Date.parse(e.endsAt);
+  if (e.status === 'live') {
+    if (e.endTimeTBD) return 'LIVE now';
+    return now >= end ? `LIVE now, running over (was due to end ${promptHM(end)})` : `LIVE now, ends in ${promptDuration(end - now)}`;
+  }
+  if (e.status === 'upcoming') {
+    return now >= start ? 'starting soon (waits for the session before it to end)' : `starts in ${promptDuration(start - now)}`;
+  }
+  return `ended ${promptDuration(now - end)} ago`;
+}
+
+/** " · rescheduled, was 15:30–16:30" for a session the organisers moved on the day (pacing feature). */
+function promptRescheduled(e) {
+  if (!e?.plannedStartsAt) return '';
+  const was = [Date.parse(e.plannedStartsAt), Date.parse(e.plannedEndsAt)];
+  if (was[0] === Date.parse(e.startsAt) && was[1] === Date.parse(e.endsAt)) return '';
+  return ` · rescheduled, was ${promptHM(was[0])}–${promptHM(was[1])}`;
+}
+
 function promptZoomCount(h) {
   if (h?.available === false && !h?.partial) return 'unknown';
   return `${h?.partial ? '≥' : ''}${Number(h?.zoom || 0)}`;

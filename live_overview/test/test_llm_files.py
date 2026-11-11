@@ -45,11 +45,10 @@ class LlmFilesTest(unittest.TestCase):
 
     def test_no_secret_links_or_placeholders(self):
         everything = '\n'.join(self.files.values())
-        self.assertNotIn('zoom.us', everything)
-        self.assertNotIn('Confidential', everything)
-        self.assertNotIn('Fun fact: NA', everything)
-        self.assertIn('Zoom: https://program.example/zoom.html?event_uid=1', everything)
-        self.assertIn('Livestream: https://youtube.example/live', everything)
+        # Zoom and livestream links are public only while a session is live (backend publicState),
+        # so the files never carry one, not even the zoom.html redirect.
+        for leak in ('zoom.us', 'zoom.html', 'Zoom:', 'youtube.example', 'Livestream:', 'Confidential', 'Fun fact: NA'):
+            self.assertNotIn(leak, everything)
 
     def test_content(self):
         index, papers, session = self.files['index.txt'], self.files['papers.txt'], self.files['session-1.txt']

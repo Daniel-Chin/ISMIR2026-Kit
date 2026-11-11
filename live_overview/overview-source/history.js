@@ -159,7 +159,7 @@ function buildHistoryPromptContext(display) {
   for (const e of done) {
     const peak = e.zoomKind || Number(e.metrics?.peakZoom || 0) > 0 ? ` · peak ${promptPeak(e.metrics)} online on Zoom` : '';
     const links = promptLinks([['Papers', promptSessionFile(e)]]);   // Slack channels: index.txt
-    out.push(`- ${promptRange(e)} ${e.title} (${e.category || e.type})${peak}${links ? ` · ${links}` : ''}`);
+    out.push(`- ${promptRange(e)} ${e.title} (${e.category || e.type})${promptRescheduled(e)}${peak}${links ? ` · ${links}` : ''}`);
   }
 
   const posters = done.filter(e => e.type === 'poster' && e.papers?.length);
@@ -169,7 +169,7 @@ function buildHistoryPromptContext(display) {
   }
 
   out.push('', `## Still to come (the next ${HISTORY_PROMPT_LEFT}; the full schedule is in index.txt)`);
-  out.push(left.length ? left.slice(0, HISTORY_PROMPT_LEFT).map(e => `- ${promptRange(e)} ${e.title} (${e.category || e.type})${eventVenue(e) ? ` · Room: ${eventVenue(e)}` : ''}${e.status === 'live' ? ' · LIVE now' : ''}`).join('\n') : 'Nothing; the conference is over.');
+  out.push(left.length ? left.slice(0, HISTORY_PROMPT_LEFT).map(e => `- ${promptRange(e)} ${e.title} (${e.category || e.type})${eventVenue(e) ? ` · Room: ${eventVenue(e)}` : ''} · ${promptWhen(e, now)}${promptRescheduled(e)}`).join('\n') : 'Nothing; the conference is over.');
   return out.join('\n');
 }
 

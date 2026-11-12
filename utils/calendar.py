@@ -61,6 +61,11 @@ def build_calendar(events, config):
 SPECIAL_ONLINE_HIDE_AFTER = "2026-11-12T23:59:00+04:00"
 
 
+def is_hidden_now(event):
+    """Past its hide-after cutoff; the ICS build drops it (the website calendar checks client-side)."""
+    return is_special_online(event) and datetime.now(pytz.UTC) > datetime.fromisoformat(SPECIAL_ONLINE_HIDE_AFTER)
+
+
 def is_special_online(event):
     return event["title"].startswith("Special Online Session")
 

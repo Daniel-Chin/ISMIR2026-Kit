@@ -12,6 +12,7 @@ from utils.shared import (
     load_site_config,
 )
 
+from utils.calendar import is_hidden_now
 from utils.zoom_redirect import build_zoom_redirect_url
 
 
@@ -91,7 +92,7 @@ def calendar_csv2ics(in_csv="sitedata/events.csv", out_ics=None):
 
     for index, event in orig_csv.iterrows():
         e_cal = Event()
-        if pd.isna(event["title"]):
+        if pd.isna(event["title"]) or is_hidden_now(event):
             continue
         e_date = [int(x) for x in event["start_date"].split("-")]
         e_start_time = [int(x) for x in event["start_time"].split(":")]

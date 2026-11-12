@@ -184,14 +184,19 @@ class Kit:
         """The plan the Live Database asks for now, and what could not be planned."""
         return lbdplan.build(self.reference, self.live['lbds'], self.groups, self.video_length, self.start_ms, self.slot_s)
 
+    def stale_start(self, saved: dict) -> bool:
+        """A start set in Manage far from the LBD slot's (more than 12 hours): left from a test, not the day's."""
+        return bool(self.start_ms) and abs(saved.get('start_ms', self.start_ms) - self.start_ms) > 12 * 3600 * 1000
+
     def edited_unlike(self, plan: dict) -> dict:
-        """screen -> its edits in Manage, where they differ from what that plan has for it."""
+        """screen -> its edits in Manage, where they differ from what that plan has for it, or start far from
+        the LBD slot."""
         found = {}
         for screen in [*plan.get('screens', {}), *POSTER_SCREENS]:
             saved = read_json(STATE / f'screen_{screen}.json', None)
             body = plan['screens'].get(screen) or plan.get('posters', {}).get(screen)
-            if saved and body and (saved['plays'], saved['poster_s'], saved['timetable_s']) != (
-                    body['plays'], body['poster_s'], body.get('timetable_s', 0)):
+            if saved and body and ((saved['plays'], saved['poster_s'], saved['timetable_s']) != (
+                    body['plays'], body['poster_s'], body.get('timetable_s', 0)) or self.stale_start(saved)):
                 found[screen] = saved
         return found
 
@@ -202,13 +207,17 @@ class Kit:
         for screen, saved in self.edited_unlike(plan).items():
             label = f'Poster screen {screen}' if screen in POSTER_SCREENS else f'Screen {screen}'
             body = plan['screens'].get(screen) or plan['posters'][screen]
-            changes.append(f'{label}: edited in Manage ({len(saved["plays"])} plays), the plan has {len(body["plays"])}')
+            if saved['plays'] != body['plays'] or saved['poster_s'] != body['poster_s']                     or saved['timetable_s'] != body.get('timetable_s', 0):
+                changes.append(f'{label}: edited in Manage ({len(saved["plays"])} plays), the plan has {len(body["plays"])}')
+            if self.stale_start(saved):
+                at = datetime.fromtimestamp(saved['start_ms'] / 1000, datetime.fromisoformat(self.live['lbd_start']).tzinfo).strftime('%d %b %H:%M')
+                changes.append(f'{label}: starts {at}, set in Manage; the LBD slot starts {self.live["lbd_start"][:16]}')
         return {'changes': changes, 'problems': problems,
                 'planned_ms': self.plan.get('planned_ms', 0), 'read_ms': self.live['read_ms'], 'timezone': self.timezone}
 
     def apply_plan(self) -> dict:
         """Take the plan the Live Database asks for. A screen edited in Manage unlike the plan loses its edits
-        (its start time stays), so every screen shows the plan."""
+        (its start time stays, unless far from the LBD slot's), so every screen shows the plan."""
         plan, problems = self.new_plan()
         edited = self.edited_unlike(plan)
         plan['planned_ms'] = int(datetime.now().timestamp() * 1000)
@@ -217,7 +226,8 @@ class Kit:
         self.materials.screen_of = {uid: screen for screen, body in plan['screens'].items() for uid in body['plays']}
         for screen, saved in edited.items():
             write_json(STATE / f'screen_{screen}.json',
-                       {**self.default_schedule(screen), 'start_ms': saved['start_ms'], 'rev': saved['rev'] + 1})
+                       {**self.default_schedule(screen), 'start_ms': self.start_ms if self.stale_start(saved) else saved['start_ms'],
+                        'rev': saved.get('rev', 0) + 1})
         return {**self.plan_status(), 'reset': sorted(edited), 'problems': problems}
 
     def schedule(self, screen: str) -> dict:

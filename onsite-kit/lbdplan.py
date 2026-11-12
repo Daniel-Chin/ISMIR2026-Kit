@@ -19,9 +19,9 @@ MIN_COVER_S = 10  # a screen is full when its covers would be shorter than this
 
 
 def can_present(lbd: dict) -> bool:
-    """Shown on the screens: presented online, and cleared to present (ok_to_present Yes; not In progress, TBC,
-    No or empty)."""
-    return lbd.get('mode', '').lower() == 'virtual' and lbd.get('ok', 'Yes').strip().lower() == 'yes'
+    """Shown on the video screens: presented online, and not refused (ok_to_present anything but No: Yes,
+    In progress, TBC or empty)."""
+    return lbd.get('mode', '').lower() == 'virtual' and lbd.get('ok', 'Yes').strip().lower() != 'no'
 
 
 def on_video(lbd: dict) -> bool:

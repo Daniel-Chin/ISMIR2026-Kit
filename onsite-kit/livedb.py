@@ -99,7 +99,7 @@ def lbd_rows(rows: list) -> list:
         'authors': '; '.join(name for name, _ in people(r.get('authors_and_affil_from_pdf', ''))),
         'people': people(r.get('authors_and_affil_from_pdf', '')),
         'mode': r.get('presentation_mode', ''),
-        'ok': r.get('ok_to_present', 'Yes'),  # on the screens only when Yes; Yes for all if there is no such column
+        'ok': r.get('ok_to_present', 'Yes'),  # No keeps it off the video screens
         'group': r.get('group_id', ''),
         'slack': r.get('slack_channel', ''),
         'file_ids': sorted({source[0] for key in ('raw_pdf_path', 'raw_poster_pdf', 'raw_video_path', 'raw_thumbnail_path')

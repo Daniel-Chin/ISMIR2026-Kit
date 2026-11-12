@@ -4,6 +4,7 @@ import http.client
 import json
 import sys
 import threading
+from datetime import datetime, timedelta, timezone
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -352,6 +353,9 @@ def test_the_plan_follows_the_live_database():
     assert any(line.startswith('Screen 1: adds a3') for line in lbdplan.changes(reference, plan))
     _, problems = lbdplan.build(reference, lbds + [lbd('c1', '9')], {}, lambda uid: lengths.get(uid, 0) or None, 0, 7200)
     assert problems == ['c1: group 9 has no video screen']
+    # Only No keeps a video off: In progress, TBC and empty play.
+    assert [lbdplan.can_present({'mode': 'Virtual', 'ok': ok}) for ok in ('Yes', 'In progress', 'TBC', '', ' no ')] \
+        == [True, True, True, True, False]
 
 
 def test_mp4_length_from_its_header(tmp_path):
@@ -366,18 +370,26 @@ def test_updating_the_screens_from_the_live_database(server, tmp_path, monkeypat
     kit.live['lbds'] = [{'uid': '569', 'group': '6', 'mode': 'Virtual'}, {'uid': '600', 'group': '6', 'mode': 'Virtual'}]
     monkeypatch.setattr(kit, 'read_live', lambda: None)
     monkeypatch.setattr(kit, 'video_length', lambda uid: 100)
-    request(server, 'POST', '/api/lbd/6', {'rev': 0, 'plays': ['569'], 'poster_s': 0, 'timetable_s': 5, 'start_ms': 7})
+    start = kit.start_ms + 7  # put off a little in Manage
+    request(server, 'POST', '/api/lbd/6', {'rev': 0, 'plays': ['569'], 'poster_s': 0, 'timetable_s': 5, 'start_ms': start})
     status = json.loads(request(server, 'GET', '/api/lbd-plan')[1])
     assert any(line.startswith('Screen 6: adds 600') for line in status['changes'])
     response, data = request(server, 'POST', '/api/lbd-plan', {}, {'Content-Type': 'application/json'})
     assert response.status == 200 and '6' in json.loads(data)['reset']
     screen = json.loads(request(server, 'GET', '/api/lbd/6')[1])
-    assert screen['plays'] == ['569', '600', '569', '600'] and screen['start_ms'] == 7  # the edits gone, the start kept
+    assert screen['plays'] == ['569', '600', '569', '600'] and screen['start_ms'] == start  # the edits gone, the start kept
     assert json.loads((tmp_path / '.state' / 'lbd_plan.json').read_text(encoding='utf-8'))['screens']['1']['plays'] == []
     assert json.loads(request(server, 'GET', '/api/lbd-plan')[1])['changes'] == []
     # Edits in Manage alone count too: the screens show the plan once updated.
-    edit = {'rev': screen['rev'], 'plays': ['569'], 'poster_s': 0, 'timetable_s': 5, 'start_ms': 7}
+    edit = {'rev': screen['rev'], 'plays': ['569'], 'poster_s': 0, 'timetable_s': 5, 'start_ms': start}
     assert request(server, 'POST', '/api/lbd/6', edit)[0].status == 200
     assert json.loads(request(server, 'GET', '/api/lbd-plan')[1])['changes'] == ['Screen 6: edited in Manage (1 plays), the plan has 4']
     request(server, 'POST', '/api/lbd-plan', {}, {'Content-Type': 'application/json'})
     assert json.loads(request(server, 'GET', '/api/lbd/6')[1])['plays'] == ['569', '600', '569', '600']
+    # A start left from a test, far from the LBD slot's, goes back to the slot's.
+    monkeypatch.setattr(kit, 'start_ms', start + 2 * 86_400_000)
+    monkeypatch.setitem(kit.live, 'lbd_start', '2030-01-01T15:00:00+04:00')
+    assert json.loads(request(server, 'GET', '/api/lbd-plan')[1])['changes'] == [
+        f'Screen 6: starts {datetime.fromtimestamp(start / 1000, timezone(timedelta(hours=4))):%d %b %H:%M}, set in Manage; the LBD slot starts 2030-01-01T15:00']
+    request(server, 'POST', '/api/lbd-plan', {}, {'Content-Type': 'application/json'})
+    assert json.loads(request(server, 'GET', '/api/lbd/6')[1])['start_ms'] == start + 2 * 86_400_000

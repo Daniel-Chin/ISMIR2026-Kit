@@ -112,18 +112,18 @@ As planned from the Live Database on 12 November:
 
 | Screen | Topic | Videos | Plays | Cover | Total |
 |---|---|---:|---:|---:|---:|
-| 1 | Music Generation | 14 | 28 | 20 s | 113.3 min |
+| 1 | Music Generation | 15 | 30 | 15 s | 119.8 min |
 | 2 | Performance Analysis | 16 | 30 | 13 s | 119.8 min |
-| 3 | Symbolic / Notation | 12 | 24 | 20 s | 105.0 min |
+| 3 | Symbolic / Notation | 13 | 26 | 20 s | 115.7 min |
 | 4 | Representations / Retrieval | 13 | 26 | 20 s | 114.4 min |
-| 5 | Audio Synthesis / Production (+689 once) | 11 | 21 | 20 s | 98.3 min |
-| 6 | Human-Centered MIR (+626 once) | 11 | 21 | 20 s | 94.0 min |
-| 7 | MIREX | 9 | 27 | 20 s | 103.8 min |
+| 5 | Audio Synthesis / Production (+689 once) | 13 | 25 | 20 s | 119.4 min |
+| 6 | Human-Centered MIR (+626 once) | 13 | 25 | 20 s | 114.0 min |
+| 7 | MIREX | 10 | 30 | 20 s | 119.1 min |
 
 ### LBD plan
 
 The screens show the LBDs presented online and cleared to present: `presentation_mode` Virtual and
-`ok_to_present` Yes in the LBDs tab (not In progress, TBC, No or empty). In-person ones present at their poster. The MIREX overview, m1, is the
+`ok_to_present` not No in the LBDs tab (Yes, In progress, TBC or empty all play). In-person ones present at their poster. The MIREX overview, m1, is the
 exception: it plays on the video screen whatever the sheet says, and has no poster. The poster screens show
 every other LBD's poster, in person or not cleared to present too. Each LBD plays on the
 screen of its group (`group_id`), twice, MIREX three times: once through in uid order, then again. Where a
@@ -135,7 +135,7 @@ Each MacBook works this plan out from the Live Database (`lbdplan.py`), with the
 state, so every MacBook comes to the same plan without copying anything. When a reading of the Live Database
 changes it, or a screen was edited in Manage unlike it, the LBD screens and LBD posters pages say how, with
 **Update the screens** (**Check the Live Database** reads it again first): do that on every MacBook. A screen
-playing at the time jumps to the new plan; a screen edited in Manage loses its edits, but keeps its start time. The plan in use is kept in `.state/lbd_plan.json`.
+playing at the time jumps to the new plan; a screen edited in Manage loses its edits, but keeps its start time, unless that is more than 12 hours from the LBD slot's (left from a test): then it starts with the slot. Each play page redraws its timetable when the plan changes. The plan in use is kept in `.state/lbd_plan.json`.
 
 `lbd_schedule.json` in the repo is the reference: the plan a new MacBook starts with, the screens' names, the
 YouTube lengths of videos not downloaded, and what counts as new to a screen. `python3 onsite-kit/plan_lbd.py`

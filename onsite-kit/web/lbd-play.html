@@ -201,7 +201,9 @@
     // here as there was no time for it on its own screen, is listed with the play-backs, by its code only.
     let drawnTimetable = '';
     function drawTimetable() {
-      const key = [plan.rev, plan.start_ms, timeline.items.length, innerHeight, innerWidth].join();
+      // Every play, its time and title: a new plan (Update the screens) can change them without a new revision.
+      const key = [plan.start_ms, plan.theme, innerHeight, innerWidth,
+        ...timeline.items.map((item) => `${item.uid}@${item.start}:${paperOf(item).title}`)].join();
       if (drawnTimetable === key) return;
       drawnTimetable = key;
       $('tt-title').textContent = plan.theme;

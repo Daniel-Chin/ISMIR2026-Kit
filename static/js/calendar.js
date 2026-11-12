@@ -57,6 +57,8 @@ function make_cal(name) {
             const toWallClock = t => moment(moment(t).tz(timezoneName).format('YYYY-MM-DDTHH:mm:ss')).toDate();
             // Split events at midnight so each piece sits in one day column.
             const events = [];
+            const now = Date.now();
+            utcEvents = utcEvents.filter(e => !(e.raw && e.raw.hideAfter && now > Date.parse(e.raw.hideAfter)));
             utcEvents.forEach(e => {
                 const start = toWallClock(e.start);
                 const end = toWallClock(e.end);

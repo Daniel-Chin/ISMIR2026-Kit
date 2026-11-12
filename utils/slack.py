@@ -711,45 +711,57 @@ def batch_set_channel_description_interactive(sitedata_dir: str, apply_to: str |
     sitedata_path = script_dir.parent / sitedata_dir
     conference_timezone = load_conference_timezone_name(str(sitedata_path))
     events_csv_path = sitedata_path / "events.csv"
+    # Rows sharing a Slack channel (e.g. the special online sessions) get one combined description.
+    rows_by_channel: dict[str, list[dict]] = {}
     with open(events_csv_path, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            title = row['title']
-            uid_ = row['uid']
-            category = row['category']
-            slack_channel = row['slack_channel']
-            start_date = row['start_date']
-            start_time = row['start_time']
-            end_time = row['end_time']
-            if apply_to and apply_to.lower() not in f'{title}\n{category}\n{slack_channel}'.lower():
+        for row in csv.DictReader(f):
+            if apply_to and apply_to.lower() not in f"{row['title']}\n{row['category']}\n{row['slack_channel']}".lower():
                 continue
-            print('\nEvent:', title)
-            if category.lower().strip() in EXCLUDE:
-                # print(f'Do you want to skip it, because {category = }?')
-                # while True:
-                #     input_ = input('y/n? ').strip().lower()
-                #     if input_ in [*'yn']:
-                #         break
-                # if input_ == 'y':
+            if row['category'].lower().strip() in EXCLUDE:
                 continue
-            webinar_link = None if row['live_url'].strip() == 'NA' else build_zoom_redirect_url(
-                load_site_config(sitedata_dir)['miniconf_url'], 
-                uid_,
-                load_zoom_redirect_access_token(),
-            )
+            rows_by_channel.setdefault(row['slack_channel'], []).append(row)
+
+    for slack_channel, rows in rows_by_channel.items():
+            title = rows[0]['title']
+            print('\nEvent:', ' + '.join(row['title'] for row in rows))
+            def webinar_link(row):
+                return None if row['live_url'].strip() == 'NA' else build_zoom_redirect_url(
+                    load_site_config(sitedata_dir)['miniconf_url'],
+                    row['uid'],
+                    load_zoom_redirect_access_token(),
+                )
+            windows = [format_session_window(
+                row['start_date'], row['start_time'], row['end_time'], conference_timezone,
+            ) for row in rows]
+            full_message = None
+            if len(rows) == 1:
+                new_description = render(rows[0]['category'], title, webinar_link(rows[0]), windows[0])
+            else:
+                # Slack caps the purpose at 250 chars: one schedule line, the first row's Zoom link.
+                # "Thu, Nov 12, 15:30-16:30 (GMT+4, Dubai)" x2 -> "Thu, Nov 12, 15:30-16:30 & 18:00-19:00 (GMT+4, Dubai)"
+                day = ', '.join(windows[0].split(', ')[:2])
+                tz_suffix = windows[0][windows[0].index(' ('):]
+                slots = [w.removeprefix(day + ', ').removesuffix(tz_suffix) for w in windows]
+                schedule = f"{day}, {' & '.join(slots)}{tz_suffix}"
+                link = webinar_link(rows[0])
+                new_description = f"_\nSchedule: {schedule}\n" + (
+                    f"Online? Webinar: <{link}>\n" if link else ''
+                ) + "Discuss here on Slack!"
+                full_message = '\n\n'.join(
+                    f"*{row['title']}*\n" + render(row['category'], row['title'], webinar_link(row), w).removeprefix('_\n')
+                    for row, w in zip(rows, windows)
+                )
+                if len(new_description) > 250:
+                    print(f'Description is {len(new_description)} chars; Slack allows 250. Skipping...')
+                    continue
             channel_id = getChannelID(slack_channel)
             if channel_id is None:
                 print(f'Channel {slack_channel} does not exist in the workspace. Skipping...')
-                # input('Press Enter...')
                 continue
             channel_info = client_bot.conversations_info(channel=channel_id)
             channel = channel_info.get('channel', {})
             current_description = channel.get('purpose', {}).get('value', '').replace('&amp;', '&')
             current_topic = channel.get('topic', {}).get('value', '')
-            new_description = render(category, title, webinar_link, format_session_window(
-                start_date, start_time, end_time,
-                conference_timezone,
-            ))
             if new_description == current_description:
                 print('No change detected, skipping.')
                 # input('Press Enter to continue...')
@@ -767,5 +779,8 @@ def batch_set_channel_description_interactive(sitedata_dir: str, apply_to: str |
             #         break
             # if input_ == 'a':
             updateTopicandPurpose(slack_channel, current_topic or title, new_description)
+            if full_message:
+                # The short purpose can't hold every session's details, so post them once per purpose change.
+                client_bot.chat_postMessage(channel=channel_id, text=full_message)
             # else:
             #     print('Skipped.')

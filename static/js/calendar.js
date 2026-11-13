@@ -167,11 +167,14 @@ function make_cal(name) {
             const allFirstDay = moment(d3.min(events, e => e.start)).startOf('day').toDate();
             const lastDay = moment(d3.max(events, e => e.end)).subtract(1, 'ms').startOf('day').toDate();
             // "Hide past events": a day is past once the next day's first event is less than 1h away.
-            // The last event day never is, so this never hides all days.
-            const soon = moment(toWallClock(new Date())).add(1, 'hour').toDate();
+            // The last event day never is, so this never hides all days. Off once the conference is over.
+            const wallNow = toWallClock(new Date());
+            const soon = moment(wallNow).add(1, 'hour').toDate();
+            const isOver = wallNow >= d3.max(events, e => e.end);
             const startedDays = [...new Set(events.filter(e => e.start < soon)
                 .map(e => moment(e.start).startOf('day').valueOf()))].sort((a, b) => a - b);
-            const pastCutoffDay = startedDays.length > 1 ? new Date(startedDays[startedDays.length - 1]) : null;
+            const pastCutoffDay = !isOver && startedDays.length > 1
+                ? new Date(startedDays[startedDays.length - 1]) : null;
             if (pastCutoffDay) $('#hidePastEventsBox').show();
             // tui.Calendar v1 weeks are always 7 days; show only the days with events.
             let firstDay, numDays;
